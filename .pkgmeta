@@ -1,0 +1,20 @@
+# TalentKeeper - BigWigsMods packager config.
+# Used by .github/workflows/release.yml and by CurseForge's own packager.
+# Release process: see Dev/RELEASING.md.
+
+package-as: TalentKeeper
+
+manual-changelog:
+  filename: CHANGELOG.md
+  markup-type: markdown
+
+# Stripped from the packaged zip. Keep comments on their own lines: an
+# inline `# ...` after an entry silently breaks that entry.
+ignore:
+  - README.md
+  - Dev
+  - .assets
+  - .github
+  - .gitignore
+  - .gitattributes
+  - .pkgmeta
