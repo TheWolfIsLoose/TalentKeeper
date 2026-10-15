@@ -20,6 +20,24 @@ heading, so pushes publish nothing.
 Next: answer the **Open** items below, then build **Phase 0 (spikes)** on
 `dev`. No player-facing code before the spikes report back.
 
+**Kickoff checklist for the first code session** (parked 2026-10-15, 14:17 ET):
+1. Attach the repo with push access (add_repo `TheWolfIsLoose/TalentKeeper`),
+   clone, work on `dev`.
+2. Ask the player the four **Open** questions below (defaults are fine to
+   keep) and for the CurseForge project ID / slug if still missing.
+3. Read the reference: TLE's apply code (`TalentLoadoutsEx\modules\import.lua`,
+   resets the tree then `C_Traits.PurchaseRank` / `SetSelection` /
+   `CommitConfig`) and its saved builds
+   (`WTF\Account\SAVAGEFEARLESS\SavedVariables\TalentLoadoutsEx.lua`:
+   per class → spec → list of `{name, text, icon, isInGroup, pvp1..}` with
+   group header rows `{name, isExpanded}`), both in the player's `_retail_`
+   folder. Blizzard's import/export code: Gethe/wow-ui-source `live`
+   (`Blizzard_PlayerSpells`, `ClassTalentImportExportMixin`).
+4. Build S1 first (decode + compare over the TLE builds) as a dev-only
+   `/tk spike` that prints duplicates and near matches; then S2–S4.
+   Give the player a grouped in-game test list per round (suite habit).
+5. Write each spike's result into Phase 0 below, then plan v0.1.
+
 Pending on the player's side: CurseForge project ID and slug (TOC
 `## X-Curse-Project-ID`, README link, which assumes `talentkeeper`); point
 CurseForge's GitHub webhook at this repo, as for SC / PUG / Tones.
