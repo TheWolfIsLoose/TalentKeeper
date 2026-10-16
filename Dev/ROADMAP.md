@@ -247,7 +247,19 @@ Each answers a question before we design around it. Throwaway code in
   Location = map ID + subzone name at `ENCOUNTER_START`, learned from
   your own pulls; x,y is expected to be unavailable inside instances (the
   spike now logs it to confirm).
-  **No per-raid data ships** (Default): zone, boss list (journal),
+  **Content awareness is a pillar, so both (Default, 2026-10-16):**
+  - *Telegraph learning, always.* Every offer says why: "Next: Boss X
+    (after your kills)" vs "Next: Boss X (you're where it's pulled)". The
+    menu shows the raid's state: "Learning this raid: 3 of 8 boss spots
+    known". First visit says so plainly: "TalentKeeper learns where each
+    boss is pulled as you raid." Learning is the fallback for any raid with
+    no shipped data and fixes shipped data that's wrong.
+  - *Pre-load what we can.* Ship a small seed file of boss pull spots (map
+    ID + subzone per encounter ID) for current raids, captured from our own
+    live runs with a dev-only export (`/tk dev spots`). New raid: seed from
+    live week 1 in a quick follow-up release; PTR runs feed it too when they
+    happen (spike / export are passive), but nothing depends on PTR.
+  **Everything else is read live** (Default): zone, boss list (journal),
   lockout kills and encounters are all read from the game at runtime, so a
   new raid works on patch day. Only boss-pull positions are learned, per
   player, from their own pulls; until then the guess uses lockout + journal
