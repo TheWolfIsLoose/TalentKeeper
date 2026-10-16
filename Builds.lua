@@ -179,7 +179,8 @@ end
 local lastApply -- { b, failed } for the build being applied, so a refused commit isn't reported as outdated
 
 local function verify(b)
-    if lastApply and lastApply.b == b and lastApply.failed then return end
+    -- skip when the change was refused, or another build was applied since (it's checked instead)
+    if not lastApply or lastApply.b ~= b or lastApply.failed then return end
     local d = TK.compare.diff(b.text, currentString())
     if not d then return TK.log("check '%s': couldn't read talents", b.name) end
     local names = TK.compare.describe(d)

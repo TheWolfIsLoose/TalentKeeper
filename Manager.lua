@@ -361,7 +361,7 @@ end
 
 function M.open()
     if not frame then makeFrame() end
-    state.spec = state.spec or B.specID()
+    if not frame:IsShown() then state.spec, state.selected, state.compareFrom = B.specID(), nil, nil end
     frame:Show()
     M.refresh()
 end

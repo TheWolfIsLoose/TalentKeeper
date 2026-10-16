@@ -60,9 +60,9 @@ TK.on("ADDON_LOADED", function(name)
     db.log = db.log or {}
     TK.db = db
     -- 2c48aa6 marked builds Outdated for talents a patch made free; clear those marks once.
-    if not db.freeNodeFix then
+    if db.freeNodeFix ~= 2 then -- 2: also marks left by checking a build after another was applied
         for _, list in pairs(db.builds) do for _, b in ipairs(list) do b.outdated = nil end end
-        db.freeNodeFix = true
+        db.freeNodeFix = 2
     end
     local version = C_AddOns.GetAddOnMetadata(addonName, "Version")
     if TK.build then version = "dev " .. TK.build elseif version:find("@") then version = "dev" else version = "v" .. version end
