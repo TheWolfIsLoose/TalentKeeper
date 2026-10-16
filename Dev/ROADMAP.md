@@ -282,6 +282,17 @@ Each answers a question before we design around it. Throwaway code in
   - Self-correcting: a hand spot whose offer is declined, or followed by a
     different boss's pull, 3 times in a row is retired with a notice.
     "Reset to learned" is always one click in the management window.
+  **Boss sighting as a guided mark (Default, 2026-10-16):** a level -1
+  unit (skull) moused over or targeted out of combat = "you're at a boss".
+  Identity stays secret, so TalentKeeper pairs it with its next-boss guess:
+  "Looks like you're at a boss. Prepare for Boss X here?" (other living
+  bosses one click away). Confirming makes the hand-marked spot, under the
+  same guardrails. Hand marks then also require a skull seen in that
+  subzone this visit, which ties every spot to a real boss.
+  `ENCOUNTER_START` still confirms which boss it was and corrects the spot.
+  To verify: -1 seen once (single-boss raid). The next heroic run logs
+  every unit's level (passive), to check that every boss is -1 and how
+  often trash or minibosses are too.
   **Across specs (Default, 2026-10-16):** a boss can be tagged with builds
   from any of the class's specs. The offer names spec and build
   ("Next: Boss X, Destruction 'Raid HC Cleave'"); one click, after the
