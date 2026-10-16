@@ -192,6 +192,9 @@ Each answers a question before we design around it. Throwaway code in
   menu (same feature, no hook). **Round 1: no errors either way**, action
   buttons fine after switches (other talent-window addons off). Own button
   stays the plan.
+  Caution: `taintLog` is a saved CVar and, while on, set off a flood of
+  Blizzard nameplate driver errors. Any round that turns it on ends with
+  `/console taintLog 0` as its last checklist item.
 - **S4 Zone and boss signals.** Log instance IDs on zone-in, encounter
   start/end, ready check, keystone slot, killed bosses, and whether a boss
   can be recognized from target / mouseover out of combat. Decides how far
