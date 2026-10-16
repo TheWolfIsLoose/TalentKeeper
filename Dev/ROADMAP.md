@@ -227,6 +227,11 @@ Each answers a question before we design around it. Throwaway code in
   = lockout kills + where the player stands (learned from past pulls) +
   journal order, and a level -1 target only confirms "at a boss". Same
   secrecy in Normal dungeons, out of combat.
+  **No per-raid data ships** (Default): zone, boss list (journal),
+  lockout kills and encounters are all read from the game at runtime, so a
+  new raid works on patch day. Only boss-pull positions are learned, per
+  player, from their own pulls; until then the guess uses lockout + journal
+  order. PTR is only for a smoke test that these APIs still behave.
 
 ## v0.1: keep and switch (first alpha)
 
