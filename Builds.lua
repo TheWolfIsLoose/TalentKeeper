@@ -182,29 +182,30 @@ local function verify(b)
     end
 end
 
-local function load(id)
-    local p = pending
-    pending, waitID = nil, nil
+-- Load the freshly imported loadout. A load error right after import is usually timing,
+-- so the same loadout is loaded once more a second later before giving up.
+local function load(id, p)
     local specID = B.specID()
     local r, changeError = C_ClassTalents.LoadConfig(id, true)
-    TK.log("apply '%s': LoadConfig %s %s", p.b.name, resultName[r] or tostring(r), changeError or "")
+    TK.log("apply '%s': LoadConfig %s %s%s", p.b.name, resultName[r] or tostring(r), changeError or "", p.retried and " (retry)" or "")
     if r == Enum.LoadConfigResult.Error then
-        if p.retry then
-            TK.db.active[specID] = p.prev
-            return TK.chat(("|cffff8888Couldn't apply %s.|r %s"):format(p.b.name, changeError or "Try again in a moment."))
+        if not p.retried then
+            p.retried = true
+            return C_Timer.After(1, TK.safe(function() load(id, p) end))
         end
-        return C_Timer.After(1, function() B.apply(p.b, true, p.prev) end)
+        TK.db.active[specID] = p.prev
+        return TK.chat(("|cffff8888Couldn't apply %s.|r %s"):format(p.b.name, changeError or "Try again in a moment."))
     end
     C_ClassTalents.UpdateLastSelectedSavedConfigID(specID, id)
     setPvp(p.b)
-    C_Timer.After(5, function() verify(p.b) end)
+    C_Timer.After(5, TK.safe(function() verify(p.b) end))
 end
 
--- retry / prev: internal, for the one automatic retry.
-function B.apply(b, retry, prev)
+function B.apply(b)
     if InCombatLockdown() then return TK.chat("|cffff8888Can't change talents in combat.|r") end
     local okCheck, canChange, _, changeError = pcall(C_ClassTalents.CanChangeTalents)
     if okCheck and canChange == false then
+        TK.log("apply '%s': refused, can't change talents (%s)", b.name, tostring(changeError))
         return TK.chat("|cffff8888Can't change talents right now.|r " .. (changeError or ""))
     end
     local e, err = entries(b.text)
@@ -212,11 +213,11 @@ function B.apply(b, retry, prev)
     local specID = B.specID()
     local old = findSlot(specID)
     if old then C_ClassTalents.DeleteConfig(old) end
-    if not retry then prev = TK.db.active[specID] end
+    local prev = TK.db.active[specID]
     TK.db.active[specID] = b.name
-    pending = { b = b, retry = retry, prev = prev }
+    pending = { b = b, prev = prev }
     local ok, importErr = C_ClassTalents.ImportLoadout(C_ClassTalents.GetActiveConfigID(), e, SLOT, strtrim(b.text))
-    TK.log("apply '%s' (%s)%s: import %s %s", b.name, B.specName(specID), retry and " retry" or "", tostring(ok), importErr or "")
+    TK.log("apply '%s' (%s): import %s %s", b.name, B.specName(specID), tostring(ok), importErr or "")
     if not ok then
         pending = nil
         TK.db.active[specID] = prev
@@ -224,15 +225,22 @@ function B.apply(b, retry, prev)
     end
 end
 
+local function loadPending(id)
+    local p = pending
+    pending, waitID = nil, nil
+    load(id, p)
+end
+
 TK.on("TRAIT_CONFIG_CREATED", function(info)
     if not pending or info.name ~= SLOT then return end
-    if C_ClassTalents.IsConfigPopulated(info.ID) then load(info.ID) else waitID = info.ID end
+    local populated = C_ClassTalents.IsConfigPopulated(info.ID)
+    TK.debug("created loadout %d, populated %s", info.ID, tostring(populated))
+    if populated then loadPending(info.ID) else waitID = info.ID end
 end)
 
 TK.on("TRAIT_CONFIG_UPDATED", function(id)
-    if waitID and id == waitID then load(id) end
+    if waitID and id == waitID then loadPending(id) end
 end)
-
 -- One-time import from another talent addon's saved builds ------------------------------
 -- Its saved data: [classFile][specIndex] = rows; a row with a string is a build, a row
 -- without one is a group heading, and builds flagged isInGroup sit under the last heading.

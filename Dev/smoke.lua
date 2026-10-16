@@ -144,9 +144,8 @@ configs[8] = { name = "TalentKeeper" }
 fire("TRAIT_CONFIG_CREATED", { name = "TalentKeeper", ID = 8 })
 ok(#loads == 1, "loaded once")
 runTimers() -- the retry after LoadConfig's error
-ok(imports == 2, "retried once after an error")
-fire("TRAIT_CONFIG_CREATED", { name = "TalentKeeper", ID = 9 })
-ok(#loads == 2 and TK.db.active[267] == target.name, "second load succeeds")
+ok(imports == 1 and #loads == 2 and loads[2] == 8, "same loadout loaded again after an error")
+ok(TK.db.active[267] == target.name, "second load succeeds")
 runTimers() -- verify
 ok(not said("no longer fit"), "talents verified")
 currentSpec = 265
