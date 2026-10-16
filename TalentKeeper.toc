@@ -8,4 +8,9 @@
 ## X-Category: Combat
 ## X-Curse-Project-ID: 1746823
 
+TalentKeeper.lua
 Build.lua
+
+#@debug@
+Dev\Spike.lua
+#@end-debug@

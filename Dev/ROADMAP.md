@@ -33,8 +33,9 @@ Next: answer the **Open** items below, then build **Phase 0 (spikes)** on
    group header rows `{name, isExpanded}`), both in the player's `_retail_`
    folder. Blizzard's import/export code: Gethe/wow-ui-source `live`
    (`Blizzard_PlayerSpells`, `ClassTalentImportExportMixin`).
-4. ~~S1~~ done offline (see Phase 0). Next: S2–S4 as a dev-only in-game
-   `/tk spike`.
+4. ~~S1~~ done offline (see Phase 0). S2–S4: `Dev/Spike.lua` (`/tk spike`,
+   `#@debug@` in the TOC), round 1 out 2026-10-16; log in
+   `TalentKeeperDB.spike`, taint in `_retail_\Logs\taint.log`.
    Give the player a grouped in-game test list per round (suite habit).
 5. Write each spike's result into Phase 0 below, then plan v0.1.
 
