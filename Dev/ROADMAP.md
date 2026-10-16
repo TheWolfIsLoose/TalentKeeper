@@ -219,6 +219,41 @@ buttons, scaling. TalentKeeper builds none of these.
 - After 1.0 idea: "Save to TalentKeeper" from a chat loadout link (TTT
   owns the link click; we'd need a light hook or just paste).
 
+**Replacing TTT (player, 2026-10-16: wants to drop TTT from daily use and
+build its talent features into TalentKeeper, our own way).** Clean-room:
+features aren't owned, code is; build from Blizzard's API and
+wow-ui-source, not TTT's source, and design each to fit TalentKeeper's
+model (by-talents compare, saved builds) rather than copy TTT's behaviour.
+Credit Numy as inspiration in the README. LTT stays (that's what it's for).
+Inventory of what TTT does today (the player's settings: all on except
+Import Into Current Loadout), **all Default until the player sorts them:**
+- *Build features, fit TalentKeeper (proposed in 1.0):* mini tree on hover
+  (our own drawing from LTT positions); inspect diff (compare an inspected
+  player against your talents or any saved build, by name, and save it);
+  improved chat loadout links (click: save to TalentKeeper with the
+  duplicate check, copy, apply); export / link a build; mute learn /
+  unlearn chat lines during our own apply; hero-tree quick switch and spec
+  buttons in our menu.
+- *Talent window tweaks (proposed after 1.0, pick the ones you'd miss):*
+  always show gates (+ "points past the gate are free to move"); window
+  scale; background transparency; stronger highlight for shift-click
+  relearn; search by ID, IDs in talent tooltips, Ctrl-C spell ID, Ctrl-D
+  node dump (dev tools; idTip already covers some IDs).
+- *Fixes and unlocks (check need with TTT off):* loadout dropdown order /
+  refresh after macro or addon switches / overlay blocking clicks; share
+  without spending every point; spend points in combat; taint workarounds
+  (share-button copy popup, cast bar errors on talent switch,
+  MultiActionBar grid). Some of the taint may come from addons hooking the
+  talent window in the first place; measure with TTT off.
+- *Not talents, out of scope:* Skyriding / Horrific Visions / DRIVE auto
+  purchase, bulk profession knowledge spending. Dropping TTT loses these.
+- Next: one play session with TTT disabled; the player notes what he
+  misses; that sorts the lists above.
+
+**Other importers:** TLE on first run (v0.1). Talent Loadout Manager
+import as a set-up helper for new users (the player doesn't need it;
+**Default: before 1.0**).
+
 ## Phase 0: spikes (on `dev`, dev-only, nothing ships)
 
 Each answers a question before we design around it. Throwaway code in
