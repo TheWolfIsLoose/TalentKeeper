@@ -173,7 +173,10 @@ end
 local seen, inInstance = {}, false
 
 local function where()
-    return ("map %s, area '%s'"):format(tostring(C_Map.GetBestMapForUnit("player")), GetSubZoneText() or "")
+    local mapID = C_Map.GetBestMapForUnit("player")
+    local pos = mapID and C_Map.GetPlayerMapPosition(mapID, "player") -- expected nil in instances
+    local xy = pos and ("%.3f,%.3f"):format(pos:GetXY()) or "no x,y"
+    return ("map %s, area '%s', %s"):format(tostring(mapID), GetSubZoneText() or "", xy)
 end
 
 local function area()
