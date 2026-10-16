@@ -23,8 +23,8 @@ Next: answer the **Open** items below, then build **Phase 0 (spikes)** on
 **Kickoff checklist for the first code session** (parked 2026-10-15, 14:17 ET):
 1. Attach the repo with push access (add_repo `TheWolfIsLoose/TalentKeeper`),
    clone, work on `dev`.
-2. Ask the player the four **Open** questions below (defaults are fine to
-   keep) and for the CurseForge project ID / slug if still missing.
+2. ~~Open questions~~ settled 2026-10-16. Still ask for the CurseForge
+   project ID / slug if missing.
 3. Read the reference: TLE's apply code (`TalentLoadoutsEx\modules\import.lua`,
    resets the tree then `C_Traits.PurchaseRank` / `SetSelection` /
    `CommitConfig`) and its saved builds
@@ -33,8 +33,8 @@ Next: answer the **Open** items below, then build **Phase 0 (spikes)** on
    group header rows `{name, isExpanded}`), both in the player's `_retail_`
    folder. Blizzard's import/export code: Gethe/wow-ui-source `live`
    (`Blizzard_PlayerSpells`, `ClassTalentImportExportMixin`).
-4. Build S1 first (decode + compare over the TLE builds) as a dev-only
-   `/tk spike` that prints duplicates and near matches; then S2–S4.
+4. ~~S1~~ done offline (see Phase 0). Next: S2–S4 as a dev-only in-game
+   `/tk spike`.
    Give the player a grouped in-game test list per round (suite habit).
 5. Write each spike's result into Phase 0 below, then plan v0.1.
 
@@ -101,20 +101,17 @@ string.** Decode every string into what it actually picks for its spec
   across 5 classes (19 warlock).
 - **Suite rules apply:** style guide (WCAG 2.2, tokens, controls, words),
   saved log with `/tk log`, `/tk debug`, standalone.
+- **Apply target:** TalentKeeper keeps one Blizzard loadout of its own
+  ("TalentKeeper") and leaves the player's other Blizzard loadouts alone.
+- **Storage:** account-wide, keyed by class and spec.
+- **Groups:** one level (spec → group → builds → variants).
 - **Not in 1.0:** custom icons, presets, SimC / WeakAuras export.
 
 ## Open
 
-1. **Where an applied build lands.** TLE rewrites whatever Blizzard loadout
-   is selected. Options: (a) the same; (b) TalentKeeper keeps one Blizzard
-   loadout slot of its own ("TalentKeeper") and leaves the player's other
-   Blizzard loadouts alone. **Default: (b).**
-2. **Storage scope.** **Default:** account-wide, keyed by class and spec
-   (any character of that spec sees the builds, as TLE does).
-3. **In-game accent.** **Default:** mint, like the rest of the suite
-   (style guide); gold stays in the icon.
-4. **What groups are.** TLE has one level of groups. **Default:** keep one
-   level (spec → group → builds → variants); no nested folders.
+None. The four kickoff questions were settled 2026-10-16 (all defaults):
+applied builds land in TalentKeeper's own Blizzard loadout slot; storage is
+account-wide by class and spec; accent mint; one level of groups.
 
 ## Phase 0: spikes (on `dev`, dev-only, nothing ships)
 
@@ -125,6 +122,17 @@ Each answers a question before we design around it. Throwaway code in
   (Blizzard's own import code path) for the player's spec, and diff two
   builds. Run it over the player's TLE builds: how many are duplicates or
   near matches? This proves the core idea.
+  **Done 2026-10-16, offline** (`Dev/spikes/s1_compare.py`, no game needed):
+  the string body is one record per tree node in `C_Traits.GetTreeNodes`
+  order, so builds of one spec compare node by node without tree data.
+  Ignore the 128-bit tree hash (it changes with patches, not picks).
+  Over the player's 45 TLE builds (11 specs, serialization v2): **0 exact
+  duplicates, 14 near pairs within 6 nodes** (closest: Assassination
+  'Ula' vs 'Coiled' and Subtlety 'M' vs 'Raid', 2 nodes each; Destruction
+  'Raid || HC Ula' vs 'Raid || HC Cleave', 3). Those near pairs are the
+  natural main-build + variant candidates. In game, the same compare runs on
+  the decoded records; talent names come from `C_Traits.GetNodeInfo` /
+  `GetEntryInfo` / `GetDefinitionInfo` (v0.2).
 - **S2 Apply.** Apply a decoded build the way TLE does (reset tree,
   buy nodes, commit), including hero talents and PvP talents; confirm
   where it lands (Open 1) and what happens in a rested area vs a dungeon
