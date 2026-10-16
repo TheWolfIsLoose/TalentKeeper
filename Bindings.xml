@@ -1,0 +1,5 @@
+<Bindings>
+	<Binding name="TALENTKEEPER_MENU" header="TALENTKEEPER" category="ADDONS">
+		TalentKeeper_OpenMenu()
+	</Binding>
+</Bindings>

@@ -10,6 +10,8 @@
 
 TalentKeeper.lua
 Build.lua
+Builds.lua
+UI.lua
 
 #@debug@
 Dev\Spike.lua

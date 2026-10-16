@@ -321,18 +321,28 @@ Each answers a question before we design around it. Throwaway code in
 
 ## v0.1: keep and switch (first alpha)
 
-- Embed LibTalentTree-1.0 + LibStub (`.pkgmeta` externals; `libs\` in the
-  TOC). For local dev, copy the lib into `libs\` (gitignored).
-- Saved data: builds per class / spec, groups, PvP talents.
-- Save current talents; apply; rename; delete (two-click "Sure?").
-- Button + grouped menu by the talent window; `/tk` and a keybind open it
-  anywhere.
-- Import / export strings; import from other talent addons on first run.
-- Log + debug, load line, smoke test (`Dev/smoke.lua`).
+**Built 2026-10-16, in testing (not released).**
+- Saved data: builds per spec (`TalentKeeperDB.builds[specID]`), one level
+  of groups, PvP talents; names unique per spec; the same string is never
+  saved twice for a spec.
+- Save current talents (named in a small window); apply into
+  TalentKeeper's own loadout with one automatic retry on a load error,
+  then a check that warns when talents no longer fit the tree; rename;
+  copy the string; delete (two clicks, "Sure?").
+- Button beside Blizzard's loadout dropdown + grouped menu (Blizzard's menu
+  system); `/tk` and a key binding open it anywhere.
+- Import a talent string (goes to the string's own spec); one-time import
+  of builds saved by another talent addon on first login.
+- Log (`/tk log`, `/tk debug`), load line, smoke test (`Dev/smoke.lua`,
+  Lua 5.1).
+- Moved to v0.2: embedding LibTalentTree (first needed for talent names).
+- Clearing a pending spec swap on cancel goes with the cross-spec feature.
 
 ## v0.2: no duplicates
 
 - Duplicate warning on save / import (Jump to it, Rename it, Save anyway).
+- Embed LibTalentTree-1.0 + LibStub (`.pkgmeta` externals; `libs\\` in the
+  TOC).
 - Near matches and the compare view (talent names; class vs spec tree
   split; hero tree shown).
 - Hover a build: text diff against current talents.
