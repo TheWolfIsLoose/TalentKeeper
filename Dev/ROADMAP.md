@@ -20,12 +20,11 @@ heading, so pushes publish nothing.
 Next: answer the **Open** items below, then build **Phase 0 (spikes)** on
 `dev`. No player-facing code before the spikes report back.
 
-**Parked 2026-10-16, 01:25 ET: scope review first.** The player has
-gathered feedback and ideas from others and will hand them over to adjust
-scope. Start the next session there, before running or extending the spike.
-The S2–S4 spike (`/tk spike`) is pushed but untested in game; the AddOns
-folder holds only the TOC and `Dev\update.bat` until the player runs
-`update.bat dev`.
+**2026-10-16, 09:30 ET: scope review done.** Feedback round 1 confirmed
+as written (all six items, now Decided). Numy's Talent Tree Tweaks and
+LibTalentTree reviewed: see "Numy's addons" below (lean on LTT; coexist
+with TTT, don't rebuild it). Next: the player runs `update.bat dev` and
+round 1 of the S2–S4 spike (`/tk spike`), still untested in game.
 
 **Kickoff checklist for the first code session** (parked 2026-10-15, 14:17 ET):
 1. Attach the repo with push access (add_repo `TheWolfIsLoose/TalentKeeper`),
@@ -120,10 +119,9 @@ None. The four kickoff questions were settled 2026-10-16 (all defaults):
 applied builds land in TalentKeeper's own Blizzard loadout slot; storage is
 account-wide by class and spec; accent mint; one level of groups.
 
-## Feedback round 1 (2026-10-16, guild Discord): proposed scope changes
+## Feedback round 1 (2026-10-16, guild Discord): Decided
 
-All **Default** until the player confirms; then fold into Decided and the
-phases below.
+Confirmed by the player 2026-10-16 as written; the phases below carry them.
 
 - **Boss memory from kills (MORG)**, reconciled with zone and boss
   awareness (player, 2026-10-16): both, per content type.
@@ -149,12 +147,12 @@ phases below.
     (target / mouseover / nameplate), if Midnight allows; (4) for a linear
     raid, journal order. Offer the best guess with the other living
     bosses one click away.
-  - **Default: in 1.0 (v0.4).** S4 now logs all four raid signals.
+  - **Decided: in 1.0 (v0.4).** S4 now logs all four raid signals.
 - **Wrong-build reminder (whade).** In a zone tagged to a build, warn when
   the *active talents* don't match it (by talents, not loadout name). Same
-  offer as zone-in, also on ready check. **Default: in 1.0 (v0.4).**
+  offer as zone-in, also on ready check. **Decided: in 1.0 (v0.4).**
 - **Gear set per build (jix-aries).** Optional Blizzard equipment set
-  linked to a build, equipped on apply. Small. **Default: in 1.0 (v0.3).**
+  linked to a build, equipped on apply. Small. **Decided: in 1.0 (v0.3).**
 - **What counts as a different build (Jake / MORG).** Storage keeps every
   build complete; only the *display* collapses near matches. Proposed
   rule: same hero tree and a few spec-tree changes = shown as a variant of
@@ -162,16 +160,64 @@ phases below.
   class-tree changes (usually utility / survivability) apart from
   spec-tree changes. The switch menu still reads M+ > Murder Row > ...
   so "one build per dungeon, click it" (MORG's habit) keeps working.
-  **Default; tune the threshold with more examples** (S1 found 14 pairs
+  **Decided; tune the threshold with more examples** (S1 found 14 pairs
   within 6 nodes across 45 builds; more strings from other players
   welcome).
 - **Raider.IO (Slonedog).** Don't rebuild what Raider.IO's talent-window
   button already does (pull builds from its database). Play nice: keep our
   button clear of theirs, and anything imported through it is recognized
-  (duplicate check, boss memory) once it's active. **Default: compatibility
+  (duplicate check, boss memory) once it's active. **Decided: compatibility
   test with Raider.IO installed in S3; no import of our own.**
 - **Out of scope:** Warcraft Logs import, a desktop companion app (no web
   access from addons; Raider.IO covers it).
+
+## Numy's addons: Talent Tree Tweaks and LibTalentTree (2026-10-16)
+
+Reviewed NumyAddon/TalentTreeTweaks and NumyAddon/LibTalentTree-1.0. The
+player runs TTT with every module on except Import Into Current Loadout.
+
+**LibTalentTree-1.0 (LTT): embed it, let it do the tree lifting.** Licence
+allows shipping it unmodified in our addon (`.pkgmeta` externals, curse
+slug `libtalenttree`, plus LibStub). It has data for every class, not just
+the one you're logged in on, so builds from alts (TLE import spans 5
+classes) get names and checks without logging over. What we use it for:
+- `isClassNode`: diffs list class-tree changes apart from spec-tree
+  changes (feedback rule above).
+- `subTreeID`, `isSubTreeSelection`, `GetSubTreeInfo`: read the hero tree
+  of a build (different hero tree = its own main build) and name it.
+- `visibleForSpecs` / `grantedForSpecs` (`IsNodeVisibleForSpec`,
+  `IsNodeGrantedForSpec`): compare only nodes the spec can see; free nodes
+  never count as a difference.
+- `GetNodeInfo` / `GetEntryInfo` (definition → spell name): talent names in
+  diffs and variant change lists, any class (v0.2).
+- Outdated badge: a saved pick whose node or entry no longer exists after a
+  patch. Gates (`GetGates`), edges and `isApexTalent` /
+  `requiredPlayerLevel` available if we need a stricter "still legal" check.
+- Decode stays ours: `C_Traits.GetTreeNodes(treeID)` order + string bits
+  (S1); `LTT:GetClassTreeID(classID)` gives the treeID. TTT's own parser
+  does the same; we don't depend on TTT for it.
+
+**Talent Tree Tweaks (TTT): coexist, don't rebuild.** No licence file, so
+all rights reserved: ideas only, no code. It already covers inspect diff,
+export / link / inspect from the loadout dropdown, clickable loadout
+links, import into current loadout, mini tree in tooltips, taint
+workarounds, muting chat spam on switching, hero-tree quick switch, respec
+buttons, scaling. TalentKeeper builds none of these.
+- **Mini tree for free:** TTT exposes a public global,
+  `TalentTreeTweaks_EmbedMiniTreeIntoTooltip(tooltip, exportString)`. When
+  TTT is loaded, hovering a build in our menu or window calls it, and the
+  player gets TTT's mini tree with its diff colours against current
+  talents. Without TTT: our text diff only. (v0.2)
+- **Dropdown coexistence (S3):** TTT's mini tree and export modules hook
+  Blizzard's loadout dropdown (`MENU_CLASS_TALENT_PROFILE`). Its mini-tree
+  hook stops at the first entry without a configID, so if we add entries
+  to that menu they go after Blizzard's, or TTT's hovers break below ours.
+  Our own button + menu (the plan already) avoids this entirely.
+- **Chat spam on apply:** TTT's Reduce Spam already mutes learn / unlearn
+  lines on switching; ours applies through the same API, so no filter of
+  our own (check in S2 with TTT on).
+- After 1.0 idea: "Save to TalentKeeper" from a chat loadout link (TTT
+  owns the link click; we'd need a light hook or just paste).
 
 ## Phase 0: spikes (on `dev`, dev-only, nothing ships)
 
@@ -206,6 +252,8 @@ Each answers a question before we design around it. Throwaway code in
 
 ## v0.1: keep and switch (first alpha)
 
+- Embed LibTalentTree-1.0 + LibStub (`.pkgmeta` externals; `libs\` in the
+  TOC). For `update.bat dev`, copy the lib into `libs\` locally (gitignored).
 - Saved data: builds per class / spec, groups, PvP talents.
 - Save current talents; apply; rename; delete (two-click "Sure?").
 - Button + grouped menu by the talent window; `/tk` and a keybind open it
@@ -216,7 +264,9 @@ Each answers a question before we design around it. Throwaway code in
 ## v0.2: no duplicates
 
 - Duplicate warning on save / import (Jump to it, Rename it, Save anyway).
-- Near matches and the compare view (talent names).
+- Near matches and the compare view (talent names via LTT; class vs spec
+  tree split; hero tree shown).
+- Hover a build: TTT's mini tree when TTT is loaded, text diff otherwise.
 - Management window: spec → group, search, badges, drag to regroup.
 
 ## v0.3: main builds and variants
@@ -224,6 +274,7 @@ Each answers a question before we design around it. Throwaway code in
 - Save as variant; variant changes listed by talent name; main-build edits
   carry through; "Needs review" on collisions; export a variant as a full
   string.
+- Gear set per build: optional equipment set, equipped on apply.
 
 ## v0.4: zone awareness
 
@@ -231,6 +282,9 @@ Each answers a question before we design around it. Throwaway code in
   zone-in (M+ at the entrance); single-boss raids included.
 - Boss awareness in whatever form S4 allows (at least "next up" after a
   kill).
+- Boss memory from kills (raid per boss + difficulty; M+ per dungeon at key
+  start); M+ offer on Mythic zone-in + ready check; raid next-boss guess.
+- Wrong-build reminder in tagged zones (by talents), also on ready check.
 
 ## 1.0
 
