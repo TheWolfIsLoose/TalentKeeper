@@ -85,18 +85,6 @@ local function entries(text)
     return M:ConvertToImportLoadoutEntryInfo(C_ClassTalents.GetActiveConfigID(), treeID, M:ReadLoadoutContent(stream, treeID))
 end
 
-local function differences(a, b)
-    local function keys(list)
-        local k = {}
-        for _, e in ipairs(list) do k[e.nodeID .. ":" .. e.ranksPurchased .. ":" .. tostring(e.selectionEntryID)] = true end
-        return k
-    end
-    local ka, kb, n = keys(a), keys(b), 0
-    for k in pairs(ka) do if not kb[k] then n = n + 1 end end
-    for k in pairs(kb) do if not ka[k] then n = n + 1 end end
-    return n
-end
-
 local function currentString()
     return C_Traits.GenerateImportString(C_ClassTalents.GetActiveConfigID())
 end
@@ -176,17 +164,27 @@ local function setPvp(b)
     end
 end
 
+local lastApply -- { b, failed } for the build being applied, so a refused commit isn't reported as outdated
+
 local function verify(b)
-    local want = entries(b.text)
-    local ok, have = pcall(entries, currentString())
-    if not want or not ok or not have then return TK.log("check '%s': couldn't read talents", b.name) end
-    local n = differences(want, have)
-    TK.log("check '%s': %d differences", b.name, n)
-    b.outdated = n > 0 and n or nil
-    if n > 0 then
-        TK.chat(("|cffffb84dApplied %s, but %d of its talents no longer fit your tree.|r Re-save it once you've fixed them."):format(b.name, n))
+    if lastApply and lastApply.b == b and lastApply.failed then return end
+    local d = TK.compare.diff(b.text, currentString())
+    if not d then return TK.log("check '%s': couldn't read talents", b.name) end
+    local names = TK.compare.describe(d)
+    TK.log("check '%s': %d differences%s", b.name, #d, #d > 0 and (": " .. table.concat(names, ", ")) or "")
+    b.outdated = #d > 0 and #d or nil
+    if #d > 0 then
+        TK.chat(("|cffffb84dApplied %s, but %d of its talents didn't come out as saved|r (%s). Re-save it once you've fixed them.")
+            :format(b.name, #d, table.concat(TK.compare.describe(d, 3), ", ")))
     end
 end
+
+TK.on("CONFIG_COMMIT_FAILED", function(configID)
+    if not lastApply or not B.muteUntil or GetTime() > B.muteUntil then return end
+    lastApply.failed = true
+    TK.log("apply '%s': the game refused the change (config %s)", lastApply.b.name, tostring(configID))
+    TK.chat(("|cffff8888The game didn't accept %s.|r Your talents weren't changed; try again out of combat, or check the build in the talent window."):format(lastApply.b.name))
+end)
 
 -- Load the freshly imported loadout. A load error right after import is usually timing,
 -- so the same loadout is loaded once more a second later before giving up.
@@ -222,6 +220,7 @@ function B.apply(b)
     local prev = TK.db.active[specID]
     TK.db.active[specID] = b.name
     pending = { b = b, prev = prev }
+    lastApply = { b = b }
     B.muteUntil = GetTime() + 10
     local ok, importErr = C_ClassTalents.ImportLoadout(C_ClassTalents.GetActiveConfigID(), e, SLOT, strtrim(b.text))
     TK.log("apply '%s' (%s): import %s %s", b.name, B.specName(specID), tostring(ok), importErr or "")

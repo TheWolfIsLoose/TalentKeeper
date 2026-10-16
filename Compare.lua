@@ -10,7 +10,7 @@ local NEAR = 6 -- builds this many talents apart or fewer count as near matches
 
 -- picks[nodeID] = "rank:choice" (rank 0 = all ranks; choice 0 = not a choice node).
 -- Free (granted) nodes are left out, so they never count as a difference.
-local cache = {}
+local cache, grantedIn = {}, {}
 function C.picks(text)
     text = strtrim(text or "")
     if cache[text] ~= nil then return cache[text] or nil end
@@ -24,8 +24,9 @@ function C.picks(text)
         M:ReadLoadoutHeader(stream)
         local ok, records = pcall(M.ReadLoadoutContent, M, stream, treeID)
         if ok and records then
-            picks = {}
+            picks, grantedIn[text] = {}, {}
             for i, r in ipairs(records) do
+                if nodes[i] and r.isNodeGranted then grantedIn[text][nodes[i]] = true end
                 if nodes[i] and r.isNodeSelected and not r.isNodeGranted then
                     picks[nodes[i]] = (r.isPartiallyRanked and r.partialRanksPurchased or 0) .. ":" .. (r.isChoiceNode and r.choiceNodeSelection or 0)
                 end
@@ -36,13 +37,22 @@ function C.picks(text)
     return picks
 end
 
+-- Nodes free for this spec today, read from the game's own export of your current talents.
+-- An older string may list a node as bought that a patch has since made free.
+local function freeNow()
+    local current = B.currentString()
+    if current and C.picks(current) then return grantedIn[strtrim(current)] or {} end
+    return {}
+end
+
 -- Nodes that differ: { { node, from, to }, ... }, from / to nil where a side doesn't take it.
 function C.diff(textA, textB)
     local a, b = C.picks(textA), C.picks(textB)
     if not a or not b then return nil end
+    local free = (B.stringSpec(textA) == B.specID()) and freeNow() or {}
     local out = {}
-    for node, v in pairs(a) do if b[node] ~= v then out[#out + 1] = { node = node, from = v, to = b[node] } end end
-    for node, v in pairs(b) do if a[node] == nil then out[#out + 1] = { node = node, to = v } end end
+    for node, v in pairs(a) do if b[node] ~= v and not free[node] then out[#out + 1] = { node = node, from = v, to = b[node] } end end
+    for node, v in pairs(b) do if a[node] == nil and not free[node] then out[#out + 1] = { node = node, to = v } end end
     table.sort(out, function(x, y) return x.node < y.node end)
     return out
 end
