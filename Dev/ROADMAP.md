@@ -11,6 +11,24 @@ disagree), **Open** (needs an answer before build).
 
 ## Next session: start here
 
+**Parked 2026-10-16, ~18:25 ET, after v0.3 tested (not released; last
+release v0.2.0-alpha1).** Two open threads from the player before v0.4:
+1. **Apply speed.** Switching feels slower than other loadout tools. Our
+   path deletes and re-creates the TalentKeeper loadout each time (import ->
+   wait for it to fill -> 0.3 s -> load, plus a 1 s retry when the first
+   load errors). Spike S6: apply in place into the existing TalentKeeper
+   loadout (reset the tree, buy nodes, commit once) and time click -> talents
+   committed for both paths, with and without a hero tree change (the hero
+   tree animation may set a floor of ~1-1.5 s either way).
+2. **The GUI doesn't feel designed yet.** Style-consistent but all text;
+   players read talents visually. Directions to explore (mock up first,
+   then pick): icons for builds (hero tree / spec) and for talent changes
+   (spell icons, added / removed marks) instead of +/- text; a small drawn
+   tree per build from the library's node positions with changes
+   highlighted; previewing a build on Blizzard's own talent window (mark
+   the nodes that would change on hover) so the window itself is the
+   canvas. Decide the look before v0.4 adds zone offers.
+
 **Parked 2026-10-16, ~14:55 ET: v0.1.0-alpha1 released** (CurseForge
 Alpha). Spikes S1-S5 done; raid / dungeon / delve design written below as
 Defaults awaiting the player's sign-off. Passive confirmations pending on
