@@ -203,11 +203,8 @@ export / link / inspect from the loadout dropdown, clickable loadout
 links, import into current loadout, mini tree in tooltips, taint
 workarounds, muting chat spam on switching, hero-tree quick switch, respec
 buttons, scaling. TalentKeeper builds none of these.
-- **Mini tree for free:** TTT exposes a public global,
-  `TalentTreeTweaks_EmbedMiniTreeIntoTooltip(tooltip, exportString)`. When
-  TTT is loaded, hovering a build in our menu or window calls it, and the
-  player gets TTT's mini tree with its diff colours against current
-  talents. Without TTT: our text diff only. (v0.2)
+- ~~Mini tree via TTT's public global~~ dropped 2026-10-16: the player
+  doesn't use mini trees (on, but ignored). Hover = text diff only.
 - **Dropdown coexistence (S3):** TTT's mini tree and export modules hook
   Blizzard's loadout dropdown (`MENU_CLASS_TALENT_PROFILE`). Its mini-tree
   hook stops at the first entry without a configID, so if we add entries
@@ -216,8 +213,6 @@ buttons, scaling. TalentKeeper builds none of these.
 - **Chat spam on apply:** TTT's Reduce Spam already mutes learn / unlearn
   lines on switching; ours applies through the same API, so no filter of
   our own (check in S2 with TTT on).
-- After 1.0 idea: "Save to TalentKeeper" from a chat loadout link (TTT
-  owns the link click; we'd need a light hook or just paste).
 
 **Replacing TTT (player, 2026-10-16: wants to drop TTT from daily use and
 build its talent features into TalentKeeper, our own way).** Clean-room:
@@ -226,20 +221,23 @@ wow-ui-source, not TTT's source, and design each to fit TalentKeeper's
 model (by-talents compare, saved builds) rather than copy TTT's behaviour.
 Credit Numy as inspiration in the README. LTT stays (that's what it's for).
 Inventory of what TTT does today (the player's settings: all on except
-Import Into Current Loadout), **all Default until the player sorts them:**
-- *Build features, fit TalentKeeper (proposed in 1.0):* mini tree on hover
-  (our own drawing from LTT positions); inspect diff (compare an inspected
+Import Into Current Loadout). Player, 2026-10-16: the mini tree is on but
+unused (cut); everything else is nice-to-have, none must-have. So 1.0 takes
+only what falls out of TalentKeeper's core almost free; the rest waits.
+- *Build features (**Default: in 1.0**, cheap on top of compare / apply):*
+  inspect diff (compare an inspected
   player against your talents or any saved build, by name, and save it);
   improved chat loadout links (click: save to TalentKeeper with the
   duplicate check, copy, apply); export / link a build; mute learn /
   unlearn chat lines during our own apply; hero-tree quick switch and spec
   buttons in our menu.
-- *Talent window tweaks (proposed after 1.0, pick the ones you'd miss):*
+- *Talent window tweaks (**Default: after 1.0**, nice-to-have):*
   always show gates (+ "points past the gate are free to move"); window
   scale; background transparency; stronger highlight for shift-click
   relearn; search by ID, IDs in talent tooltips, Ctrl-C spell ID, Ctrl-D
   node dump (dev tools; idTip already covers some IDs).
-- *Fixes and unlocks (check need with TTT off):* loadout dropdown order /
+- *Fixes and unlocks (**Default: after 1.0**, only what testing with TTT
+  off shows is needed):* loadout dropdown order /
   refresh after macro or addon switches / overlay blocking clicks; share
   without spending every point; spend points in combat; taint workarounds
   (share-button copy popup, cast bar errors on talent switch,
@@ -247,8 +245,9 @@ Import Into Current Loadout), **all Default until the player sorts them:**
   talent window in the first place; measure with TTT off.
 - *Not talents, out of scope:* Skyriding / Horrific Visions / DRIVE auto
   purchase, bulk profession knowledge spending. Dropping TTT loses these.
-- Next: one play session with TTT disabled; the player notes what he
-  misses; that sorts the lists above.
+- Run the S2–S4 spike with TTT disabled: shows whether the talent-switch
+  taint / cast bar errors are Blizzard's or come from hooks, which decides
+  the fixes list.
 
 **Other importers:** TLE on first run (v0.1). Talent Loadout Manager
 import as a set-up helper for new users (the player doesn't need it;
@@ -301,7 +300,7 @@ Each answers a question before we design around it. Throwaway code in
 - Duplicate warning on save / import (Jump to it, Rename it, Save anyway).
 - Near matches and the compare view (talent names via LTT; class vs spec
   tree split; hero tree shown).
-- Hover a build: TTT's mini tree when TTT is loaded, text diff otherwise.
+- Hover a build: text diff against current talents (no mini tree).
 - Management window: spec → group, search, badges, drag to regroup.
 
 ## v0.3: main builds and variants
