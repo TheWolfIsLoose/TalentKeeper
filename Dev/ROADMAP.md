@@ -120,6 +120,44 @@ None. The four kickoff questions were settled 2026-10-16 (all defaults):
 applied builds land in TalentKeeper's own Blizzard loadout slot; storage is
 account-wide by class and spec; accent mint; one level of groups.
 
+## Feedback round 1 (2026-10-16, guild Discord): proposed scope changes
+
+All **Default** until the player confirms; then fold into Decided and the
+phases below.
+
+- **Boss memory from kills (MORG).** "On boss kill, save my talents as
+  [Boss / Difficulty] so next week I just load it" (instead of digging
+  through Warcraft Logs). Fits the compare-by-talents core: on
+  `ENCOUNTER_END` (kill), record the talents for that encounter +
+  difficulty. If they match a saved build, just tag that build with the
+  boss (no new entry); if not, offer "Save as variant: Boss (Heroic)"
+  (prompt on by default; silent auto-save is an opt-in setting). Next
+  visit offers it ("Last time here you played X"). **Default: in 1.0
+  (v0.4), and it becomes the main boss signal**; recognizing the boss
+  before the pull stays a bonus (Midnight hides enemy identity).
+- **Wrong-build reminder (whade).** In a zone tagged to a build, warn when
+  the *active talents* don't match it (by talents, not loadout name). Same
+  offer as zone-in, also on ready check. **Default: in 1.0 (v0.4).**
+- **Gear set per build (jix-aries).** Optional Blizzard equipment set
+  linked to a build, equipped on apply. Small. **Default: in 1.0 (v0.3).**
+- **What counts as a different build (Jake / MORG).** Storage keeps every
+  build complete; only the *display* collapses near matches. Proposed
+  rule: same hero tree and a few spec-tree changes = shown as a variant of
+  its main build; a different hero tree = its own main build. Diffs list
+  class-tree changes (usually utility / survivability) apart from
+  spec-tree changes. The switch menu still reads M+ > Murder Row > ...
+  so "one build per dungeon, click it" (MORG's habit) keeps working.
+  **Default; tune the threshold with more examples** (S1 found 14 pairs
+  within 6 nodes across 45 builds; more strings from other players
+  welcome).
+- **Raider.IO (Slonedog).** Don't rebuild what Raider.IO's talent-window
+  button already does (pull builds from its database). Play nice: keep our
+  button clear of theirs, and anything imported through it is recognized
+  (duplicate check, boss memory) once it's active. **Default: compatibility
+  test with Raider.IO installed in S3; no import of our own.**
+- **Out of scope:** Warcraft Logs import, a desktop companion app (no web
+  access from addons; Raider.IO covers it).
+
 ## Phase 0: spikes (on `dev`, dev-only, nothing ships)
 
 Each answers a question before we design around it. Throwaway code in
