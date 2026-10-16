@@ -125,16 +125,27 @@ account-wide by class and spec; accent mint; one level of groups.
 All **Default** until the player confirms; then fold into Decided and the
 phases below.
 
-- **Boss memory from kills (MORG).** "On boss kill, save my talents as
-  [Boss / Difficulty] so next week I just load it" (instead of digging
-  through Warcraft Logs). Fits the compare-by-talents core: on
-  `ENCOUNTER_END` (kill), record the talents for that encounter +
-  difficulty. If they match a saved build, just tag that build with the
-  boss (no new entry); if not, offer "Save as variant: Boss (Heroic)"
-  (prompt on by default; silent auto-save is an opt-in setting). Next
-  visit offers it ("Last time here you played X"). **Default: in 1.0
-  (v0.4), and it becomes the main boss signal**; recognizing the boss
-  before the pull stays a bonus (Midnight hides enemy identity).
+- **Boss memory from kills (MORG)**, reconciled with zone and boss
+  awareness (player, 2026-10-16): both, per content type.
+  - **Memory:** on a kill (`ENCOUNTER_END` success) record the talents for
+    that encounter + difficulty; if they match a saved build, tag it (no
+    new entry); if not, offer "Save as variant: Boss (Heroic)" (prompt on by
+    default; silent auto-save opt-in). Next visit offers it ("Last time
+    here you played X").
+  - **M+:** one dungeon, so the target is the dungeon. Offer on zone-in
+    (Mythic), again when the keystone slot opens
+    (`CHALLENGE_MODE_KEYSTONE_RECEPTABLE_OPEN`, the last moment), and never
+    after `CHALLENGE_MODE_START` (talents lock). Memory for M+ is per
+    dungeon, recorded at key start.
+  - **Raid:** any boss could be next, so stack signals to name the likely
+    next boss, between pulls: (1) journal bosses minus the ones this
+    lockout already killed (`C_RaidLocks.IsEncounterComplete`); (2) where
+    the player stands (map + subzone), learned from where past pulls of
+    each boss started, so it improves with use; (3) seeing the boss
+    (target / mouseover / nameplate), if Midnight allows; (4) for a linear
+    raid, journal order. Offer the best guess with the other living
+    bosses one click away.
+  - **Default: in 1.0 (v0.4).** S4 now logs all four raid signals.
 - **Wrong-build reminder (whade).** In a zone tagged to a build, warn when
   the *active talents* don't match it (by talents, not loadout name). Same
   offer as zone-in, also on ready check. **Default: in 1.0 (v0.4).**

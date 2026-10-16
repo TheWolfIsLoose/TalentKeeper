@@ -172,7 +172,20 @@ end
 -- S4 signals ------------------------------------------------------------------
 local seen, inInstance = {}, false
 
-local function bossList()
+local function where()
+    return ("map %s, area '%s'"):format(tostring(C_Map.GetBestMapForUnit("player")), GetSubZoneText() or "")
+end
+
+local function area()
+    if not inInstance then return end
+    local w = where()
+    if seen[w] then return end
+    seen[w] = true
+    P("area: %s", w)
+end
+
+-- Journal order plus which bosses this lockout has already killed.
+local function bossList(instID, diffID)
     local mapID = C_Map.GetBestMapForUnit("player")
     local jID = mapID and EJ_GetInstanceForMap(mapID)
     if not jID or jID == 0 then return P("journal: no instance for map %s", tostring(mapID)) end
@@ -181,7 +194,8 @@ local function bossList()
     for i = 1, 30 do
         local name, _, _, _, _, _, encID = EJ_GetEncounterInfoByIndex(i, jID)
         if not name then break end
-        names[#names + 1] = ("%s (%s)"):format(name, tostring(encID))
+        local dead = encID and C_RaidLocks.IsEncounterComplete(instID, encID, diffID)
+        names[#names + 1] = ("%s (%s)%s"):format(name, tostring(encID), dead and " killed" or "")
     end
     P("journal %d bosses: %s", jID, table.concat(names, ", "))
 end
@@ -193,7 +207,8 @@ local function zone()
     seen["zone" .. instID .. diffID] = true
     P("zone: %s | %s | instanceID %d | %s (%d) | key map %s", name, itype, instID, diffName, diffID,
         tostring(C_ChallengeMode.GetActiveChallengeMapID()))
-    bossList()
+    bossList(instID, diffID)
+    area()
 end
 
 local function probe(unit, how)
@@ -217,7 +232,8 @@ local ev = CreateFrame("Frame")
 for _, e in ipairs({ "PLAYER_ENTERING_WORLD", "ZONE_CHANGED_NEW_AREA", "CHALLENGE_MODE_START", "ENCOUNTER_START",
     "ENCOUNTER_END", "BOSS_KILL", "PLAYER_TARGET_CHANGED", "UPDATE_MOUSEOVER_UNIT", "NAME_PLATE_UNIT_ADDED",
     "TRAIT_CONFIG_CREATED", "TRAIT_CONFIG_UPDATED", "CONFIG_COMMIT_FAILED", "ADDON_ACTION_BLOCKED",
-    "ADDON_ACTION_FORBIDDEN", "PLAYER_LOGIN" }) do ev:RegisterEvent(e) end
+    "ADDON_ACTION_FORBIDDEN", "PLAYER_LOGIN", "ZONE_CHANGED", "ZONE_CHANGED_INDOORS",
+    "CHALLENGE_MODE_KEYSTONE_RECEPTABLE_OPEN" }) do ev:RegisterEvent(e) end
 
 ev:SetScript("OnEvent", function(_, e, a, b, c, d, f)
     if e == "PLAYER_LOGIN" then
@@ -225,8 +241,10 @@ ev:SetScript("OnEvent", function(_, e, a, b, c, d, f)
         log = TK.db.spike
         P("---- session %s, %s", TK.build or "?", (select(2, UnitClass("player"))))
     elseif e == "PLAYER_ENTERING_WORLD" or e == "ZONE_CHANGED_NEW_AREA" then zone()
+    elseif e == "ZONE_CHANGED" or e == "ZONE_CHANGED_INDOORS" then area()
+    elseif e == "CHALLENGE_MODE_KEYSTONE_RECEPTABLE_OPEN" then P("keystone slot opened (last chance to change talents)")
     elseif e == "CHALLENGE_MODE_START" then P("key started: map %s", tostring(a))
-    elseif e == "ENCOUNTER_START" then P("encounter start: %s (%s), difficulty %s", tostring(b), tostring(a), tostring(c))
+    elseif e == "ENCOUNTER_START" then P("encounter start: %s (%s), difficulty %s, %s", tostring(b), tostring(a), tostring(c), where())
     elseif e == "ENCOUNTER_END" then P("encounter end: %s (%s), %s", tostring(b), tostring(a), f == 1 and "kill" or "wipe")
     elseif e == "BOSS_KILL" then P("boss kill: %s (%s)", tostring(b), tostring(a))
     elseif e == "PLAYER_TARGET_CHANGED" then probe("target", "target")
@@ -257,7 +275,7 @@ local TESTS = {
     "  After a /reload, /tk spike hook: same steps from the dropdown entries.",
     "  Any red error or 'blocked' message: screenshot.",
     "|cffffffffSignals (S4)|r",
-    "  Zone into a dungeon and a raid. Target and mouse over a boss before the pull. Kill a boss. Start a key.",
+    "  Zone into a dungeon and a raid. Walk the raid between bosses. Target and mouse over a boss before the pull. Kill a boss.",\n    "  M+: open the keystone slot, then start the key.",
     "When done: /reload, then tell me.",
 }
 
