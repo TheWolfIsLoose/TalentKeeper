@@ -11,6 +11,14 @@ disagree), **Open** (needs an answer before build).
 
 ## Next session: start here
 
+**Parked 2026-10-16, ~14:55 ET: v0.1.0-alpha1 released** (CurseForge
+Alpha). Spikes S1-S5 done; raid / dungeon / delve design written below as
+Defaults awaiting the player's sign-off. Passive confirmations pending on
+his next delve (difficulty 208) and heroic raid (every boss level -1? x,y
+blocked in instances?): read the spike log when he says he's run them.
+Next: v0.2 (duplicates by talents, near matches, compare view with talent
+names via LibTalentTree, management window).
+
 **2026-10-15: repo set up before any code.** In place: TOC (12.1.5), icon
 set, release workflow, `.pkgmeta`, README, CurseForge copy draft, style
 notes, this roadmap. `main` = `dev` = scaffolding only; `CHANGELOG.md` has
