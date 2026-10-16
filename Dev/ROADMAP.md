@@ -132,11 +132,15 @@ phases below.
     new entry); if not, offer "Save as variant: Boss (Heroic)" (prompt on by
     default; silent auto-save opt-in). Next visit offers it ("Last time
     here you played X").
-  - **M+:** one dungeon, so the target is the dungeon. Offer on zone-in
-    (Mythic), again when the keystone slot opens
-    (`CHALLENGE_MODE_KEYSTONE_RECEPTABLE_OPEN`, the last moment), and never
-    after `CHALLENGE_MODE_START` (talents lock). Memory for M+ is per
-    dungeon, recorded at key start.
+  - **M+:** one dungeon, so the target is the dungeon. Entering a
+    Mythic dungeon = assume the player is about to run a key (the higher
+    order activity; in plain Mythic talents stay changeable out of combat
+    anyway), so **zone-in is the main offer**. Re-offer on ready check
+    (everyone sees it; groups usually check before the key goes in). The
+    keystone slot opening only reaches the keyholder, so it's a bonus
+    re-offer for them, not something to rely on. Never offer after
+    `CHALLENGE_MODE_START` (talents lock). Memory for M+ is per dungeon,
+    recorded at key start. (player, 2026-10-16)
   - **Raid:** any boss could be next, so stack signals to name the likely
     next boss, between pulls: (1) journal bosses minus the ones this
     lockout already killed (`C_RaidLocks.IsEncounterComplete`); (2) where

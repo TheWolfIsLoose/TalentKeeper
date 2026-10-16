@@ -233,7 +233,7 @@ for _, e in ipairs({ "PLAYER_ENTERING_WORLD", "ZONE_CHANGED_NEW_AREA", "CHALLENG
     "ENCOUNTER_END", "BOSS_KILL", "PLAYER_TARGET_CHANGED", "UPDATE_MOUSEOVER_UNIT", "NAME_PLATE_UNIT_ADDED",
     "TRAIT_CONFIG_CREATED", "TRAIT_CONFIG_UPDATED", "CONFIG_COMMIT_FAILED", "ADDON_ACTION_BLOCKED",
     "ADDON_ACTION_FORBIDDEN", "PLAYER_LOGIN", "ZONE_CHANGED", "ZONE_CHANGED_INDOORS",
-    "CHALLENGE_MODE_KEYSTONE_RECEPTABLE_OPEN" }) do ev:RegisterEvent(e) end
+    "CHALLENGE_MODE_KEYSTONE_RECEPTABLE_OPEN", "READY_CHECK", "START_TIMER" }) do ev:RegisterEvent(e) end
 
 ev:SetScript("OnEvent", function(_, e, a, b, c, d, f)
     if e == "PLAYER_LOGIN" then
@@ -242,7 +242,9 @@ ev:SetScript("OnEvent", function(_, e, a, b, c, d, f)
         P("---- session %s, %s", TK.build or "?", (select(2, UnitClass("player"))))
     elseif e == "PLAYER_ENTERING_WORLD" or e == "ZONE_CHANGED_NEW_AREA" then zone()
     elseif e == "ZONE_CHANGED" or e == "ZONE_CHANGED_INDOORS" then area()
-    elseif e == "CHALLENGE_MODE_KEYSTONE_RECEPTABLE_OPEN" then P("keystone slot opened (last chance to change talents)")
+    elseif e == "CHALLENGE_MODE_KEYSTONE_RECEPTABLE_OPEN" then P("keystone slot opened (keyholder only)")
+    elseif e == "READY_CHECK" then P("ready check (key map %s)", tostring(C_ChallengeMode.GetActiveChallengeMapID()))
+    elseif e == "START_TIMER" then P("countdown: type %s, %ss", tostring(a), tostring(b))
     elseif e == "CHALLENGE_MODE_START" then P("key started: map %s", tostring(a))
     elseif e == "ENCOUNTER_START" then P("encounter start: %s (%s), difficulty %s, %s", tostring(b), tostring(a), tostring(c), where())
     elseif e == "ENCOUNTER_END" then P("encounter end: %s (%s), %s", tostring(b), tostring(a), f == 1 and "kill" or "wipe")
@@ -276,7 +278,7 @@ local TESTS = {
     "  Any red error or 'blocked' message: screenshot.",
     "|cffffffffSignals (S4)|r",
     "  Zone into a dungeon and a raid. Walk the raid between bosses. Target and mouse over a boss before the pull. Kill a boss.",
-    "  M+: open the keystone slot, then start the key.",
+    "  M+: ready check, then start the key (keyholder: note when you open the slot).",
     "When done: /reload, then tell me.",
 }
 
