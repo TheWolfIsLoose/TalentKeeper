@@ -11,6 +11,7 @@
 TalentKeeper.lua
 Build.lua
 Builds.lua
+Compare.lua
 UI.lua
 
 #@debug@

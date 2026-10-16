@@ -348,13 +348,22 @@ Each answers a question before we design around it. Throwaway code in
 
 ## v0.2: no duplicates
 
-- Duplicate warning on save / import (Jump to it, Rename it, Save anyway).
-- Embed LibTalentTree-1.0 + LibStub (`.pkgmeta` externals; `libs\\` in the
-  TOC).
-- Near matches and the compare view (talent names; class vs spec tree
-  split; hero tree shown).
-- Hover a build: text diff against current talents.
-- Management window: spec → group, search, badges, drag to regroup.
+**Part 1 built 2026-10-16, in testing:** `Compare.lua`. A build's picks =
+node -> rank / choice from the string (free nodes ignored), read with
+Blizzard's own reader + `C_Traits.GetTreeNodes`. Same talents as a saved
+build (any string) = not saved again, on save, import and the first-login
+import. Near match (6 talents or fewer) named on save / import with the
+differences. Each build's submenu starts with how it differs from your
+current talents, by talent name; menu marks "same as X" and Outdated
+(set by the check after applying).
+- LibTalentTree deferred again: Blizzard's API gives names for the
+  player's own class; add the lib when we need another class's tree or
+  class vs spec nodes.
+- Not done: "Save anyway" for an identical build (nothing to gain);
+  class vs spec tree split in diffs; hero tree shown.
+
+**Part 2:** management window: spec -> group, search, badges, drag to
+regroup, compare any two builds by name.
 
 ## v0.3: main builds and variants
 

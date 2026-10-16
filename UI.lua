@@ -126,10 +126,38 @@ end
 -- Build menu ---------------------------------------------------------------------------
 local armed -- the build whose Delete was clicked once (second click within 3 s deletes)
 
-local function buildEntry(parent, specID, b)
-    local entry = parent:CreateRadio(b.name,
+-- How a build differs from the talents you have now, as the top of its submenu.
+local function diffLines(entry, current, b)
+    local C = TK.compare
+    local d = current and C.diff(current, b.text)
+    if not d then return end
+    if #d == 0 then
+        entry:CreateTitle("|cff98ff98Matches your current talents|r")
+    else
+        entry:CreateTitle(("Differs from your current talents by %d:"):format(#d))
+        for _, line in ipairs(C.describe(d, 8)) do
+            entry:CreateButton("|cffbdbdbd" .. line .. "|r"):SetEnabled(false)
+        end
+    end
+    if b.outdated then
+        entry:CreateButton(("|cffffb84dOutdated: %d talent%s no longer fit your tree|r"):format(b.outdated, b.outdated == 1 and "" or "s")):SetEnabled(false)
+    end
+    entry:CreateDivider()
+end
+
+local function label(list, b)
+    local text = b.name
+    local same = TK.compare.sameAsEarlier(list, b)
+    if same then text = text .. "  |cff8c8c8csame as " .. same.name .. "|r" end
+    if b.outdated then text = text .. "  |cffffb84dOutdated|r" end
+    return text
+end
+
+local function buildEntry(parent, specID, b, list, current)
+    local entry = parent:CreateRadio(label(list, b),
         function() return TK.db.active[specID] == b.name end,
         function() B.apply(b) return MenuResponse.Close end)
+    diffLines(entry, current, b)
     entry:CreateButton("Rename", function()
         UI.textWindow({ title = "Rename build", text = b.name, singleLine = true, okText = "Rename",
             onOK = function(name) B.rename(specID, b, name) end })
@@ -157,6 +185,7 @@ local function generator(_, root)
     if not specID then return root:CreateTitle("TalentKeeper") end
     root:CreateTitle("TalentKeeper: " .. B.specName(specID))
     local list = B.list(specID)
+    local current = B.currentString()
     if #list == 0 then
         local none = root:CreateButton("|cff8c8c8cNo builds saved for this spec yet|r")
         none:SetEnabled(false)
@@ -167,12 +196,12 @@ local function generator(_, root)
             if not groups[b.group] then groups[b.group] = {}; order[#order + 1] = b.group end
             table.insert(groups[b.group], b)
         else
-            buildEntry(root, specID, b)
+            buildEntry(root, specID, b, list, current)
         end
     end
     for _, name in ipairs(order) do
         local g = root:CreateButton(name)
-        for _, b in ipairs(groups[name]) do buildEntry(g, specID, b) end
+        for _, b in ipairs(groups[name]) do buildEntry(g, specID, b, list, current) end
     end
     root:CreateDivider()
     root:CreateButton("Save current talents", function()

@@ -62,14 +62,27 @@ MenuResponse = { Close = 3, CloseAll = 4, Refresh = 2 }
 -- Strings in tests look like "SPEC:<id>:<anything>"; the reader returns that spec.
 ClassTalentImportExportMixin = {
     ReadLoadoutHeader = function(_, stream) local spec = stream.text:match("^SPEC:(%d+):") return spec ~= nil, 2, tonumber(spec) end,
-    ReadLoadoutContent = function() return {} end,
+    -- payload digit per node: 0 none, 1 taken, 2 choice 2, 3 granted (free)
+    ReadLoadoutContent = function(_, stream)
+        local payload, r = stream.text:match("^SPEC:%d+:(.*)$") or "", {}
+        for i = 1, 4 do
+            local ch = payload:sub(i, i)
+            r[i] = { isNodeSelected = ch ~= "0" and ch ~= "", isNodeGranted = ch == "3", isPartiallyRanked = false,
+                     isChoiceNode = ch == "2", choiceNodeSelection = ch == "2" and 2 or 1 }
+        end
+        return r
+    end,
     ConvertToImportLoadoutEntryInfo = function() return { { nodeID = 1, ranksPurchased = 1 } } end,
 }
 ExportUtil = { MakeImportDataStream = function(text) return { text = text } end }
 local configs, loads, imports = {}, {}, 0
 C_Traits = {
     GetLoadoutSerializationVersion = function() return 2 end,
-    GenerateImportString = function() return "SPEC:" .. currentSpec .. ":current" end,
+    GenerateImportString = function() return "SPEC:" .. currentSpec .. ":1000" end,
+    GetTreeNodes = function() return { 101, 102, 103, 104 } end,
+    GetNodeInfo = function(_, node) return { entryIDs = { node * 10 + 1, node * 10 + 2 } } end,
+    GetEntryInfo = function(_, e) return { definitionID = e } end,
+    GetDefinitionInfo = function(d) return { spellID = d } end,
     GetConfigInfo = function(id) return configs[id] end,
 }
 C_ClassTalents = {
@@ -83,6 +96,7 @@ C_ClassTalents = {
     UpdateLastSelectedSavedConfigID = function() end,
     CanChangeTalents = function() return true, true, nil end,
 }
+C_Spell = { GetSpellName = function(id) return "T" .. id end }
 C_SpecializationInfo = { GetAllSelectedPvpTalentIDs = function() return { 15, 18 } end, GetPvpTalentSlotInfo = function() return nil end }
 local menuGen
 MenuUtil = { CreateContextMenu = function(_, gen) menuGen = gen end }
@@ -102,11 +116,11 @@ section("loads in TOC order")
 
 TalentLoadoutEx = { WARLOCK = { [3] = {
     { name = "Raid", isExpanded = true },
-    { name = "HC Cleave", text = "SPEC:267:a", isInGroup = true, pvp1 = 157 },
-    { name = "HC ST", text = "SPEC:267:b", isInGroup = true },
-    { name = "Solo", text = "SPEC:267:c" },
-    { name = "Copy", text = "SPEC:267:c" },
-}, [1] = { { name = "Aff", text = "SPEC:265:a" } } } }
+    { name = "HC Cleave", text = "SPEC:267:1100", isInGroup = true, pvp1 = 157 },
+    { name = "HC ST", text = "SPEC:267:1010", isInGroup = true },
+    { name = "Solo", text = "SPEC:267:0111" },
+    { name = "Copy", text = "SPEC:267:0111" },
+}, [1] = { { name = "Aff", text = "SPEC:265:1" } } } }
 fire("ADDON_LOADED", "TalentKeeper")
 ok(TalentKeeperDB and TK.db == TalentKeeperDB, "saved data set up")
 ok(said("TalentKeeper|r: dev loaded"), "load line")
@@ -123,19 +137,25 @@ fire("PLAYER_LOGIN")
 ok(#B.list(267) == 3, "import runs once")
 section("one-time import")
 
-local a = B.add(267, { name = "Solo", text = "SPEC:267:d" })
+local a = B.add(267, { name = "Solo", text = "SPEC:267:1111" })
 ok(a and a.name == "Solo (2)", "names stay unique: " .. tostring(a and a.name))
-ok(B.add(267, { name = "x", text = "SPEC:267:d" }) == nil, "same string not saved twice")
+ok(B.add(267, { name = "x", text = "SPEC:267:1111" }) == nil, "same string not saved twice")
+ok(B.add(267, { name = "x", text = "SPEC:267:1103" }) == nil, "same talents (a free node aside) not saved twice")
+local C = TK.compare
+local d = C.diff("SPEC:267:1100", "SPEC:267:2101")
+local lines = C.describe(d)
+ok(#d == 2 and lines[1] == "T1011 -> T1012" and lines[2] == "+ T1041", "differences by name: " .. table.concat(lines, " | "))
 B.saveCurrent("")
 ok(B.list(267)[#B.list(267)].name == "Destruction 5", "save current gets a default name")
 ok(TK.db.active[267] == "Destruction 5", "saved build is the active one")
+ok(said("Close to HC Cleave: 1 talent apart") or said("Close to HC ST: 1 talent apart"), "near match named on save")
 B.rename(267, B.list(267)[#B.list(267)], "Solo")
 ok(TK.db.active[267] == "Solo (3)", "rename keeps names unique and follows active: " .. tostring(TK.db.active[267]))
 B.delete(267, B.list(267)[#B.list(267)])
 ok(TK.db.active[267] == nil and #B.list(267) == 4, "delete clears active")
 B.importString("not a string")
 ok(said("isn't a talent string"), "bad import rejected")
-B.importString("SPEC:265:new")
+B.importString("SPEC:265:01")
 ok(#B.list(265) == 2, "import goes to the string's spec")
 section("save, import, rename, delete")
 
@@ -191,8 +211,11 @@ ok(flat:find("button:Save current talents") and flat:find("button:Import a talen
 local raid
 for _, c in ipairs(root.children) do if c.label == "Raid" then raid = c end end
 ok(#raid.children == 2 and raid.children[1].kind == "radio", "group holds its builds")
-local del = raid.children[1].children[3]
-ok(del.label == "Delete", "build submenu: rename, copy, delete")
+local sub, del = {}, nil
+for _, c in ipairs(raid.children[1].children) do sub[#sub + 1] = tostring(c.label); if c.label == "Delete" then del = c end end
+sub = table.concat(sub, ",")
+ok(del and sub:find("Rename") and sub:find("Copy talent string"), "build submenu: rename, copy, delete: " .. sub)
+ok(sub:find("Differs from your current talents by 1"), "submenu says how it differs from current talents")
 local before = #B.list(267)
 ok(del.args[1]() == MenuResponse.Refresh, "first delete click arms")
 ok(del.args[1]() == MenuResponse.CloseAll and #B.list(267) == before - 1, "second click deletes")

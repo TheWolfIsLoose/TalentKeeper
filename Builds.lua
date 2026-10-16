@@ -44,6 +44,8 @@ function B.add(specID, b)
     for _, other in ipairs(list) do
         if strtrim(other.text) == b.text then return nil, other end
     end
+    local same = TK.compare.same(list, b.text)  -- same talents, different string
+    if same then return nil, same end
     b.name = B.uniqueName(list, b.name)
     b.added = b.added or time()
     list[#list + 1] = b
@@ -56,6 +58,7 @@ local function mixin()
     C_AddOns.LoadAddOn("Blizzard_PlayerSpells")
     return ClassTalentImportExportMixin
 end
+B.mixin = mixin
 
 -- Which spec a string is for, without needing to be on that spec.
 function B.stringSpec(text)
@@ -97,6 +100,7 @@ end
 local function currentString()
     return C_Traits.GenerateImportString(C_ClassTalents.GetActiveConfigID())
 end
+B.currentString = currentString
 
 local function currentPvp()
     local ids = C_SpecializationInfo.GetAllSelectedPvpTalentIDs and C_SpecializationInfo.GetAllSelectedPvpTalentIDs()
@@ -113,10 +117,10 @@ function B.saveCurrent(name)
         name = name ~= "" and name or ("%s %d"):format(B.specName(specID), #list + 1),
         text = text, pvp = currentPvp(),
     })
-    if not b then return TK.chat(("Already saved as |cffffffff%s|r."):format(same.name)) end
+    if not b then return TK.chat(("Same talents as |cffffffff%s|r, so nothing new to save."):format(same.name)) end
     TK.db.active[specID] = b.name
     TK.log("saved '%s' (%s)", b.name, B.specName(specID))
-    TK.chat(("Saved |cffffffff%s|r."):format(b.name))
+    TK.chat(("Saved |cffffffff%s|r.%s"):format(b.name, TK.compare.nearNote(list, b)))
 end
 
 function B.importString(text, name)
@@ -127,9 +131,9 @@ function B.importString(text, name)
         name = name and name ~= "" and name or ("Imported %d"):format(#list + 1),
         text = strtrim(text),
     })
-    if not b then return TK.chat(("Already saved as |cffffffff%s|r (%s)."):format(same.name, B.specName(spec))) end
+    if not b then return TK.chat(("Same talents as |cffffffff%s|r (%s), so nothing new to save."):format(same.name, B.specName(spec))) end
     TK.log("imported '%s' (%s)", b.name, B.specName(spec))
-    TK.chat(("Saved |cffffffff%s|r for %s."):format(b.name, B.specName(spec)))
+    TK.chat(("Saved |cffffffff%s|r for %s.%s"):format(b.name, B.specName(spec), TK.compare.nearNote(list, b)))
 end
 
 function B.rename(specID, b, name)
@@ -178,6 +182,7 @@ local function verify(b)
     if not want or not ok or not have then return TK.log("check '%s': couldn't read talents", b.name) end
     local n = differences(want, have)
     TK.log("check '%s': %d differences", b.name, n)
+    b.outdated = n > 0 and n or nil
     if n > 0 then
         TK.chat(("|cffffb84dApplied %s, but %d of its talents no longer fit your tree.|r Re-save it once you've fixed them."):format(b.name, n))
     end
