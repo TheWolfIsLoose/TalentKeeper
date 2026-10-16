@@ -8,6 +8,10 @@ TK.compare = C
 
 local NEAR = 6 -- builds this many talents apart or fewer count as near matches
 
+-- Tree data for every class, so builds for specs and classes you aren't on read too.
+local LTT = LibStub and LibStub("LibTalentTree-1.0", true)
+local function libNode(node) return LTT and LTT:GetLibNodeInfo(node) end
+
 -- picks[nodeID] = "rank:choice" (rank 0 = all ranks; choice 0 = not a choice node).
 -- Free (granted) nodes are left out, so they never count as a difference.
 local cache, grantedIn = {}, {}
@@ -16,6 +20,7 @@ function C.picks(text)
     if cache[text] ~= nil then return cache[text] or nil end
     local spec = B.stringSpec(text)
     local treeID = spec and C_ClassTalents.GetTraitTreeForSpec(spec)
+    if spec and not treeID and LTT then treeID = LTT:GetClassTreeID(select(6, GetSpecializationInfoByID(spec))) end
     local nodes = treeID and C_Traits.GetTreeNodes(treeID)
     local picks
     if nodes then
@@ -49,11 +54,16 @@ end
 function C.diff(textA, textB)
     local a, b = C.picks(textA), C.picks(textB)
     if not a or not b then return nil end
-    local free = (B.stringSpec(textA) == B.specID()) and freeNow() or {}
+    local spec = B.stringSpec(textA)
+    local free = (spec == B.specID()) and freeNow() or {}
+    local function skip(node) return free[node] or (LTT and spec and LTT:IsNodeGrantedForSpec(spec, node)) end
     local out = {}
-    for node, v in pairs(a) do if b[node] ~= v and not free[node] then out[#out + 1] = { node = node, from = v, to = b[node] } end end
-    for node, v in pairs(b) do if a[node] == nil and not free[node] then out[#out + 1] = { node = node, to = v } end end
-    table.sort(out, function(x, y) return x.node < y.node end)
+    for node, v in pairs(a) do if b[node] ~= v and not skip(node) then out[#out + 1] = { node = node, from = v, to = b[node] } end end
+    for node, v in pairs(b) do if a[node] == nil and not skip(node) then out[#out + 1] = { node = node, to = v } end end
+    -- spec tree first, then hero, then class tree
+    local function group(node) local n = libNode(node) return not n and 0 or n.isClassNode and 2 or n.subTreeID and 1 or 0 end
+    for _, c in ipairs(out) do c.group = group(c.node) end
+    table.sort(out, function(x, y) if x.group ~= y.group then return x.group < y.group end return x.node < y.node end)
     return out
 end
 
@@ -83,8 +93,9 @@ local function talentName(node, v)
     local choice = tonumber(v and v:match(":(%d+)$")) or 0
     local cfg = C_ClassTalents.GetActiveConfigID()
     local info = cfg and C_Traits.GetNodeInfo(cfg, node)
+    if not (info and info.entryIDs and #info.entryIDs > 0) then info = libNode(node) end -- another class's tree
     local entryID = info and info.entryIDs and info.entryIDs[choice > 0 and choice or 1]
-    local entry = entryID and C_Traits.GetEntryInfo(cfg, entryID)
+    local entry = entryID and (C_Traits.GetEntryInfo(cfg, entryID) or (LTT and LTT:GetEntryInfo(entryID)))
     local def = entry and entry.definitionID and C_Traits.GetDefinitionInfo(entry.definitionID)
     local name = def and (def.overrideName or (def.spellID and C_Spell.GetSpellName(def.spellID)))
     return name or ("talent " .. node)
@@ -97,13 +108,16 @@ function C.describe(changes, max)
     local lines = {}
     for i, c in ipairs(changes) do
         if max and i > max then lines[#lines + 1] = ("and %d more"):format(#changes - max) break end
-        if not c.from then lines[#lines + 1] = "+ " .. talentName(c.node, c.to)
-        elseif not c.to then lines[#lines + 1] = "- " .. talentName(c.node, c.from)
+        local line
+        if not c.from then line = "+ " .. talentName(c.node, c.to)
+        elseif not c.to then line = "- " .. talentName(c.node, c.from)
         elseif c.from:match(":(%d+)$") ~= c.to:match(":(%d+)$") then
-            lines[#lines + 1] = talentName(c.node, c.from) .. " -> " .. talentName(c.node, c.to)
+            line = talentName(c.node, c.from) .. " -> " .. talentName(c.node, c.to)
         else
-            lines[#lines + 1] = ("%s (rank %s -> %s)"):format(talentName(c.node, c.to), rank(c.from), rank(c.to))
+            line = ("%s (rank %s -> %s)"):format(talentName(c.node, c.to), rank(c.from), rank(c.to))
         end
+        if c.group == 2 then line = line .. " (class)" elseif c.group == 1 then line = line .. " (hero)" end
+        lines[#lines + 1] = line
     end
     return lines
 end
@@ -122,5 +136,20 @@ function C.sameAsEarlier(list, b)
         if other == b then return nil end
         local d = C.diff(other.text, b.text)
         if d and #d == 0 then return other end
+    end
+end
+
+-- The hero tree a build takes, by name (nil if unknown).
+function C.heroName(text)
+    local picks = LTT and C.picks(text)
+    if not picks then return nil end
+    for node, v in pairs(picks) do
+        local n = libNode(node)
+        if n and n.isSubTreeSelection then
+            local choice = tonumber(v:match(":(%d+)$")) or 0
+            local entry = n.entryIDs and LTT:GetEntryInfo(n.entryIDs[choice > 0 and choice or 1])
+            local info = entry and entry.subTreeID and LTT:GetSubTreeInfo(entry.subTreeID)
+            return info and info.name
+        end
     end
 end

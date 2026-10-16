@@ -98,13 +98,22 @@ C_ClassTalents = {
 }
 C_Spell = { GetSpellName = function(id) return "T" .. id end }
 C_SpecializationInfo = { GetAllSelectedPvpTalentIDs = function() return { 15, 18 } end, GetPvpTalentSlotInfo = function() return nil end }
+-- Talent tree library: node 104 is a class node, 103 a hero node; nothing is free.
+local libNodes = { [101] = {}, [102] = {}, [103] = { subTreeID = 7 }, [104] = { isClassNode = true } }
+local lib = {
+    GetLibNodeInfo = function(_, node) return libNodes[node] end,
+    IsNodeGrantedForSpec = function() return false end,
+    GetClassTreeID = function() return 1 end,
+    GetEntryInfo = function() return nil end,
+}
+LibStub = function() return lib end
 local menuGen
 MenuUtil = { CreateContextMenu = function(_, gen) menuGen = gen end }
 
 -- Load in TOC order ---------------------------------------------------------------
 local ns = {}
 for line in io.lines("TalentKeeper.toc") do
-    if line:match("%.lua$") and not line:match("^#") and not line:match("^Dev") then
+    if line:match("%.lua$") and not line:match("^#") and not line:match("^Dev") and not line:match("^libs") then
         local chunk = assert(loadfile(line))
         chunk("TalentKeeper", ns)
     end
@@ -144,7 +153,7 @@ ok(B.add(267, { name = "x", text = "SPEC:267:1103" }) == nil, "same talents (a f
 local C = TK.compare
 local d = C.diff("SPEC:267:1100", "SPEC:267:2101")
 local lines = C.describe(d)
-ok(#d == 2 and lines[1] == "T1011 -> T1012" and lines[2] == "+ T1041", "differences by name: " .. table.concat(lines, " | "))
+ok(#d == 2 and lines[1] == "T1011 -> T1012" and lines[2] == "+ T1041 (class)", "differences by name: " .. table.concat(lines, " | "))
 B.saveCurrent("")
 ok(B.list(267)[#B.list(267)].name == "Destruction 5", "save current gets a default name")
 ok(TK.db.active[267] == "Destruction 5", "saved build is the active one")

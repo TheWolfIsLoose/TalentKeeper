@@ -368,9 +368,15 @@ the after-apply check names talents; a refused commit is reported as
 such; the first load waits 0.3 s (the instant load errored nearly every
 time, then the retry worked).
 
-**Part 2:** embed LibTalentTree for builds of other classes / specs you're
-not on (names and compare without logging over), class vs spec split and
-hero tree labels; management window: spec -> group, search, badges, drag to
+v0.2.0-alpha1 released 2026-10-16 (part 1).
+
+**Part 2a, in testing:** LibTalentTree-1.0 (unmodified) + LibStub committed
+under `libs/` (no `.pkgmeta` externals, so `update.bat` checkouts work
+too). Used for: another class's tree and names, nodes free for a spec,
+diffs ordered spec / hero / class with "(hero)" / "(class)" tags, and the
+build's hero tree named at the top of its submenu.
+
+**Part 2b:** management window: spec -> group, search, badges, drag to
 regroup, compare any two builds by name.
 
 ## v0.3: main builds and variants

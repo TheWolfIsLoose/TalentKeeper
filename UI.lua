@@ -131,6 +131,8 @@ local function diffLines(entry, current, b)
     local C = TK.compare
     local d = current and C.diff(current, b.text)
     if not d then return end
+    local hero = C.heroName(b.text)
+    if hero then entry:CreateTitle(hero) end
     if #d == 0 then
         entry:CreateTitle("|cff98ff98Matches your current talents|r")
     else

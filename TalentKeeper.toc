@@ -8,6 +8,9 @@
 ## X-Category: Combat
 ## X-Curse-Project-ID: 1746823
 
+libs\LibStub\LibStub.lua
+libs\LibTalentTree-1.0\LibTalentTree-1.0.xml
+
 TalentKeeper.lua
 Build.lua
 Builds.lua
