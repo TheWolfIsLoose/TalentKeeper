@@ -216,6 +216,17 @@ Each answers a question before we design around it. Throwaway code in
   dungeon (name fallback added); **mouseover inside an instance returns
   name and NPC ID as secret** (level and classification readable), so boss
   sighting by identity is likely out; confirm on a real boss.
+  **Raid run (LFR, single-boss raid, 2026-10-16): done.** Zone-in gives
+  instance type, ID and difficulty; the journal resolves from the boss
+  room's map (the entrance map isn't linked). `ENCOUNTER_START` / `END` /
+  `BOSS_KILL` give the boss name, encounter ID, difficulty and wipe / kill
+  in readable form, so **boss memory from kills works**. Target / mouseover
+  keep name and NPC ID secret even on the boss; the boss shows as **elite,
+  level -1** (trash: 90-91), so "a boss is in front of you" is readable but
+  not which one. **Decision: no boss recognition by sight.** Next-boss guess
+  = lockout kills + where the player stands (learned from past pulls) +
+  journal order, and a level -1 target only confirms "at a boss". Same
+  secrecy in Normal dungeons, out of combat.
 
 ## v0.1: keep and switch (first alpha)
 
