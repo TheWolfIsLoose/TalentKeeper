@@ -20,6 +20,13 @@ heading, so pushes publish nothing.
 Next: answer the **Open** items below, then build **Phase 0 (spikes)** on
 `dev`. No player-facing code before the spikes report back.
 
+**Parked 2026-10-16, 01:25 ET: scope review first.** The player has
+gathered feedback and ideas from others and will hand them over to adjust
+scope. Start the next session there, before running or extending the spike.
+The S2–S4 spike (`/tk spike`) is pushed but untested in game; the AddOns
+folder holds only the TOC and `Dev\update.bat` until the player runs
+`update.bat dev`.
+
 **Kickoff checklist for the first code session** (parked 2026-10-15, 14:17 ET):
 1. Attach the repo with push access (add_repo `TheWolfIsLoose/TalentKeeper`),
    clone, work on `dev`.
