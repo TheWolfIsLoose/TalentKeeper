@@ -259,11 +259,28 @@ Each answers a question before we design around it. Throwaway code in
     live runs with a dev-only export (`/tk dev spots`). New raid: seed from
     live week 1 in a quick follow-up release; PTR runs feed it too when they
     happen (spike / export are passive), but nothing depends on PTR.
+  **Mark a spot by hand (Default, 2026-10-16):** for players who want to
+  tune it, the menu gets "Prepare for <boss> here": it records the current
+  map + subzone as that boss's trigger (overrides learned and shipped
+  spots). Granularity is subzone, since x,y is likely unavailable in
+  instances. Advanced, tucked in the menu, never a pop-up.
+  **Across specs (Default, 2026-10-16):** a boss can be tagged with builds
+  from any of the class's specs. The offer names spec and build
+  ("Next: Boss X, Destruction 'Raid HC Cleave'"); one click, after the
+  player confirms, switches spec, waits for it, then applies the build.
+  Memory keeps the last kill per spec; the offer leads with the most recent
+  and lists the other specs' builds one click away. Gear sets per build
+  cover the gear side. Spike S5 checks the switch-then-apply chain.
   **Everything else is read live** (Default): zone, boss list (journal),
   lockout kills and encounters are all read from the game at runtime, so a
   new raid works on patch day. Only boss-pull positions are learned, per
   player, from their own pulls; until then the guess uses lockout + journal
   order. PTR is only for a smoke test that these APIs still behave.
+
+- **S5 Spec swap.** From one click: switch spec, wait for it, apply a
+  build of that spec into that spec's TalentKeeper slot (`/tk spike swap
+  <spec> <n>`). Check timing, interruption by moving, and that each spec
+  keeps its own slot.
 
 ## v0.1: keep and switch (first alpha)
 

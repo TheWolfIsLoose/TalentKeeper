@@ -29,9 +29,9 @@ local function sec(v) return issecretvalue and issecretvalue(v) end
 local function show(v) if sec(v) then return "<secret>" end return tostring(v) end
 
 -- Builds and decoding ---------------------------------------------------------
-local function tleBuilds()
+local function tleBuilds(spec)
     local _, class = UnitClass("player")
-    local list = TalentLoadoutEx and TalentLoadoutEx[class] and TalentLoadoutEx[class][GetSpecialization()]
+    local list = TalentLoadoutEx and TalentLoadoutEx[class] and TalentLoadoutEx[class][spec or GetSpecialization()]
     local r = {}
     for _, b in ipairs(list or {}) do if b.text then r[#r + 1] = b end end
     return r
@@ -256,13 +256,34 @@ local function probe(unit, how)
     if not ok and not seen["err" .. how] then seen["err" .. how] = true; P("probe %s error: %s", how, tostring(err)) end
 end
 
+-- S5 spec swap: switch spec, then apply a build of that spec ----------------------
+local pendingSwap
+local function swap(spec, n)
+    if InCombatLockdown() then return P("in combat: not swapping") end
+    local b = tleBuilds(spec)[n]
+    if not b then return P("no build %s for spec %s; see /tk spike builds %s", tostring(n), tostring(spec), tostring(spec)) end
+    if spec == GetSpecialization() then return apply(b) end
+    pendingSwap = { spec = spec, n = n, t = GetTime() }
+    local set = C_SpecializationInfo and C_SpecializationInfo.SetSpecialization or SetSpecialization
+    local ok, res = pcall(set, spec)
+    P("swap: spec %d -> %d for '%s': SetSpecialization %s %s", GetSpecialization(), spec, b.name, tostring(ok), tostring(res))
+    if not ok then pendingSwap = nil end
+end
+
+local function onSpecChanged()
+    if not pendingSwap or GetSpecialization() ~= pendingSwap.spec then return end
+    local s5 = pendingSwap; pendingSwap = nil
+    P("swap: spec %d active after %.1fs; applying build %d", s5.spec, GetTime() - s5.t, s5.n)
+    C_Timer.After(1, function() apply(tleBuilds(s5.spec)[s5.n]) end)
+end
+
 -- Events ------------------------------------------------------------------------
 local ev = CreateFrame("Frame")
 for _, e in ipairs({ "PLAYER_ENTERING_WORLD", "ZONE_CHANGED_NEW_AREA", "CHALLENGE_MODE_START", "ENCOUNTER_START",
     "ENCOUNTER_END", "BOSS_KILL", "PLAYER_TARGET_CHANGED", "UPDATE_MOUSEOVER_UNIT",
     "TRAIT_CONFIG_CREATED", "TRAIT_CONFIG_UPDATED", "CONFIG_COMMIT_FAILED", "ADDON_ACTION_BLOCKED",
     "ADDON_ACTION_FORBIDDEN", "PLAYER_LOGIN", "ZONE_CHANGED", "ZONE_CHANGED_INDOORS",
-    "CHALLENGE_MODE_KEYSTONE_RECEPTABLE_OPEN", "READY_CHECK", "START_TIMER" }) do ev:RegisterEvent(e) end
+    "CHALLENGE_MODE_KEYSTONE_RECEPTABLE_OPEN", "READY_CHECK", "START_TIMER", "ACTIVE_PLAYER_SPECIALIZATION_CHANGED" }) do ev:RegisterEvent(e) end
 
 ev:SetScript("OnEvent", function(_, e, a, b, c, d, f)
     if e == "PLAYER_LOGIN" then
@@ -290,6 +311,7 @@ ev:SetScript("OnEvent", function(_, e, a, b, c, d, f)
         end
     elseif e == "TRAIT_CONFIG_UPDATED" then
         if waitID and a == waitID then load(a) end
+    elseif e == "ACTIVE_PLAYER_SPECIALIZATION_CHANGED" then onSpecChanged()
     elseif e == "CONFIG_COMMIT_FAILED" then P("|cffff8888commit failed|r: config %s", tostring(a))
     elseif a == addonName then P("|cffff8888%s|r: %s", e, tostring(b))
     end
@@ -314,9 +336,13 @@ local TESTS = {
 
 TK.commands.spike = function(msg)
     local sub, arg = msg:match("^(%S*)%s*(.-)$")
-    if sub == "builds" then
-        local list = tleBuilds()
-        if #list == 0 then return P("no TLE builds for this spec") end
+    if sub == "swap" then
+        local spec, n = arg:match("^(%d+)%s+(%d+)$")
+        if not spec then return P("usage: /tk spike swap <spec 1-4> <build n>") end
+        swap(tonumber(spec), tonumber(n))
+    elseif sub == "builds" then
+        local list = tleBuilds(tonumber(arg))
+        if #list == 0 then return P("no TLE builds for that spec") end
         for i, bd in ipairs(list) do print(("  %d. %s"):format(i, bd.name)) end
     elseif sub == "apply" then
         local bd = tleBuilds()[tonumber(arg) or 0]
