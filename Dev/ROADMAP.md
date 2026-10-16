@@ -100,6 +100,14 @@ string.** Decode every string into what it actually picks for its spec
     it** (2026-10-16). Nobody swaps talents between dungeon bosses, and M+
     locks them at key start, so no per-boss offers or boss sighting in
     dungeons; memory and tags are per dungeon.
+  - **Delves (Default, 2026-10-16):** treated like dungeons, build chosen
+    on entry. Often a delve gets the same build as other content, so it's
+    opt-in: one "Delves" tag covering every delve (per-delve tags only if
+    asked for). Entering a delve with no build tagged for Delves gives one
+    gentle nudge ("Want a build for Delves? Tag one", with "Don't ask
+    again"); after that it's quiet. Detection: `GetInstanceInfo` type
+    `scenario`, difficulty 208 (Delves); the spike logs it on its own, so
+    confirm on the next delve.
   - **Raid:** any boss could be next, so stack signals to name the likely
     next boss, between pulls: (1) journal bosses minus the ones this
     lockout already killed (`C_RaidLocks.IsEncounterComplete`); (2) where
