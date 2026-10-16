@@ -10,6 +10,9 @@ local FONT = "Interface\\AddOns\\" .. addonName .. "\\Media\\BarlowSemiCondensed
 for name, size in pairs({ TalentKeeperFontSmall = 10, TalentKeeperFont = 12, TalentKeeperFontLarge = 16 }) do
     CreateFont(name):SetFont(FONT, size, "")
 end
+local disabledFont = CreateFont("TalentKeeperFontDisabled")
+disabledFont:SetFont(FONT, 12, "")
+disabledFont:SetTextColor(0.55, 0.55, 0.55)
 
 local function fill(frame, layer, r, g, b, a)
     local t = frame:CreateTexture(nil, layer)
@@ -44,12 +47,15 @@ local function button(parent, label, width, onClick)
     local hover = fill(bt, "HIGHLIGHT", 0.851, 0.851, 0.851, 0.15)
     hover:SetBlendMode("BLEND")
     bt:SetNormalFontObject(TalentKeeperFont)
+    bt:SetDisabledFontObject(disabledFont)
     bt:SetText(label)
     bt:SetScript("OnEnter", function() setRing(0.7) end)
     bt:SetScript("OnLeave", function() setRing(0.4) end)
     bt:SetScript("OnClick", TK.safe(onClick))
     return bt
 end
+
+UI.fill, UI.ring, UI.button = fill, ring, button
 
 -- Text window --------------------------------------------------------------------
 -- UI.textWindow{ title, text, okText?, onOK?(text), readOnly?, singleLine? }
@@ -212,6 +218,7 @@ local function generator(_, root)
             onOK = function(name) B.saveCurrent(name) end })
     end)
     root:CreateButton("Import a talent string", TK.commands.import)
+    root:CreateButton("Manage builds", function() TK.commands.manage() end)
 end
 
 function UI.openMenu(owner)

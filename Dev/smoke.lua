@@ -35,6 +35,7 @@ date, time = os.date, os.time
 strtrim = function(s) return (s:gsub("^%s+", ""):gsub("%s+$", "")) end
 wipe = function(t) for k in pairs(t) do t[k] = nil end return t end
 tinsert = table.insert
+tContains = function(t, v) for _, x in pairs(t) do if x == v then return true end end return false end
 tInvert = function(t) local r = {} for k, v in pairs(t) do r[v] = k end return r end
 debugstack = function() return "stack" end
 geterrorhandler = function() return function(e) error(e, 0) end end
@@ -238,5 +239,16 @@ local before = #B.list(267)
 ok(del.args[1]() == MenuResponse.Refresh, "first delete click arms")
 ok(del.args[1]() == MenuResponse.CloseAll and #B.list(267) == before - 1, "second click deletes")
 section("menu")
+
+TK.commands.manage()
+TK.manager.refresh()
+local mb = B.list(267)[1]
+B.setGroup(mb, "  M+  ")
+ok(mb.group == "M+", "move to a group (trimmed)")
+B.setGroup(mb, "")
+ok(mb.group == nil, "move out of groups")
+TK.manager.click({ build = mb })
+TK.manager.click({ newGroup = true })
+section("management window")
 
 print_("smoke: all passed")

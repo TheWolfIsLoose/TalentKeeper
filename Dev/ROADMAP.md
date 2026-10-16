@@ -376,7 +376,16 @@ too). Used for: another class's tree and names, nodes free for a spec,
 diffs ordered spec / hero / class with "(hero)" / "(class)" tags, and the
 build's hero tree named at the top of its submenu.
 
-**Part 2b:** management window: spec -> group, search, badges, drag to
+**Part 2b, first cut in testing (`Manager.lua`, `/tk manage`, "Manage
+builds" in the menu):** specs by class on the left (current class first,
+counts), builds by group on the right with hero tree / Active / same as /
+Outdated, search by build or talent name, drag a build onto a group or
+"New group", Apply (current spec only) / Rename / Copy / Compare with /
+Delete (Sure?). Compare opens the differences in the text window.
+Mouse-wheel scrolling, no "more below" chevron yet. Player: "we'll play
+with it to see how we like it".
+
+**Part 2b (original note):** management window: spec -> group, search, badges, drag to
 regroup, compare any two builds by name.
 
 ## v0.3: main builds and variants

@@ -109,6 +109,7 @@ function B.saveCurrent(name)
     TK.db.active[specID] = b.name
     TK.log("saved '%s' (%s)", b.name, B.specName(specID))
     TK.chat(("Saved |cffffffff%s|r.%s"):format(b.name, TK.compare.nearNote(list, b)))
+    TK.changed()
 end
 
 function B.importString(text, name)
@@ -122,6 +123,7 @@ function B.importString(text, name)
     if not b then return TK.chat(("Same talents as |cffffffff%s|r (%s), so nothing new to save."):format(same.name, B.specName(spec))) end
     TK.log("imported '%s' (%s)", b.name, B.specName(spec))
     TK.chat(("Saved |cffffffff%s|r for %s.%s"):format(b.name, B.specName(spec), TK.compare.nearNote(list, b)))
+    TK.changed()
 end
 
 function B.rename(specID, b, name)
@@ -129,6 +131,15 @@ function B.rename(specID, b, name)
     b.name = B.uniqueName(B.list(specID), name, b)
     if TK.db.active[specID] == old then TK.db.active[specID] = b.name end
     TK.log("renamed '%s' to '%s'", old, b.name)
+    TK.changed()
+end
+
+-- Move a build into a group (nil = no group).
+function B.setGroup(b, group)
+    group = group and strtrim(group) or nil
+    b.group = group ~= "" and group or nil
+    TK.log("'%s' moved to %s", b.name, b.group or "no group")
+    TK.changed()
 end
 
 function B.delete(specID, b)
@@ -139,6 +150,7 @@ function B.delete(specID, b)
     if TK.db.active[specID] == b.name then TK.db.active[specID] = nil end
     TK.log("deleted '%s' (%s)", b.name, B.specName(specID))
     TK.chat(("Deleted |cffffffff%s|r."):format(b.name))
+    TK.changed()
 end
 
 -- Apply --------------------------------------------------------------------------
@@ -173,6 +185,7 @@ local function verify(b)
     local names = TK.compare.describe(d)
     TK.log("check '%s': %d differences%s", b.name, #d, #d > 0 and (": " .. table.concat(names, ", ")) or "")
     b.outdated = #d > 0 and #d or nil
+    TK.changed()
     if #d > 0 then
         TK.chat(("|cffffb84dApplied %s, but %d of its talents didn't come out as saved|r (%s). Re-save it once you've fixed them.")
             :format(b.name, #d, table.concat(TK.compare.describe(d, 3), ", ")))
@@ -201,6 +214,7 @@ local function load(id, p)
         return TK.chat(("|cffff8888Couldn't apply %s.|r %s"):format(p.b.name, changeError or "Try again in a moment."))
     end
     C_ClassTalents.UpdateLastSelectedSavedConfigID(specID, id)
+    TK.changed()
     setPvp(p.b)
     C_Timer.After(5, TK.safe(function() verify(p.b) end))
 end

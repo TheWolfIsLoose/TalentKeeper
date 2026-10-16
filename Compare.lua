@@ -143,6 +143,16 @@ function C.sameAsEarlier(list, b)
     end
 end
 
+-- Every talent name in a build, lowercased, for search.
+local nameCache = {}
+function C.searchText(text)
+    if nameCache[text] then return nameCache[text] end
+    local picks, names = C.picks(text), {}
+    for node, v in pairs(picks or {}) do names[#names + 1] = talentName(node, v):lower() end
+    nameCache[text] = table.concat(names, "\n")
+    return nameCache[text]
+end
+
 -- The hero tree a build takes, by name (nil if unknown).
 function C.heroName(text)
     local picks = LTT and C.picks(text)
