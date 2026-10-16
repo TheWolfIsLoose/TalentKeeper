@@ -229,18 +229,26 @@ local function zone()
     end
 end
 
+-- Every distinct unit you target / mouse over in an instance, out of combat.
+-- Readable names dedupe by name; secret ones (no usable key) are capped per session.
+local secretSightings = 0
 local function probe(unit, how)
     if not inInstance or InCombatLockdown() then return end
     local ok, err = pcall(function()
+        if not UnitExists(unit) then return end
+        local isPlayer = UnitIsPlayer(unit)
+        if not sec(isPlayer) and isPlayer then return end
         local guid, name, cls, lvl = UnitGUID(unit), UnitName(unit), UnitClassification(unit), UnitLevel(unit)
-        if not sec(guid) and not guid then return end
-        local anySecret = sec(guid) or sec(name) or sec(cls) or sec(lvl)
-        if not anySecret and lvl ~= -1 and cls ~= "worldboss" then return end
-        local npc = not sec(guid) and select(6, strsplit("-", guid)) or "<secret>"
-        local key = how .. ":" .. (sec(name) and npc or name)
-        if seen[key] then return end
-        seen[key] = true
-        P("seen via %s: %s | npc %s | %s | level %s", how, show(name), npc, show(cls), show(lvl))
+        if sec(name) then
+            secretSightings = secretSightings + 1
+            if secretSightings > 25 then return end
+        else
+            if seen[how .. ":" .. name] then return end
+            seen[how .. ":" .. name] = true
+        end
+        local npc = (not sec(guid) and guid) and select(6, strsplit("-", guid)) or "<secret>"
+        P("seen via %s: %s | npc %s | %s | level %s (you %d) | %s", how, show(name), tostring(npc), show(cls), show(lvl),
+            UnitLevel("player"), where())
     end)
     if not ok and not seen["err" .. how] then seen["err" .. how] = true; P("probe %s error: %s", how, tostring(err)) end
 end
