@@ -230,7 +230,7 @@ end
 -- Events ------------------------------------------------------------------------
 local ev = CreateFrame("Frame")
 for _, e in ipairs({ "PLAYER_ENTERING_WORLD", "ZONE_CHANGED_NEW_AREA", "CHALLENGE_MODE_START", "ENCOUNTER_START",
-    "ENCOUNTER_END", "BOSS_KILL", "PLAYER_TARGET_CHANGED", "UPDATE_MOUSEOVER_UNIT", "NAME_PLATE_UNIT_ADDED",
+    "ENCOUNTER_END", "BOSS_KILL", "PLAYER_TARGET_CHANGED", "UPDATE_MOUSEOVER_UNIT",
     "TRAIT_CONFIG_CREATED", "TRAIT_CONFIG_UPDATED", "CONFIG_COMMIT_FAILED", "ADDON_ACTION_BLOCKED",
     "ADDON_ACTION_FORBIDDEN", "PLAYER_LOGIN", "ZONE_CHANGED", "ZONE_CHANGED_INDOORS",
     "CHALLENGE_MODE_KEYSTONE_RECEPTABLE_OPEN", "READY_CHECK", "START_TIMER" }) do ev:RegisterEvent(e) end
@@ -251,7 +251,6 @@ ev:SetScript("OnEvent", function(_, e, a, b, c, d, f)
     elseif e == "BOSS_KILL" then P("boss kill: %s (%s)", tostring(b), tostring(a))
     elseif e == "PLAYER_TARGET_CHANGED" then probe("target", "target")
     elseif e == "UPDATE_MOUSEOVER_UNIT" then probe("mouseover", "mouseover")
-    elseif e == "NAME_PLATE_UNIT_ADDED" then probe(a, "nameplate")
     elseif e == "TRAIT_CONFIG_CREATED" then
         if pending and a.name == SLOT then
             local populated = C_ClassTalents.IsConfigPopulated(a.ID)
