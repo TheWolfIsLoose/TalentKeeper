@@ -218,7 +218,7 @@ ok(chatFilter(nil, nil, "Welcome to the realm.") == false, "other system lines p
 ok(B.add(267, { name = "dup", text = "  " .. B.list(267)[2].text .. "\n" }) == nil, "pasted copy with spaces is a duplicate")
 fire("CONFIG_COMMIT_FAILED", 1)
 runTimers()
-ok(said("didn't accept"), "a refused commit is reported, not called outdated")
+ok(not said("didn't accept"), "a refused commit that still landed isn't reported")
 -- a node a patch made free: old string lists it as bought (1), today's export as free (3)
 C_Traits.GenerateImportString = function() return "SPEC:267:3100" end
 ok(#TK.compare.diff("SPEC:267:1100", "SPEC:267:3100") == 0, "talents made free since don't count as differences")

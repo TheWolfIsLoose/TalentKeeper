@@ -208,6 +208,7 @@ function B.updateToCurrent(b)
         local newText = picks and C.write(specID, picks)
         if newText then
             v.text = newText
+            v.changes = changesFrom(b.text, newText) or v.changes
             follow = follow + 1
             if #collisions > 0 then
                 v.needsReview = true
@@ -267,12 +268,17 @@ end
 local lastApply -- { b, failed } for the build being applied, so a refused commit isn't reported as outdated
 
 local function verify(b)
-    -- skip when the change was refused, or another build was applied since (it's checked instead)
-    if not lastApply or lastApply.b ~= b or lastApply.failed then return end
+    -- skip when another build was applied since (it's checked instead)
+    if not lastApply or lastApply.b ~= b then return end
     local d = TK.compare.diff(b.text, currentString())
     if not d then return TK.log("check '%s': couldn't read talents", b.name) end
     local names = TK.compare.describe(d)
     TK.log("check '%s': %d differences%s", b.name, #d, #d > 0 and (": " .. table.concat(names, ", ")) or "")
+    if #d > 0 and lastApply.failed then
+        -- a refused commit only matters if the talents didn't end up as saved (a retry often lands it)
+        TK.log("apply '%s': refused and %d talents differ", b.name, #d)
+        return TK.chat(("|cffff8888The game didn't accept %s.|r Your talents weren't changed; try again out of combat, or check the build in the talent window."):format(b.name))
+    end
     b.outdated = #d > 0 and #d or nil
     TK.changed()
     if #d > 0 then
@@ -283,9 +289,8 @@ end
 
 TK.on("CONFIG_COMMIT_FAILED", function(configID)
     if not lastApply or not B.muteUntil or GetTime() > B.muteUntil then return end
-    lastApply.failed = true
-    TK.log("apply '%s': the game refused the change (config %s)", lastApply.b.name, tostring(configID))
-    TK.chat(("|cffff8888The game didn't accept %s.|r Your talents weren't changed; try again out of combat, or check the build in the talent window."):format(lastApply.b.name))
+    lastApply.failed = true -- reported by the check after applying, if the talents didn't land
+    TK.log("apply '%s': the game refused a change (config %s)", lastApply.b.name, tostring(configID))
 end)
 
 -- Load the freshly imported loadout. A load error right after import is usually timing,
