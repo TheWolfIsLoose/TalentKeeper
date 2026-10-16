@@ -231,10 +231,11 @@ function B.apply(b)
     end
 end
 
+-- Loading in the same frame the loadout appears fails more often than not; wait a moment.
 local function loadPending(id)
     local p = pending
     pending, waitID = nil, nil
-    load(id, p)
+    C_Timer.After(0.3, TK.safe(function() load(id, p) end))
 end
 
 TK.on("TRAIT_CONFIG_CREATED", function(info)

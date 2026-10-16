@@ -166,6 +166,8 @@ ok(configs[7] == nil, "old TalentKeeper loadout replaced")
 ok(TK.db.active[267] == target.name, "active set on apply")
 configs[8] = { name = "TalentKeeper" }
 fire("TRAIT_CONFIG_CREATED", { name = "TalentKeeper", ID = 8 })
+ok(#loads == 0, "waits a moment before loading")
+runTimers()
 ok(#loads == 1, "loaded once")
 runTimers() -- the retry after LoadConfig's error
 ok(imports == 1 and #loads == 2 and loads[2] == 8, "same loadout loaded again after an error")

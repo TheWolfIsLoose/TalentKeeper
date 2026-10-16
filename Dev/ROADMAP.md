@@ -362,7 +362,15 @@ current talents, by talent name; menu marks "same as X" and Outdated
 - Not done: "Save anyway" for an identical build (nothing to gain);
   class vs spec tree split in diffs; hero tree shown.
 
-**Part 2:** management window: spec -> group, search, badges, drag to
+Fixes in testing: talents a patch made free (old string: bought; today's
+export: free) don't count as differences (that was the false Outdated);
+the after-apply check names talents; a refused commit is reported as
+such; the first load waits 0.3 s (the instant load errored nearly every
+time, then the retry worked).
+
+**Part 2:** embed LibTalentTree for builds of other classes / specs you're
+not on (names and compare without logging over), class vs spec split and
+hero tree labels; management window: spec -> group, search, badges, drag to
 regroup, compare any two builds by name.
 
 ## v0.3: main builds and variants
