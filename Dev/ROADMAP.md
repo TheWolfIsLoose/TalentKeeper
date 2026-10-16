@@ -227,6 +227,26 @@ Each answers a question before we design around it. Throwaway code in
   = lockout kills + where the player stands (learned from past pulls) +
   journal order, and a level -1 target only confirms "at a boss". Same
   secrecy in Normal dungeons, out of combat.
+  **Raid flow (Default, 2026-10-16).** Two ways in, same result:
+  - *Learn as you go:* zone in with whatever talents you have; on each kill
+    TalentKeeper offers "Save as build for Boss (Heroic)" (or tags the
+    matching saved build silently). Next lockout, it offers those builds.
+  - *Set up ahead:* tag saved builds to a raid or to bosses before the
+    raid (management window).
+  When it asks, never in combat or during an encounter:
+  1. **Zone-in:** the build tagged for the raid (or the likely first boss).
+  2. **After a kill:** the build for the likely next boss. That's when
+     people swap talents anyway, and the save offer for the boss just
+     killed rides along.
+  3. **Ready check:** if your talents don't match the likely next boss's
+     build, a reminder (the wrong-build reminder). Leaders ready-check
+     before pulls, so it lands right before it matters.
+  4. **Map / subzone change** into the area where a boss was pulled before:
+     updates the guess quietly; only asks if nothing was offered since the
+     last kill.
+  Location = map ID + subzone name at `ENCOUNTER_START`, learned from
+  your own pulls; x,y is expected to be unavailable inside instances (the
+  spike now logs it to confirm).
   **No per-raid data ships** (Default): zone, boss list (journal),
   lockout kills and encounters are all read from the game at runtime, so a
   new raid works on patch day. Only boss-pull positions are learned, per
