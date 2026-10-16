@@ -310,6 +310,14 @@ Each answers a question before we design around it. Throwaway code in
   build of that spec into that spec's TalentKeeper slot (`/tk spike swap
   <spec> <n>`). Check timing, interruption by moving, and that each spec
   keeps its own slot.
+  **Round 2 (2026-10-16): works.** `SetSpecialization` from our own call
+  (no hardware event needed), spec active after ~5 s, then the build
+  applies into that spec's own TalentKeeper slot; the other spec's slot is
+  left alone. Moving during the cast cancels it and nothing applies, but
+  the pending swap stayed armed: v0.1+ clears it on cast interrupt / fail
+  or after 15 s, so a later manual spec change can't apply a stale build.
+  A second build ('Raid || HC ST', Destruction) also verifies 1 node off:
+  stale strings are common, so the Outdated badge matters.
 
 ## v0.1: keep and switch (first alpha)
 
