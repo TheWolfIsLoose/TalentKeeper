@@ -96,6 +96,10 @@ local function talentName(node, v)
     if not (info and info.entryIDs and #info.entryIDs > 0) then info = libNode(node) end -- another class's tree
     local entryID = info and info.entryIDs and info.entryIDs[choice > 0 and choice or 1]
     local entry = entryID and (C_Traits.GetEntryInfo(cfg, entryID) or (LTT and LTT:GetEntryInfo(entryID)))
+    if entry and entry.subTreeID then -- the hero tree choice: its options are hero trees, not spells
+        local sub = C_Traits.GetSubTreeInfo(cfg, entry.subTreeID) or (LTT and LTT:GetSubTreeInfo(entry.subTreeID))
+        if sub and sub.name then return sub.name end
+    end
     local def = entry and entry.definitionID and C_Traits.GetDefinitionInfo(entry.definitionID)
     local name = def and (def.overrideName or (def.spellID and C_Spell.GetSpellName(def.spellID)))
     return name or ("talent " .. node)
