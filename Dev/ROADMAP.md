@@ -30,7 +30,7 @@ Kickoff checklist:
 4. ~~S1~~ done offline (see Phase 0). S2–S4: `Dev/Spike.lua` (`/tk spike`,
    `#@debug@` in the TOC), round 1 out 2026-10-16; log in
    `TalentKeeperDB.spike`, taint in the game's `Logs\taint.log`.
-   Grouped in-game test list per round.
+   Each round: rewrite the DevChecklist (`/dc`), grouped by area.
 5. Write each spike's result into Phase 0 below, then plan v0.1.
 
 CurseForge: project 1746823 (`talentkeeper`), GitHub webhook on this repo.
