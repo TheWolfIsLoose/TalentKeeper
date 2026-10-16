@@ -96,6 +96,10 @@ string.** Decode every string into what it actually picks for its spec
     keystone slot opening only reaches the keyholder: a bonus re-offer, not
     something to rely on. Never offer after `CHALLENGE_MODE_START` (talents
     lock). M+ memory is per dungeon, recorded at key start.
+  - **Dungeons (any difficulty): the build is chosen on entry, and that's
+    it** (2026-10-16). Nobody swaps talents between dungeon bosses, and M+
+    locks them at key start, so no per-boss offers or boss sighting in
+    dungeons; memory and tags are per dungeon.
   - **Raid:** any boss could be next, so stack signals to name the likely
     next boss, between pulls: (1) journal bosses minus the ones this
     lockout already killed (`C_RaidLocks.IsEncounterComplete`); (2) where
