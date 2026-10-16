@@ -38,6 +38,10 @@ tinsert = table.insert
 tInvert = function(t) local r = {} for k, v in pairs(t) do r[v] = k end return r end
 debugstack = function() return "stack" end
 geterrorhandler = function() return function(e) error(e, 0) end end
+GetTime = function() return 100 end
+ERR_LEARN_SPELL_S, ERR_SPELL_UNLEARNED_S = "You have learned a new spell: %s.", "You have unlearned %s."
+local chatFilter
+ChatFrame_AddMessageEventFilter = function(_, fn) chatFilter = fn end
 C_Timer = { After = function(_, fn) timers[#timers + 1] = fn end }
 local function runTimers() local t = timers; timers = {}; for _, fn in ipairs(t) do fn() end end
 C_AddOns = { GetAddOnMetadata = function() return "@project-version@" end, LoadAddOn = function() end }
@@ -152,6 +156,9 @@ currentSpec = 265
 B.apply(target)
 ok(said("That build is for Destruction"), "wrong-spec build refused")
 currentSpec = 267
+ok(chatFilter(nil, nil, "You have unlearned [Banish].") == true, "unlearn line hidden while applying")
+ok(chatFilter(nil, nil, "Welcome to the realm.") == false, "other system lines pass")
+ok(B.add(267, { name = "dup", text = "  " .. B.list(267)[2].text .. "\n" }) == nil, "pasted copy with spaces is a duplicate")
 section("apply with one retry")
 
 SlashCmdList.TALENTKEEPER("debug")

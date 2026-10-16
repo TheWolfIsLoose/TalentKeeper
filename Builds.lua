@@ -39,9 +39,10 @@ end
 -- Adds a build unless the same string is already saved for that spec.
 -- Returns the build, or nil plus the existing build it matched.
 function B.add(specID, b)
+    b.text = strtrim(b.text)
     local list = B.list(specID)
     for _, other in ipairs(list) do
-        if other.text == b.text then return nil, other end
+        if strtrim(other.text) == b.text then return nil, other end
     end
     b.name = B.uniqueName(list, b.name)
     b.added = b.added or time()
@@ -216,6 +217,7 @@ function B.apply(b)
     local prev = TK.db.active[specID]
     TK.db.active[specID] = b.name
     pending = { b = b, prev = prev }
+    B.muteUntil = GetTime() + 10
     local ok, importErr = C_ClassTalents.ImportLoadout(C_ClassTalents.GetActiveConfigID(), e, SLOT, strtrim(b.text))
     TK.log("apply '%s' (%s): import %s %s", b.name, B.specName(specID), tostring(ok), importErr or "")
     if not ok then
@@ -241,6 +243,23 @@ end)
 TK.on("TRAIT_CONFIG_UPDATED", function(id)
     if waitID and id == waitID then loadPending(id) end
 end)
+-- While a build applies, hide the game's "You have learned / unlearned ..." lines.
+local function pattern(fmt) return "^" .. fmt:gsub("([%(%)%.%%%+%-%*%?%[%]%^%$])", "%%%1"):gsub("%%%%s", ".+") .. "$" end
+local spam = {}
+for _, key in ipairs({ "ERR_LEARN_SPELL_S", "ERR_LEARN_ABILITY_S", "ERR_LEARN_PASSIVE_S", "ERR_SPELL_UNLEARNED_S",
+    "ERR_PET_LEARN_ABILITY_S", "ERR_PET_SPELL_UNLEARNED_S" }) do
+    if type(_G[key]) == "string" then spam[#spam + 1] = pattern(_G[key]) end
+end
+local addFilter = ChatFrame_AddMessageEventFilter or (ChatFrameUtil and ChatFrameUtil.AddMessageEventFilter)
+if addFilter then
+    addFilter("CHAT_MSG_SYSTEM", function(_, _, msg)
+        if not B.muteUntil or GetTime() > B.muteUntil or type(msg) ~= "string" then return false end
+        if issecretvalue and issecretvalue(msg) then return false end
+        for _, p in ipairs(spam) do if msg:find(p) then return true end end
+        return false
+    end)
+end
+
 -- One-time import from another talent addon's saved builds ------------------------------
 -- Its saved data: [classFile][specIndex] = rows; a row with a string is a build, a row
 -- without one is a group heading, and builds flagged isInGroup sit under the last heading.
