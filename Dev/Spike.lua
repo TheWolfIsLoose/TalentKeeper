@@ -188,7 +188,19 @@ end
 local function bossList(instID, diffID)
     local mapID = C_Map.GetBestMapForUnit("player")
     local jID = mapID and EJ_GetInstanceForMap(mapID)
-    if not jID or jID == 0 then return P("journal: no instance for map %s", tostring(mapID)) end
+    if not jID or jID == 0 then -- some maps aren't linked; fall back to the journal name in the current tier
+        local want = GetInstanceInfo()
+        EJ_SelectTier(EJ_GetNumTiers())
+        for _, raid in ipairs({ false, true }) do
+            for i = 1, 40 do
+                local id, name = EJ_GetInstanceByIndex(i, raid)
+                if not id then break end
+                if name == want then jID = id end
+            end
+        end
+        if not jID or jID == 0 then return P("journal: no instance for map %s or name '%s'", tostring(mapID), want) end
+        P("journal: found '%s' by name (map %s not linked)", want, tostring(mapID))
+    end
     EJ_SelectInstance(jID)
     local names = {}
     for i = 1, 30 do
@@ -209,6 +221,12 @@ local function zone()
         tostring(C_ChallengeMode.GetActiveChallengeMapID()))
     bossList(instID, diffID)
     area()
+    if (itype == "party" or itype == "raid") and diffID ~= 0 then
+        local msg = itype == "raid" and "TalentKeeper spike is logging. Target or mouse over each boss before the pull."
+            or "TalentKeeper spike is logging. Nothing to do: ready check and key start log on their own."
+        RaidNotice_AddMessage(RaidWarningFrame, msg, ChatTypeInfo["RAID_WARNING"])
+        P(msg)
+    end
 end
 
 local function probe(unit, how)
@@ -245,7 +263,9 @@ ev:SetScript("OnEvent", function(_, e, a, b, c, d, f)
     elseif e == "CHALLENGE_MODE_KEYSTONE_RECEPTABLE_OPEN" then P("keystone slot opened (keyholder only)")
     elseif e == "READY_CHECK" then P("ready check (key map %s)", tostring(C_ChallengeMode.GetActiveChallengeMapID()))
     elseif e == "START_TIMER" then P("countdown: type %s, %ss", tostring(a), tostring(b))
-    elseif e == "CHALLENGE_MODE_START" then P("key started: map %s", tostring(a))
+    elseif e == "CHALLENGE_MODE_START" then
+        local ok, can, _, why = pcall(C_ClassTalents.CanChangeTalents)
+        P("key started: map %s; can change talents now: %s %s", tostring(a), tostring(ok and can), tostring(why or ""))
     elseif e == "ENCOUNTER_START" then P("encounter start: %s (%s), difficulty %s, %s", tostring(b), tostring(a), tostring(c), where())
     elseif e == "ENCOUNTER_END" then P("encounter end: %s (%s), %s", tostring(b), tostring(a), f == 1 and "kill" or "wipe")
     elseif e == "BOSS_KILL" then P("boss kill: %s (%s)", tostring(b), tostring(a))

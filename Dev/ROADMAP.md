@@ -179,13 +179,28 @@ Each answers a question before we design around it. Throwaway code in
   including hero talents and PvP talents; confirm where it lands and what
   happens in a rested area vs a dungeon entrance; check learn / unlearn
   chat spam.
+  **Round 1 (2026-10-16): works.** `C_ClassTalents.ImportLoadout` into one
+  "TalentKeeper" slot (old slot deleted first; the player's other loadouts
+  untouched), then `LoadConfig`; talents and PvP verified after each apply,
+  rested or not, talent window open or closed, inside a dungeon (no key).
+  No chat flood. One `LoadConfig` returned Error (window open, right after a
+  menu hook); a retry worked, so v0.1 retries once. One build verified with
+  1 difference every time: a stale node in that string (the Outdated badge
+  case). Key-start talent lock now logged passively.
 - **S3 Taint.** Hook Blizzard's loadout dropdown menu; check for taint
   errors in the talent window. If it taints, our own button opens our own
-  menu (same feature, no hook).
+  menu (same feature, no hook). **Round 1: no errors either way**, action
+  buttons fine after switches (other talent-window addons off). Own button
+  stays the plan.
 - **S4 Zone and boss signals.** Log instance IDs on zone-in, encounter
   start/end, ready check, keystone slot, killed bosses, and whether a boss
-  can be recognized from target / mouseover / nameplate out of combat.
-  Decides how far boss awareness goes.
+  can be recognized from target / mouseover out of combat. Decides how far
+  boss awareness goes. **Passive** (logs on its own during normal play; a
+  raid-warning reminder on zone-in says what to do by hand, raids only).
+  Round 1: zone-in logged; the journal lookup by map failed for one
+  dungeon (name fallback added); **mouseover inside an instance returns
+  name and NPC ID as secret** (level and classification readable), so boss
+  sighting by identity is likely out; confirm on a real boss.
 
 ## v0.1: keep and switch (first alpha)
 
