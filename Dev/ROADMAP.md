@@ -264,6 +264,24 @@ Each answers a question before we design around it. Throwaway code in
   map + subzone as that boss's trigger (overrides learned and shipped
   spots). Granularity is subzone, since x,y is likely unavailable in
   instances. Advanced, tucked in the menu, never a pop-up.
+  **Guardrails on hand-marked spots (Default, 2026-10-16), in code, not
+  just words:**
+  - Only in a raid, out of combat, not during an encounter, for a boss
+    picked from this raid's journal list (no free text).
+  - A spot is map ID + subzone only (repeatable); no x,y. Refused where
+    there's no subzone name, and where the subzone is the whole raid's
+    name (too broad).
+  - One spot per boss; one boss per spot. A spot already tied to another
+    boss is refused with "That's Boss Y's spot" (Replace / Cancel).
+  - The confirm names the area: "Prepare for Boss X when you enter
+    'Kith'ix's Prison'?" and says what's good: "the room or doorway right
+    before the pull, not a hallway you pass through".
+  - Fires only on entering the spot, at most once per boss between kills,
+    never in combat; the next-boss logic still has to agree the boss is
+    alive this lockout.
+  - Self-correcting: a hand spot whose offer is declined, or followed by a
+    different boss's pull, 3 times in a row is retired with a notice.
+    "Reset to learned" is always one click in the management window.
   **Across specs (Default, 2026-10-16):** a boss can be tagged with builds
   from any of the class's specs. The offer names spec and build
   ("Next: Boss X, Destruction 'Raid HC Cleave'"); one click, after the
