@@ -38,8 +38,8 @@ Next: answer the **Open** items below, then build **Phase 0 (spikes)** on
    Give the player a grouped in-game test list per round (suite habit).
 5. Write each spike's result into Phase 0 below, then plan v0.1.
 
-Pending on the player's side: point CurseForge's GitHub webhook at this
-repo, as for SC / PUG / Tones.
+CurseForge: project 1746823 (`talentkeeper`), GitHub webhook on this repo
+(set up 2026-10-16). Nothing pending on the player's side.
 
 Session setup (same as the other addons): player syncs with
 `Dev\update.bat dev` and `/reload`; Claude reads
