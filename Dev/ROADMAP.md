@@ -223,7 +223,7 @@ Each answers a question before we design around it. Throwaway code in
   in readable form, so **boss memory from kills works**. Target / mouseover
   keep name and NPC ID secret even on the boss; the boss shows as **elite,
   level -1** (trash: 90-91), so "a boss is in front of you" is readable but
-  not which one. **Decision: no boss recognition by sight.** Next-boss guess
+  not which one. **Default: no boss recognition by sight.** Next-boss guess
   = lockout kills + where the player stands (learned from past pulls) +
   journal order, and a level -1 target only confirms "at a boss". Same
   secrecy in Normal dungeons, out of combat.
