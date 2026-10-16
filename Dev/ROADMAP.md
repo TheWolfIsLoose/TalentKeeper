@@ -35,6 +35,11 @@ Kickoff checklist:
 
 CurseForge: project 1746823 (`talentkeeper`), GitHub webhook on this repo.
 
+Dev loop: GitHub is the record, not the install path. Commit and push to
+`dev`, then write the changed files straight into the installed addon
+folder (stamp `Build.lua` with the commit). `Dev/update.bat` is only a
+fallback full resync.
+
 ---
 
 ## The idea
