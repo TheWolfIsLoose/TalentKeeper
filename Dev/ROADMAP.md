@@ -392,10 +392,20 @@ regroup, compare any two builds by name.
 
 ## v0.3: main builds and variants
 
-- Save as variant; variant changes listed by talent name; main-build edits
-  carry through; "Needs review" on collisions; export a variant as a full
-  string.
-- Gear set per build: optional equipment set, equipped on apply.
+**Built 2026-10-16, in testing.** A variant keeps a full string (apply,
+copy, compare work unchanged) plus `main` (its main build's name) and
+`changes` ({node, from, to} from the main build). "Save current talents
+as a variant" (menu / window) records the changes; "Update to current
+talents" replaces a build's talents, and each variant of it is rebuilt
+from the new main + its changes with our own string writer
+(`C.write`, checked offline: all 45 saved builds round-trip). Where the
+main build changed a talent the variant also changes: "Needs review".
+Variants sit under their main build (menu and window), move with it,
+follow renames, and become main builds if it's deleted. Gear set per
+build: pick a Blizzard equipment set; equipped after a successful apply.
+- Not yet: showing near matches as variants automatically (the "same hero
+  tree + few changes" display rule); clearing Needs review other than by
+  updating the variant.
 
 ## v0.4: zone awareness
 

@@ -6,7 +6,7 @@ local B, C, UI = TK.builds, TK.compare, TK.ui
 local M = {}
 TK.manager = M
 
-local ROW, W, H, LEFT_W = 24, 660, 440, 190
+local ROW, W, H, LEFT_W = 24, 780, 440, 190
 local ROWS = math.floor((H - 44 - 70 - 4) / ROW) -- rows that fit in each pane
 local frame, specRows, buildRows = nil, {}, {}
 local state = { spec = nil, selected = nil, search = "", specScroll = 0, buildScroll = 0, compareFrom = nil, armed = nil }
@@ -49,15 +49,24 @@ end
 local function buildLines()
     local list = state.spec and B.list(state.spec) or {}
     local q = state.search:lower()
+    local function hit(b) return q == "" or b.name:lower():find(q, 1, true) or C.searchText(b.text):find(q, 1, true) end
+    local names = {}
+    for _, b in ipairs(list) do names[b.name] = true end
+    -- main builds (and their variants right after them), by group
     local groups, order, loose = {}, {}, {}
     for _, b in ipairs(list) do
-        local hit = q == "" or b.name:lower():find(q, 1, true) or C.searchText(b.text):find(q, 1, true)
-        if hit then
-            if b.group then
-                if not groups[b.group] then groups[b.group] = {}; order[#order + 1] = b.group end
-                table.insert(groups[b.group], b)
-            else
-                loose[#loose + 1] = b
+        if not (b.main and names[b.main]) then
+            local fam = { b }
+            for _, v in ipairs(B.variantsOf(state.spec, b.name)) do fam[#fam + 1] = v end
+            local shown = {}
+            for _, x in ipairs(fam) do if hit(x) then shown[#shown + 1] = x end end
+            if #shown > 0 then
+                local into = loose
+                if b.group then
+                    if not groups[b.group] then groups[b.group] = {}; order[#order + 1] = b.group end
+                    into = groups[b.group]
+                end
+                for _, x in ipairs(shown) do into[#into + 1] = x end
             end
         end
     end
@@ -136,6 +145,9 @@ local function badges(list, b)
     local same = C.sameAsEarlier(list, b)
     if same then out[#out + 1] = "|cff8c8c8csame as " .. same.name .. "|r" end
     if b.outdated then out[#out + 1] = "|cffffb84dOutdated|r" end
+    if b.main then out[#out + 1] = ("|cff8c8c8c%d change%s|r"):format(#(b.changes or {}), #(b.changes or {}) == 1 and "" or "s") end
+    if b.needsReview then out[#out + 1] = "|cffffb84dNeeds review|r" end
+    if b.gear then out[#out + 1] = "|cff8c8c8cgear: " .. b.gear .. "|r" end
     return table.concat(out, "   ")
 end
 
@@ -165,7 +177,7 @@ local function drawBuilds()
             r.left:SetText("|cff8c8c8c+ New group (drop a build here)|r")
             r.right:SetText("")
         elseif line then
-            r.left:SetText("   " .. line.build.name)
+            r.left:SetText(line.build.main and ("        |cff8c8c8c·|r " .. line.build.name) or ("   " .. line.build.name))
             r.right:SetText(badges(list, line.build))
         end
     end
@@ -178,6 +190,8 @@ local function drawActions()
     local onSpec = state.spec == B.specID()
     for _, bt in ipairs(frame.actions) do bt:SetEnabled(b ~= nil) end
     frame.apply:SetEnabled(b ~= nil and onSpec)
+    frame.update:SetEnabled(b ~= nil and onSpec)
+    frame.variant:SetEnabled(b ~= nil and onSpec)
     frame.delete:SetText(state.armed and state.armed == b and "|cffff8888Sure?|r" or "Delete")
     if state.compareFrom then
         frame.status:SetText(("Pick a build to compare with |cffffffff%s|r"):format(state.compareFrom.name))
@@ -342,9 +356,24 @@ local function makeFrame()
             M.refresh()
         end
     end)
-    frame.actions = { frame.apply, rename, copy, cmp, frame.delete }
+    frame.update = UI.button(frame, "Update", 80, function() local b = sel() if b then B.updateToCurrent(b) end end)
+    frame.variant = UI.button(frame, "+ Variant", 80, function()
+        local b = sel()
+        if not b then return end
+        local main = b.main or b.name
+        UI.textWindow({ title = "Save variant of " .. main, singleLine = true, okText = "Save", text = main .. " variant",
+            onOK = function(name) B.saveVariant(b, name) end })
+    end)
+    local gear = UI.button(frame, "Gear set", 80, function(self)
+        local b = sel()
+        if b then MenuUtil.CreateContextMenu(self, function(_, root) UI.gearMenu(root, b, true) end) end
+    end)
+    frame.actions = { frame.apply, frame.update, frame.variant, gear, rename, copy, cmp, frame.delete }
     frame.apply:SetPoint("BOTTOMLEFT", 12, 12)
-    rename:SetPoint("LEFT", frame.apply, "RIGHT", 8, 0)
+    frame.update:SetPoint("LEFT", frame.apply, "RIGHT", 8, 0)
+    frame.variant:SetPoint("LEFT", frame.update, "RIGHT", 8, 0)
+    gear:SetPoint("LEFT", frame.variant, "RIGHT", 8, 0)
+    rename:SetPoint("LEFT", gear, "RIGHT", 8, 0)
     copy:SetPoint("LEFT", rename, "RIGHT", 8, 0)
     cmp:SetPoint("LEFT", copy, "RIGHT", 8, 0)
     frame.delete:SetPoint("BOTTOMRIGHT", -12, 12)

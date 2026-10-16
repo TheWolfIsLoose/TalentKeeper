@@ -167,3 +167,45 @@ function C.heroName(text)
         end
     end
 end
+
+-- Writing strings ---------------------------------------------------------------------------
+-- A talent string from picks, laid out the way the game exports one (free nodes are left
+-- unselected; the game grants them on import). Checked offline against all saved builds.
+function C.write(specID, picks)
+    local treeID = C_ClassTalents.GetTraitTreeForSpec(specID)
+    if not treeID and LTT then treeID = LTT:GetClassTreeID(select(6, GetSpecializationInfoByID(specID))) end
+    local nodes = treeID and C_Traits.GetTreeNodes(treeID)
+    if not nodes then return nil end
+    local M = B.mixin()
+    local s = ExportUtil.MakeExportDataStream()
+    s:AddValue(M.bitWidthHeaderVersion, C_Traits.GetLoadoutSerializationVersion())
+    s:AddValue(M.bitWidthSpecID, specID)
+    for _, byte in ipairs(C_Traits.GetTreeHash(treeID)) do s:AddValue(8, byte) end
+    for _, node in ipairs(nodes) do
+        local v = picks[node]
+        if not v then
+            s:AddValue(1, 0)
+        else
+            local rank, choice = v:match("^(%d+):(%d+)$")
+            rank, choice = tonumber(rank), tonumber(choice)
+            s:AddValue(1, 1); s:AddValue(1, 1)
+            if rank > 0 then s:AddValue(1, 1); s:AddValue(M.bitWidthRanksPurchased, rank) else s:AddValue(1, 0) end
+            if choice > 0 then s:AddValue(1, 1); s:AddValue(2, choice - 1) else s:AddValue(1, 0) end
+        end
+    end
+    return s:GetExportString()
+end
+
+-- A variant's picks: its main build's picks with the variant's changes laid on top.
+-- Returns picks and the changes whose main-build side no longer matches (collisions).
+function C.overlay(mainText, changes)
+    local base = C.picks(mainText)
+    if not base then return nil end
+    local picks, collisions = {}, {}
+    for node, v in pairs(base) do picks[node] = v end
+    for _, c in ipairs(changes) do
+        if base[c.node] ~= c.from then collisions[#collisions + 1] = c end
+        picks[c.node] = c.to
+    end
+    return picks, collisions
+end

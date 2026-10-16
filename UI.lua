@@ -154,18 +154,51 @@ local function diffLines(entry, current, b)
 end
 
 local function label(list, b)
-    local text = b.name
+    local text = b.main and ("|cff8c8c8c·|r " .. b.name) or b.name
     local same = TK.compare.sameAsEarlier(list, b)
     if same then text = text .. "  |cff8c8c8csame as " .. same.name .. "|r" end
     if b.outdated then text = text .. "  |cffffb84dOutdated|r" end
+    if b.needsReview then text = text .. "  |cffffb84dNeeds review|r" end
     return text
+end
+
+-- Gear set picker: the player's Blizzard equipment sets, or none.
+function UI.gearMenu(parent, b, flat)
+    local sub = flat and parent or parent:CreateButton("Gear set" .. (b.gear and (": " .. b.gear) or ""))
+    sub:CreateRadio("None", function() return b.gear == nil end, function() B.setGear(b, nil) end)
+    for _, id in ipairs(C_EquipmentSet and C_EquipmentSet.GetEquipmentSetIDs() or {}) do
+        local name = C_EquipmentSet.GetEquipmentSetInfo(id)
+        if name then sub:CreateRadio(name, function() return b.gear == name end, function() B.setGear(b, name) end) end
+    end
+end
+
+-- A variant's changes from its main build, by talent name.
+local function variantLines(entry, b)
+    if not b.main then return end
+    local n = b.changes and #b.changes or 0
+    entry:CreateTitle(("Variant of %s: %d change%s"):format(b.main, n, n == 1 and "" or "s"))
+    for _, line in ipairs(TK.compare.describe(b.changes or {}, 6)) do
+        entry:CreateButton("|cffbdbdbd" .. line .. "|r"):SetEnabled(false)
+    end
+    if b.needsReview then
+        entry:CreateButton("|cffffb84dNeeds review: its main build changed a talent this variant changes too|r"):SetEnabled(false)
+    end
+    entry:CreateDivider()
 end
 
 local function buildEntry(parent, specID, b, list, current)
     local entry = parent:CreateRadio(label(list, b),
         function() return TK.db.active[specID] == b.name end,
         function() B.apply(b) return MenuResponse.Close end)
+    variantLines(entry, b)
     diffLines(entry, current, b)
+    entry:CreateButton("Update to current talents", function() B.updateToCurrent(b) end)
+    entry:CreateButton("Save current talents as a variant", function()
+        local main = b.main or b.name
+        UI.textWindow({ title = "Save variant of " .. main, singleLine = true, okText = "Save", text = main .. " variant",
+            onOK = function(name) B.saveVariant(b, name) end })
+    end)
+    UI.gearMenu(entry, b)
     entry:CreateButton("Rename", function()
         UI.textWindow({ title = "Rename build", text = b.name, singleLine = true, okText = "Rename",
             onOK = function(name) B.rename(specID, b, name) end })
@@ -198,18 +231,28 @@ local function generator(_, root)
         local none = root:CreateButton("|cff8c8c8cNo builds saved for this spec yet|r")
         none:SetEnabled(false)
     end
+    -- main builds in list order, each followed by its variants
+    local names = {}
+    for _, b in ipairs(list) do names[b.name] = true end
+    local function isVariant(b) return b.main and names[b.main] end
+    local function family(parent, b)
+        buildEntry(parent, specID, b, list, current)
+        for _, v in ipairs(B.variantsOf(specID, b.name)) do buildEntry(parent, specID, v, list, current) end
+    end
     local groups, order = {}, {}
     for _, b in ipairs(list) do
-        if b.group then
-            if not groups[b.group] then groups[b.group] = {}; order[#order + 1] = b.group end
-            table.insert(groups[b.group], b)
-        else
-            buildEntry(root, specID, b, list, current)
+        if not isVariant(b) then
+            if b.group then
+                if not groups[b.group] then groups[b.group] = {}; order[#order + 1] = b.group end
+                table.insert(groups[b.group], b)
+            else
+                family(root, b)
+            end
         end
     end
     for _, name in ipairs(order) do
         local g = root:CreateButton(name)
-        for _, b in ipairs(groups[name]) do buildEntry(g, specID, b, list, current) end
+        for _, b in ipairs(groups[name]) do family(g, b) end
     end
     root:CreateDivider()
     root:CreateButton("Save current talents", function()

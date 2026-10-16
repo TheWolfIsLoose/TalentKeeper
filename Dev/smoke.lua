@@ -62,6 +62,7 @@ MenuResponse = { Close = 3, CloseAll = 4, Refresh = 2 }
 
 -- Strings in tests look like "SPEC:<id>:<anything>"; the reader returns that spec.
 ClassTalentImportExportMixin = {
+    bitWidthHeaderVersion = 8, bitWidthSpecID = 16, bitWidthRanksPurchased = 6,
     ReadLoadoutHeader = function(_, stream) local spec = stream.text:match("^SPEC:(%d+):") return spec ~= nil, 2, tonumber(spec) end,
     -- payload digit per node: 0 none, 1 taken, 2 choice 2, 3 granted (free)
     ReadLoadoutContent = function(_, stream)
@@ -75,12 +76,36 @@ ClassTalentImportExportMixin = {
     end,
     ConvertToImportLoadoutEntryInfo = function() return { { nodeID = 1, ranksPurchased = 1 } } end,
 }
-ExportUtil = { MakeImportDataStream = function(text) return { text = text } end }
+-- Export stream: rebuilds the test digit format from the bits the writer adds.
+local function exportStream()
+    local vals = {}
+    return {
+        AddValue = function(_, _, v) vals[#vals + 1] = v end,
+        GetExportString = function()
+            local spec, i, out = vals[2], 19, {}
+            while i <= #vals do
+                local sel = vals[i]; i = i + 1
+                if sel == 0 then out[#out + 1] = "0" else
+                    i = i + 1 -- purchased
+                    local partial = vals[i]; i = i + 1
+                    if partial == 1 then i = i + 1 end
+                    local choice = vals[i]; i = i + 1
+                    local c = 0
+                    if choice == 1 then c = vals[i] + 1; i = i + 1 end
+                    out[#out + 1] = c == 2 and "2" or "1"
+                end
+            end
+            return "SPEC:" .. spec .. ":" .. table.concat(out)
+        end,
+    }
+end
+ExportUtil = { MakeImportDataStream = function(text) return { text = text } end, MakeExportDataStream = exportStream }
 local configs, loads, imports = {}, {}, 0
 C_Traits = {
     GetLoadoutSerializationVersion = function() return 2 end,
     GenerateImportString = function() return "SPEC:" .. currentSpec .. ":1000" end,
     GetTreeNodes = function() return { 101, 102, 103, 104 } end,
+    GetTreeHash = function() local h = {} for i = 1, 16 do h[i] = 0 end return h end,
     GetNodeInfo = function(_, node) return { entryIDs = { node * 10 + 1, node * 10 + 2 } } end,
     GetEntryInfo = function(_, e) return { definitionID = e } end,
     GetDefinitionInfo = function(d) return { spellID = d } end,
@@ -239,6 +264,29 @@ local before = #B.list(267)
 ok(del.args[1]() == MenuResponse.Refresh, "first delete click arms")
 ok(del.args[1]() == MenuResponse.CloseAll and #B.list(267) == before - 1, "second click deletes")
 section("menu")
+
+-- Main builds and variants
+local function setCurrent(p) C_Traits.GenerateImportString = function() return "SPEC:267:" .. p end end
+local main = B.add(267, { name = "Main", text = "SPEC:267:1200", group = "Raid" })
+setCurrent("1210")
+B.saveVariant(main, "Var")
+local var = B.list(267)[#B.list(267)]
+ok(var.main == "Main" and var.group == "Raid" and #var.changes == 1, "variant saved with its changes and group")
+ok(TK.compare.write(267, TK.compare.picks("SPEC:267:1200")) == "SPEC:267:1200", "writer round-trips")
+setCurrent("0200")
+B.updateToCurrent(main)
+ok(main.text == "SPEC:267:0200" and var.text == "SPEC:267:0210" and not var.needsReview, "variant follows its main build")
+setCurrent("0210")
+B.updateToCurrent(main)
+ok(var.needsReview, "variant needs review when the main build changes the same talent")
+B.rename(267, main, "Main2")
+ok(var.main == "Main2", "variant follows a renamed main build")
+B.setGroup(var, "M+")
+ok(main.group == "M+" and var.group == "M+", "moving a variant moves its whole family")
+B.delete(267, main)
+ok(var.main == nil and var.changes == nil, "variants become main builds when the main is deleted")
+setCurrent("1000")
+section("main builds and variants")
 
 TK.commands.manage()
 TK.manager.refresh()
