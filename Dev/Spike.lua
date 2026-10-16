@@ -275,7 +275,8 @@ local TESTS = {
     "  After a /reload, /tk spike hook: same steps from the dropdown entries.",
     "  Any red error or 'blocked' message: screenshot.",
     "|cffffffffSignals (S4)|r",
-    "  Zone into a dungeon and a raid. Walk the raid between bosses. Target and mouse over a boss before the pull. Kill a boss.",\n    "  M+: open the keystone slot, then start the key.",
+    "  Zone into a dungeon and a raid. Walk the raid between bosses. Target and mouse over a boss before the pull. Kill a boss.",
+    "  M+: open the keystone slot, then start the key.",
     "When done: /reload, then tell me.",
 }
 
