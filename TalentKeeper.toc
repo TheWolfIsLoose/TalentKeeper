@@ -6,5 +6,6 @@
 ## IconTexture: Interface\AddOns\TalentKeeper\icon.png
 ## SavedVariables: TalentKeeperDB
 ## X-Category: Combat
+## X-Curse-Project-ID: 1746823
 
 Build.lua

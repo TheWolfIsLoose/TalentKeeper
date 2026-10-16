@@ -23,8 +23,8 @@ Next: answer the **Open** items below, then build **Phase 0 (spikes)** on
 **Kickoff checklist for the first code session** (parked 2026-10-15, 14:17 ET):
 1. Attach the repo with push access (add_repo `TheWolfIsLoose/TalentKeeper`),
    clone, work on `dev`.
-2. ~~Open questions~~ settled 2026-10-16. Still ask for the CurseForge
-   project ID / slug if missing.
+2. ~~Open questions~~ settled 2026-10-16. CurseForge project 1746823,
+   slug `talentkeeper` (in the TOC and README).
 3. Read the reference: TLE's apply code (`TalentLoadoutsEx\modules\import.lua`,
    resets the tree then `C_Traits.PurchaseRank` / `SetSelection` /
    `CommitConfig`) and its saved builds
@@ -38,9 +38,8 @@ Next: answer the **Open** items below, then build **Phase 0 (spikes)** on
    Give the player a grouped in-game test list per round (suite habit).
 5. Write each spike's result into Phase 0 below, then plan v0.1.
 
-Pending on the player's side: CurseForge project ID and slug (TOC
-`## X-Curse-Project-ID`, README link, which assumes `talentkeeper`); point
-CurseForge's GitHub webhook at this repo, as for SC / PUG / Tones.
+Pending on the player's side: point CurseForge's GitHub webhook at this
+repo, as for SC / PUG / Tones.
 
 Session setup (same as the other addons): player syncs with
 `Dev\update.bat dev` and `/reload`; Claude reads
