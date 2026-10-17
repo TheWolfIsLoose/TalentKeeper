@@ -7,12 +7,17 @@ TK.ui = UI
 
 -- Fonts and colors (suite style guide) ---------------------------------------------
 local FONT = "Interface\\AddOns\\" .. addonName .. "\\Media\\BarlowSemiCondensed-Medium.ttf"
-for name, size in pairs({ TalentKeeperFontSmall = 10, TalentKeeperFont = 12, TalentKeeperFontLarge = 16 }) do
-    CreateFont(name):SetFont(FONT, size, "")
-end
-local disabledFont = CreateFont("TalentKeeperFontDisabled")
-disabledFont:SetFont(FONT, 12, "")
+local SIZES = { TalentKeeperFontSmall = 10, TalentKeeperFont = 12, TalentKeeperFontLarge = 16, TalentKeeperFontDisabled = 12 }
+local fonts = {}
+for name, size in pairs(SIZES) do fonts[name] = CreateFont(name) fonts[name]:SetFont(FONT, size, "") end
+local disabledFont = fonts.TalentKeeperFontDisabled
 disabledFont:SetTextColor(0.55, 0.55, 0.55)
+-- Expressway when another addon has registered it with LibSharedMedia (it can't ship here).
+TK.on("PLAYER_LOGIN", function()
+    local lsm = LibStub and LibStub("LibSharedMedia-3.0", true)
+    local face = lsm and lsm:Fetch("font", "Expressway", true)
+    if face then for name, size in pairs(SIZES) do fonts[name]:SetFont(face, size, "") end end
+end)
 
 local function fill(frame, layer, r, g, b, a)
     local t = frame:CreateTexture(nil, layer)

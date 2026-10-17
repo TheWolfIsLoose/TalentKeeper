@@ -140,7 +140,7 @@ local lib = {
     GetClassTreeID = function() return 1 end,
     GetEntryInfo = function() return nil end,
 }
-LibStub = function() return lib end
+LibStub = function(name) if name == "LibTalentTree-1.0" then return lib end end
 local menuGen
 MenuUtil = { CreateContextMenu = function(_, gen) menuGen = gen end }
 

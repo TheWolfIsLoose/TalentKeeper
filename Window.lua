@@ -113,12 +113,16 @@ local function row(i)
     local r = CreateFrame("Button", nil, pane)
     r:SetHeight(ROW)
     r:SetPoint("LEFT", 0, 0); r:SetPoint("RIGHT", 0, 0)
+    r.stripe = UI.fill(r, "BACKGROUND", 1, 1, 1, 0.05)
     UI.fill(r, "HIGHLIGHT", 0.851, 0.851, 0.851, 0.15)
+    r.status = r:CreateFontString(nil, "OVERLAY", "TalentKeeperFontSmall")
+    r.status:SetPoint("RIGHT", -8, 0)
+    r.status:SetTextColor(1, 0.722, 0.302)
     r.bar = r:CreateTexture(nil, "OVERLAY")
     r.bar:SetColorTexture(0.596, 1, 0.596, 1)
     r.bar:SetPoint("TOPLEFT"); r.bar:SetPoint("BOTTOMLEFT"); r.bar:SetWidth(2)
     r.text = r:CreateFontString(nil, "OVERLAY", "TalentKeeperFont")
-    r.text:SetPoint("RIGHT", -8, 0)
+    r.text:SetPoint("RIGHT", r.status, "LEFT", -6, 0)
     r.text:SetJustifyH("LEFT")
     r.text:SetWordWrap(false)
     r:RegisterForClicks("LeftButtonUp", "RightButtonUp")
@@ -192,8 +196,8 @@ function W.refresh()
     for _, h in ipairs(heads) do h:Hide() end
     local specID = B.specID()
     local active = specID and TK.db.active[specID]
-    pane.title:SetText(specID and B.specName(specID) or "TalentKeeper")
-    local y, nr, nh = -36, 0, 0
+    pane.title:SetText(specID and (B.specName(specID) .. " builds") or "TalentKeeper")
+    local y, nr, nh = -30, 0, 0
     for _, line in ipairs(B.ordered(specID)) do
         if line.header ~= nil then
             if line.header or nr > 0 then -- "No group" only when something came before it
@@ -202,7 +206,7 @@ function W.refresh()
                 h:SetText(line.header or "No group")
                 h.group = line.header
                 h:ClearAllPoints()
-                h:SetPoint("TOPLEFT", 10, y - 8)
+                h:SetPoint("TOPLEFT", 8, y - 8)
                 h:Show()
                 y = y - 22
             end
@@ -211,7 +215,9 @@ function W.refresh()
             local b, r = line.build, row(nr)
             r.b = b
             r.text:SetText((b.main and "· " or "") .. b.name)
-            r.text:SetPoint("LEFT", b.main and 24 or 10, 0)
+            r.text:SetPoint("LEFT", b.main and 20 or 8, 0)
+            r.status:SetText(b.outdated and "Outdated" or b.needsReview and "Needs review" or "")
+            r.stripe:SetShown(nr % 2 == 0)
             local on = b.name == active
             r.text:SetTextColor(on and 0.596 or 1, 1, on and 0.596 or 1)
             r.bar:SetShown(on)
@@ -222,7 +228,7 @@ function W.refresh()
         end
     end
     pane.newGroup:ClearAllPoints()
-    pane.newGroup:SetPoint("TOPLEFT", 10, y - 8)
+    pane.newGroup:SetPoint("TOPLEFT", 8, y - 8)
     pane.newGroup:SetShown(nr > 0)
     if nr == 0 then
         nh = nh + 1
@@ -230,7 +236,7 @@ function W.refresh()
         h:SetText("No builds for this spec yet.")
         h.group = nil
         h:ClearAllPoints()
-        h:SetPoint("TOPLEFT", 10, y - 8)
+        h:SetPoint("TOPLEFT", 8, y - 8)
         h:Show()
     end
 end
@@ -283,20 +289,31 @@ EventUtil.ContinueOnAddOnLoaded("Blizzard_PlayerSpells", TK.safe(function()
     tf = PlayerSpellsFrame and PlayerSpellsFrame.TalentsFrame
     if not tf or not tf.GetTalentButtonByNodeID then return TK.log("talent window: no talent buttons found") end
     pane = CreateFrame("Frame", nil, UIParent)
-    pane:SetWidth(200)
-    pane:SetPoint("TOPLEFT", PlayerSpellsFrame, "TOPRIGHT", 2, 0)
-    pane:SetPoint("BOTTOMLEFT", PlayerSpellsFrame, "BOTTOMRIGHT", 2, 0)
+    -- the suite's side panel: opaque panel fill, black edge, a 26px header over a black rule
+    pane:SetWidth(220)
+    pane:SetPoint("TOPLEFT", PlayerSpellsFrame, "TOPRIGHT", 1, 0)
+    pane:SetPoint("BOTTOMLEFT", PlayerSpellsFrame, "BOTTOMRIGHT", 1, 0)
     pane:SetFrameStrata(PlayerSpellsFrame:GetFrameStrata())
-    UI.fill(pane, "BACKGROUND", 0.06, 0.06, 0.06, 0.98)
-    pane.title = pane:CreateFontString(nil, "OVERLAY", "TalentKeeperFontLarge")
-    pane.title:SetPoint("TOPLEFT", 10, -10)
+    pane:EnableMouse(true)
+    UI.fill(pane, "BACKGROUND", 0.06, 0.06, 0.06, 1)
+    UI.ring(pane, 0)
+    local mark = pane:CreateTexture(nil, "ARTWORK")
+    mark:SetSize(16, 16)
+    mark:SetPoint("LEFT", pane, "TOPLEFT", 8, -13)
+    mark:SetTexture("Interface\\AddOns\\TalentKeeper\\icon.png")
+    pane.title = pane:CreateFontString(nil, "OVERLAY", "TalentKeeperFont")
+    pane.title:SetPoint("LEFT", mark, "RIGHT", 6, 0)
+    local rule = pane:CreateTexture(nil, "OVERLAY")
+    rule:SetColorTexture(0, 0, 0, 1)
+    rule:SetHeight(1)
+    rule:SetPoint("TOPLEFT", 0, -26); rule:SetPoint("TOPRIGHT", 0, -26)
     pane.newGroup = CreateFrame("Frame", nil, pane)
     pane.newGroup:SetSize(180, 20)
     local ng = pane.newGroup:CreateFontString(nil, "OVERLAY", "TalentKeeperFontSmall")
     ng:SetPoint("LEFT")
     ng:SetText("+ New group (drop a build here)")
     ng:SetTextColor(0.55, 0.55, 0.55)
-    local save = UI.button(pane, "Save current", 88, function()
+    local save = UI.button(pane, "Save current", 98, function()
         local specID = B.specID()
         if not specID then return end
         UI.textWindow({ title = "Save current talents", singleLine = true, okText = "Save",
@@ -304,7 +321,7 @@ EventUtil.ContinueOnAddOnLoaded("Blizzard_PlayerSpells", TK.safe(function()
             onOK = function(name) B.saveCurrent(name) end })
     end)
     save:SetPoint("BOTTOMLEFT", 8, 8)
-    local import = UI.button(pane, "Import", 88, function() TK.commands.import() end)
+    local import = UI.button(pane, "Import", 98, function() TK.commands.import() end)
     import:SetPoint("BOTTOMRIGHT", -8, 8)
     pane:Hide()
     tf:HookScript("OnShow", function() pane:Show() TK.safe(W.refresh)() end)
