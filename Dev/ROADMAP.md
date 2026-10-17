@@ -11,8 +11,15 @@ disagree), **Open** (needs an answer before build).
 
 ## Next session: start here
 
-**Parked 2026-10-16, ~18:25 ET, after v0.3 tested (not released; last
-release v0.2.0-alpha1).** Two open threads from the player before v0.4:
+**Parked 2026-10-16, ~23:40 ET (not released; last release
+v0.2.0-alpha1).** Applying is solid (in place, confirmed across three specs).
+The GUI moved to a side pane on the talent window (no separate management
+window) with a size grip for the window. Untested when parked: the hero
+emblem mark, right-click / drag in the pane, Save current / Import buttons
+and the suite styling pass (the DevChecklist round is still set). Then:
+search / compare / other specs if missed, free editing, a release.
+
+Earlier threads (history):
 1. **Apply speed.** Switching feels slower than other loadout tools. Our
    path deletes and re-creates the TalentKeeper loadout each time (import ->
    wait for it to fill -> 0.3 s -> load, plus a 1 s retry when the first
