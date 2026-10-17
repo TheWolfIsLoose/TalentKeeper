@@ -46,6 +46,10 @@ release v0.2.0-alpha1).** Two open threads from the player before v0.4:
    the pane manages builds: right-click for the build's actions (incl. a
    Group submenu), drag onto a group / "+ New group", Save current, All
    builds (the management window, for other specs).
+   **No separate management window (player, 2026-10-16):** everything lives
+   in the side pane; the window was a lot of extra for no function. Builds
+   for other specs show when you're on that spec. (Lost with it: search,
+   compare-with, browsing other specs; bring back into the pane if missed.)
    Next candidates: the same marks from the manager and menu, then free
    editing on the talent window.
    Earlier notes: **The GUI doesn't feel designed yet.** Style-consistent but all text;

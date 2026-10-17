@@ -16,7 +16,6 @@ Build.lua
 Builds.lua
 Compare.lua
 UI.lua
-Manager.lua
 Window.lua
 
 #@debug@

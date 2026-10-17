@@ -401,15 +401,11 @@ ok(var.main == nil and var.changes == nil, "variants become main builds when the
 setCurrent("1000")
 section("main builds and variants")
 
-TK.commands.manage()
-TK.manager.refresh()
 local mb = B.list(267)[1]
 B.setGroup(mb, "  M+  ")
 ok(mb.group == "M+", "move to a group (trimmed)")
 B.setGroup(mb, "")
 ok(mb.group == nil, "move out of groups")
-TK.manager.click({ build = mb })
-TK.manager.click({ newGroup = true })
-section("management window")
+section("groups")
 
 print_("smoke: all passed")

@@ -29,8 +29,10 @@ when you zone in.
   main build and every variant follows.
 - **The right build when you zone in.** Tag a build with a dungeon or raid
   and TalentKeeper offers to switch when you arrive, before the key starts.
-- **Out of the way.** Switch from a small menu by the talent window or a
-  keybind; manage everything in a window you open only when you need it.
+- **Right beside your talents.** A side pane on the talent window lists your
+  builds: hover one to see on the tree what it would change, click to apply,
+  right-click or drag to organize. A small menu and a keybind work too, and
+  the talent window can be scaled down.
 - **PvP talents too.** Saved with the build.
 - **Bring your builds over.** Imports your Talent Loadout Ex builds on
   first run.

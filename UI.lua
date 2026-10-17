@@ -280,7 +280,6 @@ local function generator(_, root)
             onOK = function(name) B.saveCurrent(name) end })
     end)
     root:CreateButton("Import a talent string", TK.commands.import)
-    root:CreateButton("Manage builds", function() TK.commands.manage() end)
 end
 
 function UI.openMenu(owner)

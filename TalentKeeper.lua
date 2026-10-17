@@ -76,7 +76,6 @@ local HELP = {
     "  /tk |cff8c8c8c— open your builds for this spec|r",
     "  /tk save [name] |cff8c8c8c— save your current talents as a build|r",
     "  /tk import |cff8c8c8c— paste a talent string to save it|r",
-    "  /tk manage |cff8c8c8c— open the window with all your builds|r",
     "  /tk log [clear] |cff8c8c8c— open the log to copy into a bug report, or clear it|r",
     "  /tk debug |cff8c8c8c— record detailed steps into the log until /reload|r",
 }
