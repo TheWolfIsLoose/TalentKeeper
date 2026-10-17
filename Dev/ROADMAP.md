@@ -28,6 +28,10 @@ release v0.2.0-alpha1).** Two open threads from the player before v0.4:
    only path again. Applying now drops changes left staged first, and saving
    is refused while points are unspent. Revisit speed only once applies are
    reliable; the apex rank gating needs understanding first.
+   **Floor (player, 2026-10-16):** changing talents is a 5 s cast, so 5 s
+   from click to applied is the fastest possible. Import measures ~5.7-7 s,
+   i.e. ~1 s of our own overhead (0.3 s wait before loading, the 1.5 s check
+   after a load error). Only that second is left to win; low priority.
 2. **The GUI doesn't feel designed yet.** Style-consistent but all text;
    players read talents visually. Directions to explore (mock up first,
    then pick): icons for builds (hero tree / spec) and for talent changes
