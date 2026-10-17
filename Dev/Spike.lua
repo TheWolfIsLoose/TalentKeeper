@@ -382,3 +382,14 @@ TK.commands.spike = function(msg)
     else for _, line in ipairs(TESTS) do print(line) end
     end
 end
+
+-- Hero tree during applies (silent, to the main log): does the hero tree drop and come back?
+local hero = CreateFrame("Frame")
+for _, e in ipairs({ "TRAIT_SUB_TREE_CHANGED", "TRAIT_CONFIG_UPDATED", "TRAIT_CONFIG_CREATED", "SPELLS_CHANGED" }) do pcall(hero.RegisterEvent, hero, e) end
+hero:SetScript("OnEvent", function(_, e, a)
+    local B = TK.builds
+    if not B or not B.muteUntil or GetTime() > B.muteUntil then return end
+    if type(a) == "table" then a = a.ID end
+    local ok, sub = pcall(C_ClassTalents.GetActiveHeroTalentSpec)
+    TK.log("  hero: %s %s, active hero tree %s, active config %s", e, tostring(a), tostring(ok and sub), tostring(C_ClassTalents.GetActiveConfigID()))
+end)
