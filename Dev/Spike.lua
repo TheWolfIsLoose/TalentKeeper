@@ -336,7 +336,37 @@ local TESTS = {
 
 TK.commands.spike = function(msg)
     local sub, arg = msg:match("^(%S*)%s*(.-)$")
-    if sub == "method" then
+    if sub == "apex" then
+        -- What the game says about each apex talent in this spec, and what the saved builds ask for.
+        local LTT = LibStub and LibStub("LibTalentTree-1.0", true)
+        local cfg = C_ClassTalents.GetActiveConfigID()
+        local treeID = C_ClassTalents.GetTraitTreeForSpec(PlayerUtil.GetCurrentSpecID())
+        P("apex dump: level %d, config %s, tree %s", UnitLevel("player"), tostring(cfg), tostring(treeID))
+        for _, node in ipairs(C_Traits.GetTreeNodes(treeID) or {}) do
+            local lib = LTT and LTT:GetLibNodeInfo(node)
+            if lib and lib.isApexTalent then
+                local n = C_Traits.GetNodeInfo(cfg, node)
+                local cost = C_Traits.GetNodeCost(cfg, node) or {}
+                local costs = {}
+                for _, c in ipairs(cost) do costs[#costs + 1] = ("%s x%s"):format(tostring(c.ID), tostring(c.amount)) end
+                P("apex node %d: max %s, bought %s, active %s, current %s, available %s, canPurchase %s, canRefund %s, meetsEdges %s, visible %s, cost {%s}, lib maxRanks %s, requiredPlayerLevel %s",
+                    node, tostring(n.maxRanks), tostring(n.ranksPurchased), tostring(n.activeRank), tostring(n.currentRank),
+                    tostring(n.isAvailable), tostring(n.canPurchaseRank), tostring(n.canRefundRank), tostring(n.meetsEdgeRequirements),
+                    tostring(n.isVisible), table.concat(costs, ", "), tostring(lib.maxRanks), tostring(lib.requiredPlayerLevel))
+                if n.conditionIDs then
+                    for _, cid in ipairs(n.conditionIDs) do
+                        local ci = C_Traits.GetConditionInfo(cfg, cid)
+                        if ci then P("  condition %d: met %s, playerLevel %s, spent %s/%s, tooltip %s", cid, tostring(ci.isMet),
+                            tostring(ci.playerLevel), tostring(ci.traitCurrencyID), tostring(ci.spentAmountRequired), tostring(ci.tooltipText)) end
+                    end
+                end
+                for _, b in ipairs(TK.db.builds[PlayerUtil.GetCurrentSpecID()] or {}) do
+                    local picks = TK.compare.picks(b.text)
+                    P("  build '%s' asks: %s", b.name, picks and tostring(picks[node] or "not taken") or "?")
+                end
+            end
+        end
+    elseif sub == "method" then
         TK.db.applyMethod = (arg == "import") and "import" or nil
         P("apply method: %s", TK.db.applyMethod or "in place (import as fallback)")
     elseif sub == "swap" then
