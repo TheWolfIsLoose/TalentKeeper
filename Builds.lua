@@ -295,12 +295,11 @@ local lastApply -- { b, failed } for the build being applied, so a refused commi
 local function verify(b)
     -- skip when another build was applied since (it's checked instead)
     if not lastApply or lastApply.b ~= b then return end
-    if B.unsaved() then lastApply.failed = true end -- the talent window still holds changes the game didn't take
     local d = TK.compare.diff(b.text, currentString())
     if not d then return TK.log("check '%s': couldn't read talents", b.name) end
     local names = TK.compare.describe(d)
     TK.log("check '%s': %d differences%s", b.name, #d, #d > 0 and (": " .. table.concat(names, ", ")) or "")
-    if lastApply.failed and (#d > 0 or B.unsaved()) then
+    if lastApply.failed and #d > 0 then
         -- a refused commit only matters if the talents didn't end up as saved (a retry often lands it)
         TK.log("apply '%s': refused and %d talents differ", b.name, #d)
         return TK.chat(("|cffff8888The game didn't accept %s.|r Your talents weren't changed; try again out of combat, or check the build in the talent window."):format(b.name))
@@ -340,8 +339,17 @@ local function load(id, p)
     TK.log("apply '%s': LoadConfig %s %s%s", p.b.name, resultName[r] or tostring(r), changeError or "", p.retried and " (retry)" or "")
     if r == Enum.LoadConfigResult.Error then
         if not p.retried then
+            -- the game often loads it anyway; only load again if the talents didn't land
             p.retried = true
-            return C_Timer.After(1, TK.safe(function() load(id, p) end))
+            return C_Timer.After(1.5, TK.safe(function()
+                local d = TK.compare.diff(p.b.text, currentString())
+                if d and #d == 0 then
+                    TK.log("apply '%s': landed despite the error", p.b.name)
+                    C_ClassTalents.UpdateLastSelectedSavedConfigID(specID, id)
+                    return finish(p.b, specID)
+                end
+                load(id, p)
+            end))
         end
         TK.db.active[specID] = p.prev
         return TK.chat(("|cffff8888Couldn't apply %s.|r %s"):format(p.b.name, changeError or "Try again in a moment."))
