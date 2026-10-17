@@ -325,7 +325,9 @@ local function finish(b, specID)
     setPvp(b)
     if b.gear and C_EquipmentSet then
         local setID = C_EquipmentSet.GetEquipmentSetID(b.gear)
-        if setID then C_EquipmentSet.UseEquipmentSet(setID)
+        local equipped = setID and select(4, C_EquipmentSet.GetEquipmentSetInfo(setID))
+        if equipped then TK.debug("gear set %s already on", b.gear)
+        elseif setID then C_EquipmentSet.UseEquipmentSet(setID)
         else TK.chat(("|cffffb84dGear set %s not found.|r"):format(b.gear)) end
     end
     C_Timer.After(5, TK.safe(function() verify(b) end))
