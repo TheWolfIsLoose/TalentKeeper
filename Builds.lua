@@ -96,8 +96,17 @@ local function currentPvp()
 end
 
 -- Save, import, rename, delete ------------------------------------------------------
+-- True while the talent window holds changes that aren't applied yet (saving then would
+-- save talents you don't actually have).
+function B.unsaved()
+    local cfg = C_ClassTalents.GetActiveConfigID()
+    return cfg and C_Traits.ConfigHasStagedChanges and C_Traits.ConfigHasStagedChanges(cfg) or false
+end
+local UNSAVED = "|cffffb84dYour talent window has changes that aren't applied yet.|r Apply or undo them first."
+
 function B.saveCurrent(name)
     local specID = B.specID()
+    if B.unsaved() then return TK.chat(UNSAVED) end
     local text = currentString()
     if not text or text == "" then return TK.chat("|cffff8888Couldn't read your talents.|r Open the talent window once and try again.") end
     local list = B.list(specID)
@@ -173,6 +182,7 @@ end
 -- Save your current talents as a variant of a main build (variants of variants hang off the main).
 function B.saveVariant(main, name)
     local specID = B.specID()
+    if B.unsaved() then return TK.chat(UNSAVED) end
     if B.findSpec(main) ~= specID then return TK.chat("|cffff8888That build is for another spec.|r") end
     if main.main then main = find(B.list(specID), main.main) or main end
     local text = currentString()
@@ -192,6 +202,7 @@ end
 -- each keeps its own changes; where the main build changed the same talent, it needs review.
 function B.updateToCurrent(b)
     local specID = B.specID()
+    if B.unsaved() then return TK.chat(UNSAVED) end
     if B.findSpec(b) ~= specID then return TK.chat("|cffff8888That build is for another spec.|r") end
     local text = currentString()
     if not text then return TK.chat("|cffff8888Couldn't read your talents.|r") end
@@ -270,11 +281,12 @@ local lastApply -- { b, failed } for the build being applied, so a refused commi
 local function verify(b)
     -- skip when another build was applied since (it's checked instead)
     if not lastApply or lastApply.b ~= b then return end
+    if B.unsaved() then lastApply.failed = true end -- the talent window still holds changes the game didn't take
     local d = TK.compare.diff(b.text, currentString())
     if not d then return TK.log("check '%s': couldn't read talents", b.name) end
     local names = TK.compare.describe(d)
     TK.log("check '%s': %d differences%s", b.name, #d, #d > 0 and (": " .. table.concat(names, ", ")) or "")
-    if #d > 0 and lastApply.failed then
+    if lastApply.failed and (#d > 0 or B.unsaved()) then
         -- a refused commit only matters if the talents didn't end up as saved (a retry often lands it)
         TK.log("apply '%s': refused and %d talents differ", b.name, #d)
         return TK.chat(("|cffff8888The game didn't accept %s.|r Your talents weren't changed; try again out of combat, or check the build in the talent window."):format(b.name))
@@ -289,8 +301,16 @@ end
 
 TK.on("CONFIG_COMMIT_FAILED", function(configID)
     if not lastApply or not B.muteUntil or GetTime() > B.muteUntil then return end
-    lastApply.failed = true -- reported by the check after applying, if the talents didn't land
     TK.log("apply '%s': the game refused a change (config %s)", lastApply.b.name, tostring(configID))
+    if lastApply.inPlace and not lastApply.fellBack then
+        -- the in-place commit was refused (seen with multi-rank apex talents): undo it and import instead
+        lastApply.fellBack, lastApply.committed = true, false
+        C_Traits.RollbackConfig(C_ClassTalents.GetActiveConfigID())
+        TK.log("apply '%s': importing instead", lastApply.b.name)
+        local b = lastApply.b
+        return C_Timer.After(0.2, TK.safe(function() B.importApply(b, lastApply.prev) end))
+    end
+    lastApply.failed = true -- reported by the check after applying, if the talents didn't land
 end)
 
 -- After the talents are in: PvP talents, gear set, and the check 5 s later.
@@ -331,6 +351,17 @@ local function inPlace(b, e, specID, slot)
     local cfg = C_ClassTalents.GetActiveConfigID()
     local treeID = C_ClassTalents.GetTraitTreeForSpec(specID)
     if not cfg or not treeID then return false end
+    -- multi-rank apex talents get refused when bought one rank at a time: import those builds
+    local LTT = LibStub and LibStub("LibTalentTree-1.0", true)
+    if LTT then
+        for _, x in ipairs(e) do
+            local n = LTT:GetLibNodeInfo(x.nodeID)
+            if n and n.isApexTalent and x.ranksPurchased > 1 then
+                TK.log("apply '%s': has a multi-rank apex talent, importing", b.name)
+                return false
+            end
+        end
+    end
     local currencies = C_Traits.GetTreeCurrencyInfo(cfg, treeID, false) or {}
     -- hero entries = nodes in a sub tree (or the sub tree choice); keep them if they already match
     local heroSame, isHero = true, {}
@@ -396,13 +427,25 @@ function B.apply(b)
     local old = findSlot(specID)
     local prev = TK.db.active[specID]
     TK.db.active[specID] = b.name
-    lastApply = { b = b, t0 = debugprofilestop() }
+    lastApply = { b = b, t0 = debugprofilestop(), prev = prev }
     B.muteUntil = GetTime() + 10
     if old and TK.db.applyMethod ~= "import" and C_ClassTalents.GetLastSelectedSavedConfigID(specID) == old then
+        lastApply.inPlace = true
         local ok, done = pcall(inPlace, b, e, specID, old)
         if ok and done then return end
+        lastApply.inPlace = false
         if not ok then TK.log("apply '%s': in place failed: %s", b.name, tostring(done)) end
     end
+    B.importApply(b, prev, e)
+end
+
+-- The import path: replace TalentKeeper's loadout with the build and load it.
+function B.importApply(b, prev, e)
+    local specID = B.specID()
+    e = e or entries(b.text)
+    if not e then return end
+    B.muteUntil = GetTime() + 10
+    local old = findSlot(specID)
     if old then C_ClassTalents.DeleteConfig(old) end
     pending = { b = b, prev = prev }
     local ok, importErr = C_ClassTalents.ImportLoadout(C_ClassTalents.GetActiveConfigID(), e, SLOT, strtrim(b.text))

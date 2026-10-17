@@ -113,7 +113,7 @@ C_Traits = {
     GetEntryInfo = function(_, e) return { definitionID = e } end,
     GetDefinitionInfo = function(d) return { spellID = d } end,
     GetTreeCurrencyInfo = function() return { { traitCurrencyID = 1 }, { traitCurrencyID = 2 } } end,
-    ResetTree = function() end, ResetTreeByCurrency = function() end, RollbackConfig = function() end,
+    ResetTree = function() end, ConfigHasStagedChanges = function() return false end, ResetTreeByCurrency = function() end, RollbackConfig = function() end,
     PurchaseRank = function() return true end, SetSelection = function() return true end,
     GetConfigInfo = function(id) return configs[id] end,
 }
@@ -238,6 +238,11 @@ lastSelected = 20
 local importsBefore = imports
 B.apply(target)
 ok(commits == 1 and imports == importsBefore and configs[20], "applies in place when its loadout is selected")
+-- a refused in-place commit falls back to importing
+local importsNow = imports
+fire("CONFIG_COMMIT_FAILED", 20)
+runTimers()
+ok(imports == importsNow + 1, "refused in-place commit imports instead")
 lastSelected = nil
 section("apply with one retry")
 
