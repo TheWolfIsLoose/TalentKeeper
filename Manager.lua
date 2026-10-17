@@ -50,33 +50,7 @@ local function buildLines()
     local list = state.spec and B.list(state.spec) or {}
     local q = state.search:lower()
     local function hit(b) return q == "" or b.name:lower():find(q, 1, true) or C.searchText(b.text):find(q, 1, true) end
-    local names = {}
-    for _, b in ipairs(list) do names[b.name] = true end
-    -- main builds (and their variants right after them), by group
-    local groups, order, loose = {}, {}, {}
-    for _, b in ipairs(list) do
-        if not (b.main and names[b.main]) then
-            local fam = { b }
-            for _, v in ipairs(B.variantsOf(state.spec, b.name)) do fam[#fam + 1] = v end
-            local shown = {}
-            for _, x in ipairs(fam) do if hit(x) then shown[#shown + 1] = x end end
-            if #shown > 0 then
-                local into = loose
-                if b.group then
-                    if not groups[b.group] then groups[b.group] = {}; order[#order + 1] = b.group end
-                    into = groups[b.group]
-                end
-                for _, x in ipairs(shown) do into[#into + 1] = x end
-            end
-        end
-    end
-    local lines = {}
-    for _, g in ipairs(order) do
-        lines[#lines + 1] = { header = g }
-        for _, b in ipairs(groups[g]) do lines[#lines + 1] = { build = b } end
-    end
-    lines[#lines + 1] = { header = false } -- "No group"
-    for _, b in ipairs(loose) do lines[#lines + 1] = { build = b } end
+    local lines = B.ordered(state.spec, hit)
     lines[#lines + 1] = { newGroup = true }
     return lines, list
 end

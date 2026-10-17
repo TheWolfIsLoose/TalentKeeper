@@ -33,7 +33,15 @@ release v0.2.0-alpha1).** Two open threads from the player before v0.4:
    from click to applied is the fastest possible. Import measures ~5.7-7 s,
    i.e. ~1 s of our own overhead (0.3 s wait before loading, the 1.5 s check
    after a load error). Only that second is left to win; low priority.
-2. **The GUI doesn't feel designed yet.** Style-consistent but all text;
+2. **GUI: build it and see (player, 2026-10-16).** Four directions were mocked
+   (manager with a drawn tree, preview on the talent window, free editing,
+   quick menu with icons); the player wants to build and find what doesn't
+   work rather than settle the look on paper. Step 1 (in testing): a strip
+   of builds under the talent window; hovering one marks on the tree what it
+   would change (+ added, - removed, ~ other choice or rank); click applies.
+   Next candidates: the same marks from the manager and menu, then free
+   editing on the talent window.
+   Earlier notes: **The GUI doesn't feel designed yet.** Style-consistent but all text;
    players read talents visually. Directions to explore (mock up first,
    then pick): icons for builds (hero tree / spec) and for talent changes
    (spell icons, added / removed marks) instead of +/- text; a small drawn

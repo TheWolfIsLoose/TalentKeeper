@@ -185,6 +185,40 @@ function B.variantsOf(specID, mainName)
     return out
 end
 
+-- Builds as lines in display order: each group (first seen first) as { header = name } then
+-- its builds, then { header = false } and the builds without a group; every main build is
+-- followed by its variants. hit(b), when given, filters (a family shows if any of it matches).
+function B.ordered(specID, hit)
+    local list = specID and B.list(specID) or {}
+    local names = {}
+    for _, b in ipairs(list) do names[b.name] = true end
+    local groups, order, loose = {}, {}, {}
+    for _, b in ipairs(list) do
+        if not (b.main and names[b.main]) then
+            local shown = {}
+            for _, x in ipairs({ b, unpack(B.variantsOf(specID, b.name)) }) do
+                if not hit or hit(x) then shown[#shown + 1] = x end
+            end
+            if #shown > 0 then
+                local into = loose
+                if b.group then
+                    if not groups[b.group] then groups[b.group] = {}; order[#order + 1] = b.group end
+                    into = groups[b.group]
+                end
+                for _, x in ipairs(shown) do into[#into + 1] = x end
+            end
+        end
+    end
+    local lines = {}
+    for _, g in ipairs(order) do
+        lines[#lines + 1] = { header = g }
+        for _, b in ipairs(groups[g]) do lines[#lines + 1] = { build = b } end
+    end
+    lines[#lines + 1] = { header = false }
+    for _, b in ipairs(loose) do lines[#lines + 1] = { build = b } end
+    return lines
+end
+
 local function changesFrom(mainText, text)
     local d = TK.compare.diff(mainText, text)
     if not d then return nil end
