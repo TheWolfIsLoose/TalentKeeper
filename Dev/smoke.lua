@@ -57,7 +57,10 @@ GetSpecializationInfoForClassID = function(_, i) return ({ 265, 266, 267 })[i] e
 GetSpecializationInfoByID = function(id) return id, SPECS[id] end
 local currentSpec = 267
 PlayerUtil = { GetCurrentSpecID = function() return currentSpec end }
-Enum = { LoadConfigResult = { Error = 0, NoChangesNecessary = 1, LoadInProgress = 2, Ready = 3 } }
+Enum = { LoadConfigResult = { Error = 0, NoChangesNecessary = 1, LoadInProgress = 2, Ready = 3 },
+         TraitNodeType = { Single = 0, Tiered = 1, Selection = 2, SubTreeSelection = 3 } }
+debugprofilestop = function() return 0 end
+local lastSelected, commits = nil, 0
 MenuResponse = { Close = 3, CloseAll = 4, Refresh = 2 }
 
 -- Strings in tests look like "SPEC:<id>:<anything>"; the reader returns that spec.
@@ -109,6 +112,9 @@ C_Traits = {
     GetNodeInfo = function(_, node) return { entryIDs = { node * 10 + 1, node * 10 + 2 } } end,
     GetEntryInfo = function(_, e) return { definitionID = e } end,
     GetDefinitionInfo = function(d) return { spellID = d } end,
+    GetTreeCurrencyInfo = function() return { { traitCurrencyID = 1 }, { traitCurrencyID = 2 } } end,
+    ResetTree = function() end, ResetTreeByCurrency = function() end, RollbackConfig = function() end,
+    PurchaseRank = function() return true end, SetSelection = function() return true end,
     GetConfigInfo = function(id) return configs[id] end,
 }
 C_ClassTalents = {
@@ -121,6 +127,8 @@ C_ClassTalents = {
     LoadConfig = function(id) loads[#loads + 1] = id return #loads == 1 and Enum.LoadConfigResult.Error or Enum.LoadConfigResult.LoadInProgress end,
     UpdateLastSelectedSavedConfigID = function() end,
     CanChangeTalents = function() return true, true, nil end,
+    GetLastSelectedSavedConfigID = function() return lastSelected end,
+    CommitConfig = function() commits = commits + 1 return true end,
 }
 C_Spell = { GetSpellName = function(id) return "T" .. id end }
 C_SpecializationInfo = { GetAllSelectedPvpTalentIDs = function() return { 15, 18 } end, GetPvpTalentSlotInfo = function() return nil end }
@@ -223,6 +231,14 @@ ok(not said("didn't accept"), "a refused commit that still landed isn't reported
 C_Traits.GenerateImportString = function() return "SPEC:267:3100" end
 ok(#TK.compare.diff("SPEC:267:1100", "SPEC:267:3100") == 0, "talents made free since don't count as differences")
 C_Traits.GenerateImportString = function() return "SPEC:" .. currentSpec .. ":1000" end
+-- in place: TalentKeeper's loadout is the selected one
+for k in pairs(configs) do configs[k] = nil end
+configs[20] = { name = "TalentKeeper" }
+lastSelected = 20
+local importsBefore = imports
+B.apply(target)
+ok(commits == 1 and imports == importsBefore and configs[20], "applies in place when its loadout is selected")
+lastSelected = nil
 section("apply with one retry")
 
 SlashCmdList.TALENTKEEPER("debug")

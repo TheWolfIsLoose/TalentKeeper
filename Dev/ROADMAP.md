@@ -20,6 +20,12 @@ release v0.2.0-alpha1).** Two open threads from the player before v0.4:
    loadout (reset the tree, buy nodes, commit once) and time click -> talents
    committed for both paths, with and without a hero tree change (the hero
    tree animation may set a floor of ~1-1.5 s either way).
+   **Built 2026-10-16 (in testing):** in place = when the TalentKeeper
+   loadout is the selected one: reset class + spec talents only (hero tree
+   kept when the build's hero talents already match; full reset otherwise),
+   buy in passes, commit once to that loadout; import stays as the
+   fallback and for the first apply. Log line "talents in after N ms" for
+   both; `/tk spike method import` forces the old path for comparison.
 2. **The GUI doesn't feel designed yet.** Style-consistent but all text;
    players read talents visually. Directions to explore (mock up first,
    then pick): icons for builds (hero tree / spec) and for talent changes

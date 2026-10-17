@@ -293,6 +293,19 @@ TK.on("CONFIG_COMMIT_FAILED", function(configID)
     TK.log("apply '%s': the game refused a change (config %s)", lastApply.b.name, tostring(configID))
 end)
 
+-- After the talents are in: PvP talents, gear set, and the check 5 s later.
+local function finish(b, specID)
+    if lastApply and lastApply.b == b then lastApply.committed = true end -- the next config update times the apply
+    TK.changed()
+    setPvp(b)
+    if b.gear and C_EquipmentSet then
+        local setID = C_EquipmentSet.GetEquipmentSetID(b.gear)
+        if setID then C_EquipmentSet.UseEquipmentSet(setID)
+        else TK.chat(("|cffffb84dGear set %s not found.|r"):format(b.gear)) end
+    end
+    C_Timer.After(5, TK.safe(function() verify(b) end))
+end
+
 -- Load the freshly imported loadout. A load error right after import is usually timing,
 -- so the same loadout is loaded once more a second later before giving up.
 local function load(id, p)
@@ -308,14 +321,66 @@ local function load(id, p)
         return TK.chat(("|cffff8888Couldn't apply %s.|r %s"):format(p.b.name, changeError or "Try again in a moment."))
     end
     C_ClassTalents.UpdateLastSelectedSavedConfigID(specID, id)
-    TK.changed()
-    setPvp(p.b)
-    if p.b.gear and C_EquipmentSet then
-        local setID = C_EquipmentSet.GetEquipmentSetID(p.b.gear)
-        if setID then C_EquipmentSet.UseEquipmentSet(setID)
-        else TK.chat(("|cffffb84dGear set %s not found.|r"):format(p.b.gear)) end
+    finish(p.b, specID)
+end
+
+-- In place: when TalentKeeper's loadout is already the selected one, change its talents
+-- directly and commit once (no new loadout, no load). Keeps the hero tree untouched when
+-- the build's hero talents already match, which skips the hero tree animation.
+local function inPlace(b, e, specID, slot)
+    local cfg = C_ClassTalents.GetActiveConfigID()
+    local treeID = C_ClassTalents.GetTraitTreeForSpec(specID)
+    if not cfg or not treeID then return false end
+    local currencies = C_Traits.GetTreeCurrencyInfo(cfg, treeID, false) or {}
+    -- hero entries = nodes in a sub tree (or the sub tree choice); keep them if they already match
+    local heroSame, isHero = true, {}
+    for _, x in ipairs(e) do
+        local info = C_Traits.GetNodeInfo(cfg, x.nodeID)
+        if info and (info.subTreeID or info.type == Enum.TraitNodeType.SubTreeSelection) then
+            isHero[x.nodeID] = true
+            local have = info.ranksPurchased
+            local sel = info.activeEntry and info.activeEntry.entryID
+            if have ~= x.ranksPurchased or (info.type ~= Enum.TraitNodeType.Single and sel ~= x.selectionEntryID) then heroSame = false end
+        end
     end
-    C_Timer.After(5, TK.safe(function() verify(p.b) end))
+    if heroSame and currencies[1] and currencies[2] then
+        C_Traits.ResetTreeByCurrency(cfg, treeID, currencies[1].traitCurrencyID)
+        C_Traits.ResetTreeByCurrency(cfg, treeID, currencies[2].traitCurrencyID)
+    else
+        C_Traits.ResetTree(cfg, treeID)
+    end
+    -- buy in passes: a node only takes once the nodes above it are bought
+    local todo = {}
+    for _, x in ipairs(e) do
+        if x.ranksPurchased > 0 and not (heroSame and isHero[x.nodeID]) then todo[#todo + 1] = x end
+    end
+    for _ = 1, 30 do
+        if #todo == 0 then break end
+        local left = {}
+        for _, x in ipairs(todo) do
+            local info = C_Traits.GetNodeInfo(cfg, x.nodeID)
+            local choice = info and info.type ~= Enum.TraitNodeType.Single and info.type ~= Enum.TraitNodeType.Tiered
+            if choice then
+                if not C_Traits.SetSelection(cfg, x.nodeID, x.selectionEntryID) then left[#left + 1] = x end
+            else
+                local have = info and info.ranksPurchased or 0
+                while have < x.ranksPurchased and C_Traits.PurchaseRank(cfg, x.nodeID) do have = have + 1 end
+                if have < x.ranksPurchased then left[#left + 1] = x end
+            end
+        end
+        if #left == #todo then break end -- no progress
+        todo = left
+    end
+    if #todo > 0 then
+        C_Traits.RollbackConfig(cfg)
+        TK.log("apply '%s': in place left %d talents unbought; importing instead", b.name, #todo)
+        return false
+    end
+    local ok = C_ClassTalents.CommitConfig(slot)
+    TK.log("apply '%s' (%s): in place, hero tree %s, commit %s", b.name, B.specName(specID), heroSame and "kept" or "changed", tostring(ok))
+    if not ok then C_Traits.RollbackConfig(cfg) return false end
+    finish(b, specID)
+    return true
 end
 
 function B.apply(b)
@@ -329,12 +394,17 @@ function B.apply(b)
     if not e then return TK.chat("|cffff8888" .. err .. "|r") end
     local specID = B.specID()
     local old = findSlot(specID)
-    if old then C_ClassTalents.DeleteConfig(old) end
     local prev = TK.db.active[specID]
     TK.db.active[specID] = b.name
-    pending = { b = b, prev = prev }
-    lastApply = { b = b }
+    lastApply = { b = b, t0 = debugprofilestop() }
     B.muteUntil = GetTime() + 10
+    if old and TK.db.applyMethod ~= "import" and C_ClassTalents.GetLastSelectedSavedConfigID(specID) == old then
+        local ok, done = pcall(inPlace, b, e, specID, old)
+        if ok and done then return end
+        if not ok then TK.log("apply '%s': in place failed: %s", b.name, tostring(done)) end
+    end
+    if old then C_ClassTalents.DeleteConfig(old) end
+    pending = { b = b, prev = prev }
     local ok, importErr = C_ClassTalents.ImportLoadout(C_ClassTalents.GetActiveConfigID(), e, SLOT, strtrim(b.text))
     TK.log("apply '%s' (%s): import %s %s", b.name, B.specName(specID), tostring(ok), importErr or "")
     if not ok then
@@ -343,6 +413,14 @@ function B.apply(b)
         TK.chat(("|cffff8888Couldn't apply %s.|r %s"):format(b.name, importErr or ""))
     end
 end
+
+-- How long an apply took, click to talents committed (logged for comparing methods).
+TK.on("TRAIT_CONFIG_UPDATED", function(id)
+    if lastApply and lastApply.committed and not lastApply.timed and id == C_ClassTalents.GetActiveConfigID() then
+        lastApply.timed = true
+        TK.log("apply '%s': talents in after %d ms", lastApply.b.name, debugprofilestop() - lastApply.t0)
+    end
+end)
 
 -- Loading in the same frame the loadout appears fails more often than not; wait a moment.
 local function loadPending(id)
