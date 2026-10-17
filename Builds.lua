@@ -353,7 +353,7 @@ local function load(id, p)
                 load(id, p)
             end))
         end
-        TK.db.active[specID] = p.prev
+        TK.db.active[specID], B.muteUntil = p.prev, 0
         return TK.chat(("|cffff8888Couldn't apply %s.|r %s"):format(p.b.name, changeError or "Try again in a moment."))
     end
     C_ClassTalents.UpdateLastSelectedSavedConfigID(specID, id)
@@ -362,6 +362,10 @@ end
 
 function B.apply(b)
     if InCombatLockdown() then return TK.chat("|cffff8888Can't change talents in combat.|r") end
+    -- a second apply mid-cast would cut the first one off
+    if lastApply and not lastApply.committed and B.muteUntil and GetTime() < B.muteUntil then
+        return TK.chat(("Still applying |cffffffff%s|r."):format(lastApply.b.name))
+    end
     -- changes left staged in the talent window (e.g. a refused commit) block every apply; drop them
     if B.unsaved() then
         TK.log("apply '%s': dropping changes the talent window still held", b.name)
@@ -385,7 +389,7 @@ function B.apply(b)
     local ok, importErr = C_ClassTalents.ImportLoadout(C_ClassTalents.GetActiveConfigID(), e, SLOT, strtrim(b.text))
     TK.log("apply '%s' (%s): import %s %s", b.name, B.specName(specID), tostring(ok), importErr or "")
     if not ok then
-        pending = nil
+        pending, B.muteUntil = nil, 0
         TK.db.active[specID] = prev
         TK.chat(("|cffff8888Couldn't apply %s.|r %s"):format(b.name, importErr or ""))
     end
