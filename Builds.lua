@@ -102,11 +102,25 @@ function B.unsaved()
     local cfg = C_ClassTalents.GetActiveConfigID()
     return cfg and C_Traits.ConfigHasStagedChanges and C_Traits.ConfigHasStagedChanges(cfg) or false
 end
+-- Points left to spend (saving then would save a build short of points, which can't be applied).
+function B.unspent()
+    local cfg = C_ClassTalents.GetActiveConfigID()
+    local treeID = cfg and C_ClassTalents.GetTraitTreeForSpec(B.specID())
+    for _, c in ipairs(treeID and C_Traits.GetTreeCurrencyInfo(cfg, treeID, false) or {}) do
+        if (c.quantity or 0) > 0 then return true end
+    end
+    return false
+end
 local UNSAVED = "|cffffb84dYour talent window has changes that aren't applied yet.|r Apply or undo them first."
+local UNSPENT = "|cffffb84dYou have talent points left to spend.|r Spend them and apply first."
+local function cantSave()
+    if B.unsaved() then TK.chat(UNSAVED) return true end
+    if B.unspent() then TK.chat(UNSPENT) return true end
+end
 
 function B.saveCurrent(name)
     local specID = B.specID()
-    if B.unsaved() then return TK.chat(UNSAVED) end
+    if cantSave() then return end
     local text = currentString()
     if not text or text == "" then return TK.chat("|cffff8888Couldn't read your talents.|r Open the talent window once and try again.") end
     local list = B.list(specID)
@@ -182,7 +196,7 @@ end
 -- Save your current talents as a variant of a main build (variants of variants hang off the main).
 function B.saveVariant(main, name)
     local specID = B.specID()
-    if B.unsaved() then return TK.chat(UNSAVED) end
+    if cantSave() then return end
     if B.findSpec(main) ~= specID then return TK.chat("|cffff8888That build is for another spec.|r") end
     if main.main then main = find(B.list(specID), main.main) or main end
     local text = currentString()
@@ -202,7 +216,7 @@ end
 -- each keeps its own changes; where the main build changed the same talent, it needs review.
 function B.updateToCurrent(b)
     local specID = B.specID()
-    if B.unsaved() then return TK.chat(UNSAVED) end
+    if cantSave() then return end
     if B.findSpec(b) ~= specID then return TK.chat("|cffff8888That build is for another spec.|r") end
     local text = currentString()
     if not text then return TK.chat("|cffff8888Couldn't read your talents.|r") end
@@ -302,14 +316,6 @@ end
 TK.on("CONFIG_COMMIT_FAILED", function(configID)
     if not lastApply or not B.muteUntil or GetTime() > B.muteUntil then return end
     TK.log("apply '%s': the game refused a change (config %s)", lastApply.b.name, tostring(configID))
-    if lastApply.inPlace and not lastApply.fellBack then
-        -- the in-place commit was refused (seen with multi-rank apex talents): undo it and import instead
-        lastApply.fellBack, lastApply.committed = true, false
-        C_Traits.RollbackConfig(C_ClassTalents.GetActiveConfigID())
-        TK.log("apply '%s': importing instead", lastApply.b.name)
-        local b = lastApply.b
-        return C_Timer.After(0.2, TK.safe(function() B.importApply(b, lastApply.prev) end))
-    end
     lastApply.failed = true -- reported by the check after applying, if the talents didn't land
 end)
 
@@ -344,79 +350,13 @@ local function load(id, p)
     finish(p.b, specID)
 end
 
--- In place: when TalentKeeper's loadout is already the selected one, change its talents
--- directly and commit once (no new loadout, no load). Keeps the hero tree untouched when
--- the build's hero talents already match, which skips the hero tree animation.
-local function inPlace(b, e, specID, slot)
-    local cfg = C_ClassTalents.GetActiveConfigID()
-    local treeID = C_ClassTalents.GetTraitTreeForSpec(specID)
-    if not cfg or not treeID then return false end
-    local currencies = C_Traits.GetTreeCurrencyInfo(cfg, treeID, false) or {}
-    -- hero entries = nodes in a sub tree (or the sub tree choice); keep them if they already match
-    local heroSame, isHero = true, {}
-    for _, x in ipairs(e) do
-        local info = C_Traits.GetNodeInfo(cfg, x.nodeID)
-        if info and (info.subTreeID or info.type == Enum.TraitNodeType.SubTreeSelection) then
-            isHero[x.nodeID] = true
-            local have = info.ranksPurchased
-            local sel = info.activeEntry and info.activeEntry.entryID
-            if have ~= x.ranksPurchased or (info.type ~= Enum.TraitNodeType.Single and sel ~= x.selectionEntryID) then heroSame = false end
-        end
-    end
-    if heroSame and currencies[1] and currencies[2] then
-        C_Traits.ResetTreeByCurrency(cfg, treeID, currencies[1].traitCurrencyID)
-        C_Traits.ResetTreeByCurrency(cfg, treeID, currencies[2].traitCurrencyID)
-    else
-        C_Traits.ResetTree(cfg, treeID)
-    end
-    -- buy the way a player would: top row first, left to right, apex talents last; then retry
-    -- in passes anything a gate still held back
-    local LTT = LibStub and LibStub("LibTalentTree-1.0", true)
-    local todo = {}
-    for _, x in ipairs(e) do
-        if x.ranksPurchased > 0 and not (heroSame and isHero[x.nodeID]) then
-            local info = C_Traits.GetNodeInfo(cfg, x.nodeID)
-            local lib = LTT and LTT:GetLibNodeInfo(x.nodeID)
-            x.apex, x.posX, x.posY = lib and lib.isApexTalent or false, info and info.posX or 0, info and info.posY or 0
-            todo[#todo + 1] = x
-        end
-    end
-    table.sort(todo, function(a, c)
-        if a.apex ~= c.apex then return not a.apex end
-        if a.posY ~= c.posY then return a.posY < c.posY end
-        return a.posX < c.posX
-    end)
-    for _ = 1, 30 do
-        if #todo == 0 then break end
-        local left = {}
-        for _, x in ipairs(todo) do
-            local info = C_Traits.GetNodeInfo(cfg, x.nodeID)
-            local choice = info and info.type ~= Enum.TraitNodeType.Single and info.type ~= Enum.TraitNodeType.Tiered
-            if choice then
-                if not C_Traits.SetSelection(cfg, x.nodeID, x.selectionEntryID) then left[#left + 1] = x end
-            else
-                local have = info and info.ranksPurchased or 0
-                while have < x.ranksPurchased and C_Traits.PurchaseRank(cfg, x.nodeID) do have = have + 1 end
-                if have < x.ranksPurchased then left[#left + 1] = x end
-            end
-        end
-        if #left == #todo then break end -- no progress
-        todo = left
-    end
-    if #todo > 0 then
-        C_Traits.RollbackConfig(cfg)
-        TK.log("apply '%s': in place left %d talents unbought; importing instead", b.name, #todo)
-        return false
-    end
-    local ok = C_ClassTalents.CommitConfig(slot)
-    TK.log("apply '%s' (%s): in place, hero tree %s, commit %s", b.name, B.specName(specID), heroSame and "kept" or "changed", tostring(ok))
-    if not ok then C_Traits.RollbackConfig(cfg) return false end
-    finish(b, specID)
-    return true
-end
-
 function B.apply(b)
     if InCombatLockdown() then return TK.chat("|cffff8888Can't change talents in combat.|r") end
+    -- changes left staged in the talent window (e.g. a refused commit) block every apply; drop them
+    if B.unsaved() then
+        TK.log("apply '%s': dropping changes the talent window still held", b.name)
+        C_Traits.RollbackConfig(C_ClassTalents.GetActiveConfigID())
+    end
     local okCheck, canChange, _, changeError = pcall(C_ClassTalents.CanChangeTalents)
     if okCheck and canChange == false then
         TK.log("apply '%s': refused, can't change talents (%s)", b.name, tostring(changeError))
@@ -425,26 +365,9 @@ function B.apply(b)
     local e, err = entries(b.text)
     if not e then return TK.chat("|cffff8888" .. err .. "|r") end
     local specID = B.specID()
-    local old = findSlot(specID)
     local prev = TK.db.active[specID]
     TK.db.active[specID] = b.name
     lastApply = { b = b, t0 = debugprofilestop(), prev = prev }
-    B.muteUntil = GetTime() + 10
-    if old and TK.db.applyMethod ~= "import" and C_ClassTalents.GetLastSelectedSavedConfigID(specID) == old then
-        lastApply.inPlace = true
-        local ok, done = pcall(inPlace, b, e, specID, old)
-        if ok and done then return end
-        lastApply.inPlace = false
-        if not ok then TK.log("apply '%s': in place failed: %s", b.name, tostring(done)) end
-    end
-    B.importApply(b, prev, e)
-end
-
--- The import path: replace TalentKeeper's loadout with the build and load it.
-function B.importApply(b, prev, e)
-    local specID = B.specID()
-    e = e or entries(b.text)
-    if not e then return end
     B.muteUntil = GetTime() + 10
     local old = findSlot(specID)
     if old then C_ClassTalents.DeleteConfig(old) end

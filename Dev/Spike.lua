@@ -366,9 +366,6 @@ TK.commands.spike = function(msg)
                 end
             end
         end
-    elseif sub == "method" then
-        TK.db.applyMethod = (arg == "import") and "import" or nil
-        P("apply method: %s", TK.db.applyMethod or "in place (import as fallback)")
     elseif sub == "swap" then
         local spec, n = arg:match("^(%d+)%s+(%d+)$")
         if not spec then return P("usage: /tk spike swap <spec 1-4> <build n>") end

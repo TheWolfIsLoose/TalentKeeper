@@ -113,7 +113,7 @@ C_Traits = {
     GetEntryInfo = function(_, e) return { definitionID = e } end,
     GetDefinitionInfo = function(d) return { spellID = d } end,
     GetTreeCurrencyInfo = function() return { { traitCurrencyID = 1 }, { traitCurrencyID = 2 } } end,
-    ResetTree = function() end, ConfigHasStagedChanges = function() return false end, ResetTreeByCurrency = function() end, RollbackConfig = function() end,
+    ResetTree = function() end, ConfigHasStagedChanges = function() return staged end, ResetTreeByCurrency = function() end, RollbackConfig = function() rolledBack = true; staged = false end,
     PurchaseRank = function() return true end, SetSelection = function() return true end,
     GetConfigInfo = function(id) return configs[id] end,
 }
@@ -231,18 +231,16 @@ ok(not said("didn't accept"), "a refused commit that still landed isn't reported
 C_Traits.GenerateImportString = function() return "SPEC:267:3100" end
 ok(#TK.compare.diff("SPEC:267:1100", "SPEC:267:3100") == 0, "talents made free since don't count as differences")
 C_Traits.GenerateImportString = function() return "SPEC:" .. currentSpec .. ":1000" end
--- in place: TalentKeeper's loadout is the selected one
-for k in pairs(configs) do configs[k] = nil end
-configs[20] = { name = "TalentKeeper" }
-lastSelected = 20
-local importsBefore = imports
+-- stuck staged changes are dropped before applying
+staged = true
 B.apply(target)
-ok(commits == 1 and imports == importsBefore and configs[20], "applies in place when its loadout is selected")
--- a refused in-place commit falls back to importing
-local importsNow = imports
-fire("CONFIG_COMMIT_FAILED", 20)
-runTimers()
-ok(imports == importsNow + 1, "refused in-place commit imports instead")
+ok(rolledBack and not said("Can't change talents"), "staged changes rolled back before applying")
+staged = false
+local currencyInfo = C_Traits.GetTreeCurrencyInfo
+C_Traits.GetTreeCurrencyInfo = function() return { { traitCurrencyID = 1, quantity = 4 } } end
+B.saveCurrent("short")
+ok(said("left to spend") and not (function() for _, x in ipairs(B.list(267)) do if x.name == "short" then return true end end end)(), "won't save with points left to spend")
+C_Traits.GetTreeCurrencyInfo = currencyInfo
 lastSelected = nil
 section("apply with one retry")
 
