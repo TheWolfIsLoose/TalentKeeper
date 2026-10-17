@@ -20,14 +20,13 @@ release v0.2.0-alpha1).** Two open threads from the player before v0.4:
    loadout (reset the tree, buy nodes, commit once) and time click -> talents
    committed for both paths, with and without a hero tree change (the hero
    tree animation may set a floor of ~1-1.5 s either way).
-   **Tried and backed out 2026-10-16:** in place (reset, buy in passes,
-   commit once). Commits were accepted then refused a moment later for
-   builds with multi-rank apex talents (apex left at 2 of 4 even when bought
-   top to bottom, apex last), the refusals left changes staged, and the
-   import fallback raced them, so full builds stopped applying. Import is the
-   only path again. Applying now drops changes left staged first, and saving
-   is refused while points are unspent. Revisit speed only once applies are
-   reliable; the apex rank gating needs understanding first.
+   **Reworked 2026-10-16 (in testing):** in place now changes only the
+   talents that differ on the live tree (refunds bottom row first, buys top
+   row first, both in passes), adds up a multi-rank apex talent that comes as
+   several entries (the cause of "apex stuck at 2"), leaves the hero tree
+   alone unless the build picks another one, and commits only when something
+   changed. Anything it can't take: roll back and import. First apply (or
+   when another loadout is selected) still imports.
    **Floor (player, 2026-10-16):** changing talents is a 5 s cast, so 5 s
    from click to applied is the fastest possible. Import measures ~5.7-7 s,
    i.e. ~1 s of our own overhead (0.3 s wait before loading, the 1.5 s check
