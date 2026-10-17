@@ -9,6 +9,43 @@ disagree), **Open** (needs an answer before build).
 
 ---
 
+## Product model (player, 2026-10-17)
+
+How players label builds: a few per spec, named for what they're for, not
+for their talent details. Most players settle on a handful (one raid build
+for a spec; single target and AoE per hero tree; a couple for M+), then move
+a class talent or two for a fight's or dungeon's utility. Others keep a
+build per boss and per dungeon; that stays possible, but the addon points
+out the overlap.
+
+- **Scope: the class you're logged in as.** Its specs only; builds for
+  other classes stay saved and show when you log into that class. The pane
+  shows the current spec; other specs of the class come in through offers
+  and history.
+- **Builds are few, situations are many.** A situation is a dungeon, raid,
+  boss or delve (content type too). A build is tagged with the situations
+  it's for; one situation can point at builds in more than one spec.
+- **Swaps instead of separate builds.** The small per-fight / per-dungeon
+  changes hang off a build as its swaps for that situation ("SH AoE, Murder
+  Row: + Curse of Exhaustion"). Same data as today's variants (changes from
+  a main build, carried through when the main build changes), shown as the
+  swaps rather than as a second build.
+- **Keep the set small.** Saving or importing a build with the same talents
+  as one you have: offer to tag that build for this situation instead.
+  Within a couple of talents: offer to save it as a swap. For a collection
+  brought over from another tool: propose the clusters ("these 9 are SH AoE
+  with small swaps; these 6 are identical") and merge only on confirm.
+- **What you said and what you played.** Log the spec and build active at
+  each key start and boss pull (passive). On zone-in / before a boss, offer
+  the tagged builds and what you played there last, across the class's
+  specs.
+- **Blizzard limits (what shapes this):** no talent changes in combat, in a
+  boss encounter or in a running key; each change is a 5 s cast; in
+  instances unit names / IDs are secret, while the instance, encounter
+  start / end and your own spec / build are readable; builds only arrive as
+  pasted strings. Storing, comparing, drawing on or beside the talent
+  window and applying out of combat are all open.
+
 ## Next session: start here
 
 **Parked 2026-10-16, ~23:40 ET (not released; last release
@@ -18,6 +55,10 @@ window) with a size grip for the window. Untested when parked: the hero
 emblem mark, right-click / drag in the pane, Save current / Import buttons
 and the suite styling pass (the DevChecklist round is still set). Then:
 search / compare / other specs if missed, free editing, a release.
+Next up from the product model: tags on builds and the "same as / tag it
+instead" offer at save, the pane showing each build with its tags and swaps,
+then the played-here history and zone-in offers. Change marks on the tree
+were redrawn in the talent window's own art (in testing).
 
 Earlier threads (history):
 1. **Apply speed.** Switching feels slower than other loadout tools. Our

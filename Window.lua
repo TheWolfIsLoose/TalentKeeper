@@ -1,46 +1,38 @@
--- TalentKeeper on the talent window: your builds in a strip under it. Hover one to see on the
--- tree what it would change (marks on the talents themselves); click it to apply.
+-- TalentKeeper on the talent window: your builds in a side pane beside it. Hover one to see on
+-- the tree what it would change; click to apply; right-click or drag to organize.
 local _, TK = ...
 local B, C, UI = TK.builds, TK.compare, TK.ui
 local W = {}
 TK.window = W
 
-local COLOR = { add = { 0.596, 1, 0.596 }, rem = { 1, 0.533, 0.533 }, swap = { 1, 0.722, 0.302 } }
-local SIGN = { add = "+", rem = "-", swap = "~" }
-
 local tf, marks = nil, {}
 
--- Marks on the tree --------------------------------------------------------------------
-local function colorRing(frame)
-    local edges = {}
-    for _, side in ipairs({ "TOP", "BOTTOM", "LEFT", "RIGHT" }) do
-        local t = frame:CreateTexture(nil, "OVERLAY")
-        t:SetTexelSnappingBias(0); t:SetSnapToPixelGrid(false)
-        if side == "TOP" or side == "BOTTOM" then
-            t:SetPoint(side .. "LEFT"); t:SetPoint(side .. "RIGHT"); t:SetHeight(2)
-        else
-            t:SetPoint("TOP" .. side); t:SetPoint("BOTTOM" .. side); t:SetWidth(2)
-        end
-        edges[#edges + 1] = t
-    end
-    return function(r, g, b) for _, t in ipairs(edges) do t:SetColorTexture(r, g, b, 1) end end
-end
-
+-- Marks on the tree ----------------------------------------------------------------------
+-- Drawn in the talent window's own language, from each button's own art set: a talent the
+-- build adds glows green like one you can take; one it drops gets the red border and a dim
+-- veil, like a talent you'd lose; another choice shows the build's pick on the node. Plus
+-- and minus signs only in colorblind mode.
 local function mark(i)
     if marks[i] then return marks[i] end
     local m = CreateFrame("Frame", nil, tf)
-    m.setRing = colorRing(m)
-    m.badge = CreateFrame("Frame", nil, m)
-    m.badge:SetSize(14, 14)
-    m.badge:SetPoint("CENTER", m, "TOPRIGHT", -2, -2)
-    m.badge.bg = m.badge:CreateTexture(nil, "OVERLAY")
-    m.badge.bg:SetAllPoints()
-    m.badge.text = m.badge:CreateFontString(nil, "OVERLAY", "TalentKeeperFont")
-    m.badge.text:SetPoint("CENTER", 0, 1)
-    m.badge.text:SetTextColor(0.031, 0.031, 0.031)
-    m.label = m:CreateFontString(nil, "OVERLAY", "TalentKeeperFontLarge")
-    m.label:SetPoint("TOP", m, "BOTTOM", 0, -4)
-    m.label:SetTextColor(1, 0.722, 0.302)
+    m.mask = m:CreateMaskTexture()
+    m.mask:SetPoint("CENTER")
+    m.veil = m:CreateTexture(nil, "ARTWORK", nil, 1)
+    m.veil:SetPoint("CENTER")
+    m.veil:SetColorTexture(0, 0, 0, 0.55)
+    m.veil:AddMaskTexture(m.mask)
+    m.icon = m:CreateTexture(nil, "ARTWORK", nil, 2)
+    m.icon:SetPoint("CENTER")
+    m.icon:AddMaskTexture(m.mask)
+    m.border = m:CreateTexture(nil, "OVERLAY", nil, 1)
+    m.border:SetPoint("CENTER")
+    m.glow = m:CreateTexture(nil, "OVERLAY", nil, 2)
+    m.glow:SetPoint("CENTER")
+    m.glow:SetBlendMode("ADD")
+    m.text = m:CreateFontString(nil, "OVERLAY", "SystemFont16_Shadow_ThickOutline")
+    m.text:SetPoint("BOTTOMRIGHT", 4, -4)
+    m.label = m:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+    m.label:SetPoint("TOP", m, "BOTTOM", 0, -6)
     marks[i] = m
     return m
 end
@@ -52,20 +44,53 @@ end
 -- How a node changes from your talents to the build's.
 local function kind(c) return not c.from and "add" or not c.to and "rem" or "swap" end
 
--- Mark what applying b would change; returns the changes and how many have no button on show.
 local LTT = LibStub and LibStub("LibTalentTree-1.0", true)
 local function lib(node) return LTT and LTT:GetLibNodeInfo(node) end
 
-local function place(m, target, k)
-    local col = COLOR[k]
-    m:SetFrameStrata(target:GetFrameStrata())
-    m:SetFrameLevel(target:GetFrameLevel() + 10)
+-- The icon of the build's pick on a choice node ("rank:choice").
+local function choiceIcon(node, pick)
+    local choice = tonumber((pick or ""):match(":(%d+)$")) or 0
+    local cfg = C_ClassTalents.GetActiveConfigID()
+    local info = choice > 0 and cfg and C_Traits.GetNodeInfo(cfg, node)
+    local entry = info and info.entryIDs and C_Traits.GetEntryInfo(cfg, info.entryIDs[choice])
+    local def = entry and entry.definitionID and C_Traits.GetDefinitionInfo(entry.definitionID)
+    if not def then return end
+    return def.overrideIcon or (def.spellID and C_Spell.GetSpellTexture(def.spellID))
+end
+
+local function sizeOf(region, w, h)
+    if region and region.GetSize then local rw, rh = region:GetSize() if rw and rw > 0 then return rw, rh end end
+    return w, h
+end
+
+local function place(m, button, c)
+    local k = c and kind(c) or "swap"
+    local art = button.artSet or { glow = "talents-node-circle-greenglow" }
+    local w, h = button:GetSize()
+    m:SetFrameStrata(button:GetFrameStrata())
+    m:SetFrameLevel(button:GetFrameLevel() + 10)
     m:ClearAllPoints()
-    m:SetPoint("TOPLEFT", target, "TOPLEFT", -3, 3)
-    m:SetPoint("BOTTOMRIGHT", target, "BOTTOMRIGHT", 3, -3)
-    m.setRing(col[1], col[2], col[3])
-    m.badge.bg:SetColorTexture(col[1], col[2], col[3], 1)
-    m.badge.text:SetText(SIGN[k])
+    m:SetPoint("CENTER", button)
+    m:SetSize(w, h)
+    local iw, ih = sizeOf(button.Icon, w, h)
+    m.mask:SetSize(iw, ih)
+    if art.iconMask then m.mask:SetAtlas(art.iconMask, TextureKitConstants.IgnoreAtlasSize) else m.mask:SetTexture("Interface\\Buttons\\WHITE8X8") end
+    m.veil:SetSize(iw, ih)
+    m.icon:SetSize(iw, ih)
+    m.border:SetSize(sizeOf(button.StateBorder, w, h))
+    m.glow:SetSize(sizeOf(button.Glow, w * 1.6, h * 1.6))
+    m.glow:SetAtlas(art.glow)
+    m.veil:SetShown(k == "rem")
+    m.border:SetShown(k == "rem" and art.displayError ~= nil)
+    if art.displayError then m.border:SetAtlas(art.displayError) end
+    m.glow:SetShown(k ~= "rem")
+    local icon = k == "swap" and c and choiceIcon(c.node, c.to)
+    m.icon:SetShown(icon ~= nil)
+    if icon then m.icon:SetTexture(icon) end
+    -- a rank change shows the build's rank; colorblind mode adds a sign
+    local rank = k == "swap" and c and not icon and tonumber((c.to or ""):match("^(%d+)"))
+    local sign = GetCVarBool("colorblindMode") and ((k == "add" and "+") or (k == "rem" and "-")) or nil
+    m.text:SetText(rank and rank > 0 and tostring(rank) or sign or "")
     m.label:SetText("")
     m:Show()
 end
@@ -86,7 +111,7 @@ function W.show(b)
             local button = tf:GetTalentButtonByNodeID(c.node)
             if button and button:IsVisible() then
                 n = n + 1
-                place(mark(n), button, kind(c))
+                place(mark(n), button, c)
             else
                 hidden = hidden + 1
             end
@@ -96,7 +121,7 @@ function W.show(b)
     if heroSwap and emblem and emblem:IsVisible() then
         n = n + 1
         local m = mark(n)
-        place(m, emblem, "swap")
+        place(m, emblem, nil)
         m.label:SetText(C.heroName(b.text) or "")
     end
     return d, hidden
