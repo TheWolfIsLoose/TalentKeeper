@@ -351,17 +351,6 @@ local function inPlace(b, e, specID, slot)
     local cfg = C_ClassTalents.GetActiveConfigID()
     local treeID = C_ClassTalents.GetTraitTreeForSpec(specID)
     if not cfg or not treeID then return false end
-    -- multi-rank apex talents get refused when bought one rank at a time: import those builds
-    local LTT = LibStub and LibStub("LibTalentTree-1.0", true)
-    if LTT then
-        for _, x in ipairs(e) do
-            local n = LTT:GetLibNodeInfo(x.nodeID)
-            if n and n.isApexTalent and x.ranksPurchased > 1 then
-                TK.log("apply '%s': has a multi-rank apex talent, importing", b.name)
-                return false
-            end
-        end
-    end
     local currencies = C_Traits.GetTreeCurrencyInfo(cfg, treeID, false) or {}
     -- hero entries = nodes in a sub tree (or the sub tree choice); keep them if they already match
     local heroSame, isHero = true, {}
@@ -380,11 +369,23 @@ local function inPlace(b, e, specID, slot)
     else
         C_Traits.ResetTree(cfg, treeID)
     end
-    -- buy in passes: a node only takes once the nodes above it are bought
+    -- buy the way a player would: top row first, left to right, apex talents last; then retry
+    -- in passes anything a gate still held back
+    local LTT = LibStub and LibStub("LibTalentTree-1.0", true)
     local todo = {}
     for _, x in ipairs(e) do
-        if x.ranksPurchased > 0 and not (heroSame and isHero[x.nodeID]) then todo[#todo + 1] = x end
+        if x.ranksPurchased > 0 and not (heroSame and isHero[x.nodeID]) then
+            local info = C_Traits.GetNodeInfo(cfg, x.nodeID)
+            local lib = LTT and LTT:GetLibNodeInfo(x.nodeID)
+            x.apex, x.posX, x.posY = lib and lib.isApexTalent or false, info and info.posX or 0, info and info.posY or 0
+            todo[#todo + 1] = x
+        end
     end
+    table.sort(todo, function(a, c)
+        if a.apex ~= c.apex then return not a.apex end
+        if a.posY ~= c.posY then return a.posY < c.posY end
+        return a.posX < c.posX
+    end)
     for _ = 1, 30 do
         if #todo == 0 then break end
         local left = {}
