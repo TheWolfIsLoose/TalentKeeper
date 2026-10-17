@@ -20,7 +20,9 @@ release v0.2.0-alpha1).** Two open threads from the player before v0.4:
    loadout (reset the tree, buy nodes, commit once) and time click -> talents
    committed for both paths, with and without a hero tree change (the hero
    tree animation may set a floor of ~1-1.5 s either way).
-   **Reworked 2026-10-16 (in testing):** in place now changes only the
+   **Reworked and confirmed 2026-10-16** (16 switches across three specs,
+   all in place, 0 differences, no import fallback; about half needed the
+   rebuild step): in place now changes only the
    talents that differ on the live tree (refunds bottom row first, buys top
    row first, both in passes), adds up a multi-rank apex talent that comes as
    several entries (the cause of "apex stuck at 2"), leaves the hero tree
