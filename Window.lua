@@ -38,6 +38,9 @@ local function mark(i)
     m.badge.text = m.badge:CreateFontString(nil, "OVERLAY", "TalentKeeperFont")
     m.badge.text:SetPoint("CENTER", 0, 1)
     m.badge.text:SetTextColor(0.031, 0.031, 0.031)
+    m.label = m:CreateFontString(nil, "OVERLAY", "TalentKeeperFontLarge")
+    m.label:SetPoint("TOP", m, "BOTTOM", 0, -4)
+    m.label:SetTextColor(1, 0.722, 0.302)
     marks[i] = m
     return m
 end
@@ -50,29 +53,51 @@ end
 local function kind(c) return not c.from and "add" or not c.to and "rem" or "swap" end
 
 -- Mark what applying b would change; returns the changes and how many have no button on show.
+local LTT = LibStub and LibStub("LibTalentTree-1.0", true)
+local function lib(node) return LTT and LTT:GetLibNodeInfo(node) end
+
+local function place(m, target, k)
+    local col = COLOR[k]
+    m:SetFrameStrata(target:GetFrameStrata())
+    m:SetFrameLevel(target:GetFrameLevel() + 10)
+    m:ClearAllPoints()
+    m:SetPoint("TOPLEFT", target, "TOPLEFT", -3, 3)
+    m:SetPoint("BOTTOMRIGHT", target, "BOTTOMRIGHT", 3, -3)
+    m.setRing(col[1], col[2], col[3])
+    m.badge.bg:SetColorTexture(col[1], col[2], col[3], 1)
+    m.badge.text:SetText(SIGN[k])
+    m.label:SetText("")
+    m:Show()
+end
+
+-- Mark what applying b would change; returns the changes and how many have no button on show.
+-- Another hero tree is one mark on the hero tree's emblem, not a mark on every hero talent.
 function W.show(b)
     W.hide()
     if not tf or not tf:IsVisible() then return end
     local d = C.diff(B.currentString(), b.text)
     if not d then return end
-    local hidden = 0
-    for i, c in ipairs(d) do
-        local button = tf:GetTalentButtonByNodeID(c.node)
-        if button and button:IsVisible() then
-            local k, m = kind(c), mark(i)
-            local col = COLOR[k]
-            m:SetFrameStrata(button:GetFrameStrata())
-            m:SetFrameLevel(button:GetFrameLevel() + 10)
-            m:ClearAllPoints()
-            m:SetPoint("TOPLEFT", button, "TOPLEFT", -3, 3)
-            m:SetPoint("BOTTOMRIGHT", button, "BOTTOMRIGHT", 3, -3)
-            m.setRing(col[1], col[2], col[3])
-            m.badge.bg:SetColorTexture(col[1], col[2], col[3], 1)
-            m.badge.text:SetText(SIGN[k])
-            m:Show()
-        else
-            hidden = hidden + 1
+    local heroSwap = false
+    for _, c in ipairs(d) do local n = lib(c.node) if n and n.isSubTreeSelection then heroSwap = true end end
+    local hidden, n = 0, 0
+    for _, c in ipairs(d) do
+        local info = lib(c.node)
+        if not (heroSwap and info and (info.subTreeID or info.isSubTreeSelection)) then
+            local button = tf:GetTalentButtonByNodeID(c.node)
+            if button and button:IsVisible() then
+                n = n + 1
+                place(mark(n), button, kind(c))
+            else
+                hidden = hidden + 1
+            end
         end
+    end
+    local emblem = tf.HeroTalentsContainer and tf.HeroTalentsContainer.HeroSpecButton
+    if heroSwap and emblem and emblem:IsVisible() then
+        n = n + 1
+        local m = mark(n)
+        place(m, emblem, "swap")
+        m.label:SetText(C.heroName(b.text) or "")
     end
     return d, hidden
 end
@@ -96,7 +121,26 @@ local function row(i)
     r.text:SetPoint("RIGHT", -8, 0)
     r.text:SetJustifyH("LEFT")
     r.text:SetWordWrap(false)
-    r:SetScript("OnClick", TK.safe(function(self) W.hide() B.apply(self.b) end))
+    r:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+    r:RegisterForDrag("LeftButton")
+    r:SetScript("OnClick", TK.safe(function(self, button)
+        if self.dragged then self.dragged = nil return end
+        W.hide()
+        if button == "RightButton" then
+            local b, specID = self.b, B.specID()
+            return MenuUtil.CreateContextMenu(self, function(_, root)
+                root:CreateTitle(b.name)
+                UI.buildActions(root, specID, b)
+            end)
+        end
+        B.apply(self.b)
+    end))
+    r:SetScript("OnDragStart", function(self)
+        self.dragged, W.dragging = true, self.b
+        W.hide() GameTooltip:Hide()
+        SetCursor("Interface\\Cursor\\UI-Cursor-Move")
+    end)
+    r:SetScript("OnDragStop", TK.safe(function() W.drop() end))
     r:SetScript("OnEnter", TK.safe(function(self)
         local d, hidden = W.show(self.b)
         GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
@@ -108,7 +152,7 @@ local function row(i)
         else
             GameTooltip:AddLine(("%d change%s, marked on the tree: %s"):format(#d, #d == 1 and "" or "s", table.concat(C.describe(d, 6), ", ")), 0.74, 0.74, 0.74, true)
             if hidden > 0 then GameTooltip:AddLine(("%d not on show (another hero tree)."):format(hidden), 0.55, 0.55, 0.55, true) end
-            GameTooltip:AddLine("Click to apply.", 0.55, 0.55, 0.55)
+            GameTooltip:AddLine("Click to apply. Right-click for more; drag onto a group to move it.", 0.55, 0.55, 0.55, true)
         end
         GameTooltip:Show()
     end))
@@ -123,6 +167,22 @@ local function head(i)
     h:SetTextColor(0.55, 0.55, 0.55)
     heads[i] = h
     return h
+end
+
+-- Drop a dragged build onto a group heading, a build (its group) or "+ New group".
+function W.drop()
+    local b = W.dragging
+    W.dragging = nil
+    ResetCursor()
+    if not b then return end
+    local target -- nil: no drop target; false: no group
+    for _, h in ipairs(heads) do if h:IsShown() and h.group ~= nil and h:IsMouseOver() then target = h.group end end
+    for _, r in ipairs(rows) do if r:IsShown() and r:IsMouseOver() then target = r.b.group or false end end
+    if pane.newGroup:IsMouseOver() then
+        return UI.textWindow({ title = "New group for " .. b.name, singleLine = true, okText = "Move",
+            onOK = function(name) if strtrim(name) ~= "" then B.setGroup(b, name) end end })
+    end
+    if target ~= nil and (target or nil) ~= b.group then B.setGroup(b, target or nil) end
 end
 
 function W.refresh()
@@ -140,6 +200,7 @@ function W.refresh()
                 nh = nh + 1
                 local h = head(nh)
                 h:SetText(line.header or "No group")
+                h.group = line.header
                 h:ClearAllPoints()
                 h:SetPoint("TOPLEFT", 10, y - 8)
                 h:Show()
@@ -160,10 +221,14 @@ function W.refresh()
             y = y - ROW
         end
     end
+    pane.newGroup:ClearAllPoints()
+    pane.newGroup:SetPoint("TOPLEFT", 10, y - 8)
+    pane.newGroup:SetShown(nr > 0)
     if nr == 0 then
         nh = nh + 1
         local h = head(nh)
         h:SetText("No builds for this spec yet.")
+        h.group = nil
         h:ClearAllPoints()
         h:SetPoint("TOPLEFT", 10, y - 8)
         h:Show()
@@ -225,6 +290,22 @@ EventUtil.ContinueOnAddOnLoaded("Blizzard_PlayerSpells", TK.safe(function()
     UI.fill(pane, "BACKGROUND", 0.06, 0.06, 0.06, 0.98)
     pane.title = pane:CreateFontString(nil, "OVERLAY", "TalentKeeperFontLarge")
     pane.title:SetPoint("TOPLEFT", 10, -10)
+    pane.newGroup = CreateFrame("Frame", nil, pane)
+    pane.newGroup:SetSize(180, 20)
+    local ng = pane.newGroup:CreateFontString(nil, "OVERLAY", "TalentKeeperFontSmall")
+    ng:SetPoint("LEFT")
+    ng:SetText("+ New group (drop a build here)")
+    ng:SetTextColor(0.55, 0.55, 0.55)
+    local save = UI.button(pane, "Save current", 88, function()
+        local specID = B.specID()
+        if not specID then return end
+        UI.textWindow({ title = "Save current talents", singleLine = true, okText = "Save",
+            text = ("%s %d"):format(B.specName(specID), #B.list(specID) + 1),
+            onOK = function(name) B.saveCurrent(name) end })
+    end)
+    save:SetPoint("BOTTOMLEFT", 8, 8)
+    local all = UI.button(pane, "All builds", 88, function() TK.manager.open() end)
+    all:SetPoint("BOTTOMRIGHT", -8, 8)
     pane:Hide()
     tf:HookScript("OnShow", function() pane:Show() TK.safe(W.refresh)() end)
     tf:HookScript("OnHide", function() W.hide() pane:Hide() end)

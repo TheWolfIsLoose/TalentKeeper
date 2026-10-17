@@ -41,6 +41,11 @@ release v0.2.0-alpha1).** Two open threads from the player before v0.4:
    edge (groups, main builds with variants indented, the one on now in mint),
    hover marks what a build changes on the tree, click applies. The talent
    window is too big by default: a corner grip scales it (saved).
+   Step 2 (in testing): another hero tree shows as one mark on the hero
+   emblem (with the new tree's name) instead of marks on every hero talent;
+   the pane manages builds: right-click for the build's actions (incl. a
+   Group submenu), drag onto a group / "+ New group", Save current, All
+   builds (the management window, for other specs).
    Next candidates: the same marks from the manager and menu, then free
    editing on the talent window.
    Earlier notes: **The GUI doesn't feel designed yet.** Style-consistent but all text;

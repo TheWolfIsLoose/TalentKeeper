@@ -192,6 +192,11 @@ local function buildEntry(parent, specID, b, list, current)
         function() B.apply(b) return MenuResponse.Close end)
     variantLines(entry, b)
     diffLines(entry, current, b)
+    UI.buildActions(entry, specID, b)
+end
+
+-- What you can do with a build: in its submenu here and in the talent window's side pane.
+function UI.buildActions(entry, specID, b)
     entry:CreateButton("Update to current talents", function() B.updateToCurrent(b) end)
     entry:CreateButton("Save current talents as a variant", function()
         local main = b.main or b.name
@@ -199,6 +204,20 @@ local function buildEntry(parent, specID, b, list, current)
             onOK = function(name) B.saveVariant(b, name) end })
     end)
     UI.gearMenu(entry, b)
+    local move = entry:CreateButton("Group" .. (b.group and (": " .. b.group) or ""))
+    move:CreateRadio("No group", function() return not b.group end, function() B.setGroup(b, nil) end)
+    local seen = {}
+    for _, x in ipairs(B.list(specID)) do
+        if x.group and not seen[x.group] then
+            seen[x.group] = true
+            local g = x.group
+            move:CreateRadio(g, function() return b.group == g end, function() B.setGroup(b, g) end)
+        end
+    end
+    move:CreateButton("New group...", function()
+        UI.textWindow({ title = "New group for " .. b.name, singleLine = true, okText = "Move",
+            onOK = function(name) if strtrim(name) ~= "" then B.setGroup(b, name) end end })
+    end)
     entry:CreateButton("Rename", function()
         UI.textWindow({ title = "Rename build", text = b.name, singleLine = true, okText = "Rename",
             onOK = function(name) B.rename(specID, b, name) end })
