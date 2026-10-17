@@ -409,30 +409,26 @@ local function inPlace(b, e, specID, slot)
             if s and s.traitCurrencyID then C_Traits.ResetTreeByCurrency(cfg, treeID, s.traitCurrencyID) end
         end
     end
-    -- refund what the build doesn't have, bottom row first (in passes: gates can hold a refund)
-    for _ = 1, 10 do
-        local progress, left = false, 0
+    -- refund what the build doesn't have (bottom row first), then buy what's missing (top row
+    -- first); repeat, since a refund can wait on a purchase (another path to a talent) and back
+    local function refundPass()
+        local progress = false
         for i = #ids, 1, -1 do
             local info = C_Traits.GetNodeInfo(cfg, ids[i].id)
             local w = want[info.ID]
-            if info.ranksPurchased > 0 and not granted(info) and not done(info) then
+            if info.ranksPurchased > 0 and not done(info) then
                 if not w or w.ranks == 0 then
                     if isChoice(info) then progress = C_Traits.SetSelection(cfg, info.ID, nil) or progress
                     else progress = C_Traits.RefundAllRanks(cfg, info.ID) or progress end
                 elseif not isChoice(info) and info.ranksPurchased > w.ranks then
                     for _ = w.ranks + 1, info.ranksPurchased do progress = C_Traits.RefundRank(cfg, info.ID) or progress end
                 end
-                info = C_Traits.GetNodeInfo(cfg, info.ID)
-                if info.ranksPurchased > 0 and (not w or w.ranks == 0) then left = left + 1 end
             end
         end
-        if left == 0 or not progress then break end
+        return progress
     end
-    -- buy what's missing, top row first, in passes
-    local missing
-    for _ = 1, 30 do
+    local function buyPass()
         local progress = false
-        missing = 0
         for _, n in ipairs(ids) do
             local info = C_Traits.GetNodeInfo(cfg, n.id)
             local w = want[n.id]
@@ -445,14 +441,44 @@ local function inPlace(b, e, specID, slot)
                         info = C_Traits.GetNodeInfo(cfg, n.id)
                     end
                 end
-                if not done(C_Traits.GetNodeInfo(cfg, n.id)) then missing = missing + 1 end
             end
         end
-        if missing == 0 or not progress then break end
+        return progress
     end
-    missing = 0 -- anything still off, wanted or not
-    for _, n in ipairs(ids) do
-        if not done(C_Traits.GetNodeInfo(cfg, n.id)) then missing = missing + 1 end
+    local function off()
+        local list = {}
+        for _, n in ipairs(ids) do
+            local info = C_Traits.GetNodeInfo(cfg, n.id)
+            if not done(info) then list[#list + 1] = info end
+        end
+        return list
+    end
+    local function settle()
+        for _ = 1, 30 do
+            local progress = refundPass()
+            progress = buyPass() or progress
+            if #off() == 0 or not progress then break end
+        end
+        return off()
+    end
+    local left, rebuilt = settle(), false
+    if #left > 0 then
+        -- the changes can't be made one by one: clear the class and spec talents and buy them
+        -- all again top to bottom (the hero tree keeps its own points)
+        rebuilt = true
+        local cur = C_Traits.GetTreeCurrencyInfo(cfg, treeID, false) or {}
+        for i = 1, 2 do if cur[i] then C_Traits.ResetTreeByCurrency(cfg, treeID, cur[i].traitCurrencyID) end end
+        left = settle()
+    end
+    local missing = #left
+    if missing > 0 then
+        local what = {}
+        for _, info in ipairs(left) do
+            local w = want[info.ID]
+            what[#what + 1] = ("%d has %d/%s want %s"):format(info.ID, info.ranksPurchased,
+                info.activeEntry and tostring(info.activeEntry.entryID) or "-", w and (w.ranks .. "/" .. tostring(w.entry)) or "none")
+        end
+        TK.log("apply '%s': in place left %s", b.name, table.concat(what, "; "))
     end
     if missing > 0 then
         C_Traits.RollbackConfig(cfg)
@@ -466,7 +492,7 @@ local function inPlace(b, e, specID, slot)
         return true
     end
     local ok = C_ClassTalents.CommitConfig(slot)
-    TK.log("apply '%s' (%s): in place, hero tree %s, commit %s", b.name, B.specName(specID), heroChanged and "changed" or "kept", tostring(ok))
+    TK.log("apply '%s' (%s): in place%s, hero tree %s, commit %s", b.name, B.specName(specID), rebuilt and " (rebuilt)" or "", heroChanged and "changed" or "kept", tostring(ok))
     if not ok then C_Traits.RollbackConfig(cfg) return false end
     finish(b, specID)
     return true

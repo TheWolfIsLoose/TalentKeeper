@@ -305,6 +305,34 @@ do
     tree[2].req = 99 -- node 2 can no longer be bought: in place gives up and leaves nothing staged
     have[2] = nil saved = snapshot()
     ok(not B.inPlace({ name = "sim" }, build, 266, 20) and not C_Traits.ConfigHasStagedChanges(), "can't take a talent: rolled back, import instead")
+    -- a swap where the kept talent hangs off the one going away (it has two ways in), with no
+    -- points to spare: refund waits on the purchase, so it's done in alternating passes
+    tree = {
+        [8] = { type = T.Single, max = 1, y = 0, x = 0 },
+        [9] = { type = T.Single, max = 1, y = 0, x = 2 },
+        [10] = { type = T.Single, max = 1, y = 1, x = 1, req = { 8, 9 } },
+    }
+    local function anyBought(r) if type(r) ~= "table" then return bought(r) > 0 end for _, x in ipairs(r) do if bought(x) > 0 then return true end end end
+    kids = function(id)
+        for k, n in pairs(tree) do
+            if bought(k) > 0 and n.req then
+                local r = type(n.req) == "table" and n.req or { n.req }
+                local other = false
+                for _, x in ipairs(r) do if x ~= id and bought(x) > 0 then other = true end end
+                for _, x in ipairs(r) do if x == id and not other then return true end end
+            end
+        end
+    end
+    C_Traits.PurchaseRank = function(_, id)
+        local n, spent = tree[id], 0
+        for k in pairs(tree) do spent = spent + bought(k) end
+        if spent >= 3 or (n.req and not anyBought(n.req)) or bought(id) >= n.max then return false end
+        have[id] = bought(id) + 1 return true
+    end
+    C_Traits.GetTreeNodes = function() return { 8, 9, 10 } end
+    have = { [8] = 1, [10] = 1 } saved = snapshot()
+    ok(B.inPlace({ name = "sim" }, { { nodeID = 9, ranksPurchased = 1 }, { nodeID = 10, ranksPurchased = 1 } }, 266, 20)
+        and have[9] == 1 and have[10] == 1 and not have[8], "swap under a kept talent works in place")
     for k, v in pairs(T0) do C_Traits[k] = v end
 end
 lastSelected = nil
