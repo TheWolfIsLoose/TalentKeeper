@@ -34,6 +34,15 @@ release v0.2.0-alpha1).** Two open threads from the player before v0.4:
    highlighted; previewing a build on Blizzard's own talent window (mark
    the nodes that would change on hover) so the window itself is the
    canvas. Decide the look before v0.4 adds zone offers.
+   **Free editing (player, 2026-10-16):** shape a build however you like
+   (talents in any order, prerequisites removed and re-added) and have it
+   apply as long as the final build follows the tree's rules (gates,
+   connections, point totals). Blizzard's window checks every click, so
+   this needs our own editing surface: the drawn tree from direction 2
+   doubles as an editor that only changes picks, checks the result with the
+   talent library's gates / edges / currencies, then writes a string
+   (`C.write`) and applies it through the import path, which already
+   applies a whole build at once. Built clean-room from Blizzard's API.
 
 **Parked 2026-10-16, ~14:55 ET: v0.1.0-alpha1 released** (CurseForge
 Alpha). Spikes S1-S5 done; raid / dungeon / delve design written below as
