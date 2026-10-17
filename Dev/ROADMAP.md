@@ -36,9 +36,11 @@ release v0.2.0-alpha1).** Two open threads from the player before v0.4:
 2. **GUI: build it and see (player, 2026-10-16).** Four directions were mocked
    (manager with a drawn tree, preview on the talent window, free editing,
    quick menu with icons); the player wants to build and find what doesn't
-   work rather than settle the look on paper. Step 1 (in testing): a strip
-   of builds under the talent window; hovering one marks on the tree what it
-   would change (+ added, - removed, ~ other choice or rank); click applies.
+   work rather than settle the look on paper. Step 1: a strip of builds under the window lost the main / variant
+   shape and crowded the window; now a side pane docked to the window's right
+   edge (groups, main builds with variants indented, the one on now in mint),
+   hover marks what a build changes on the tree, click applies. The talent
+   window is too big by default: a corner grip scales it (saved).
    Next candidates: the same marks from the manager and menu, then free
    editing on the talent window.
    Earlier notes: **The GUI doesn't feel designed yet.** Style-consistent but all text;

@@ -8,7 +8,7 @@ TK.window = W
 local COLOR = { add = { 0.596, 1, 0.596 }, rem = { 1, 0.533, 0.533 }, swap = { 1, 0.722, 0.302 } }
 local SIGN = { add = "+", rem = "-", swap = "~" }
 
-local tf, strip, marks, pills, labels = nil, nil, {}, {}, {}
+local tf, marks = nil, {}
 
 -- Marks on the tree --------------------------------------------------------------------
 local function colorRing(frame)
@@ -77,90 +77,97 @@ function W.show(b)
     return d, hidden
 end
 
--- The strip of builds -------------------------------------------------------------------
-local function pill(i)
-    if pills[i] then return pills[i] end
-    local p = UI.button(strip, "", 60, function(self) W.hide() B.apply(self.b) end)
-    p:SetHeight(22)
-    p.bar = p:CreateTexture(nil, "OVERLAY")
-    p.bar:SetColorTexture(0.596, 1, 0.596, 1)
-    p.bar:SetPoint("BOTTOMLEFT"); p.bar:SetPoint("BOTTOMRIGHT"); p.bar:SetHeight(2)
-    p:HookScript("OnEnter", TK.safe(function(self)
+-- The side pane of builds -----------------------------------------------------------------
+-- Docked to the window's right edge, at our own scale (parented to UIParent, shown with the
+-- talent window). Groups as headings, each main build with its variants indented under it.
+local pane, rows, heads = nil, {}, {}
+local ROW = 24
+
+local function row(i)
+    if rows[i] then return rows[i] end
+    local r = CreateFrame("Button", nil, pane)
+    r:SetHeight(ROW)
+    r:SetPoint("LEFT", 0, 0); r:SetPoint("RIGHT", 0, 0)
+    UI.fill(r, "HIGHLIGHT", 0.851, 0.851, 0.851, 0.15)
+    r.bar = r:CreateTexture(nil, "OVERLAY")
+    r.bar:SetColorTexture(0.596, 1, 0.596, 1)
+    r.bar:SetPoint("TOPLEFT"); r.bar:SetPoint("BOTTOMLEFT"); r.bar:SetWidth(2)
+    r.text = r:CreateFontString(nil, "OVERLAY", "TalentKeeperFont")
+    r.text:SetPoint("RIGHT", -8, 0)
+    r.text:SetJustifyH("LEFT")
+    r.text:SetWordWrap(false)
+    r:SetScript("OnClick", TK.safe(function(self) W.hide() B.apply(self.b) end))
+    r:SetScript("OnEnter", TK.safe(function(self)
         local d, hidden = W.show(self.b)
-        GameTooltip:SetOwner(self, "ANCHOR_TOP")
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
         GameTooltip:SetText(self.b.name)
         if not d then
             GameTooltip:AddLine("Couldn't read this build.", 1, 0.533, 0.533)
         elseif #d == 0 then
             GameTooltip:AddLine("Same as your talents.", 0.74, 0.74, 0.74)
         else
-            GameTooltip:AddLine(("%d change%s: %s"):format(#d, #d == 1 and "" or "s", table.concat(C.describe(d, 6), ", ")), 0.74, 0.74, 0.74, true)
+            GameTooltip:AddLine(("%d change%s, marked on the tree: %s"):format(#d, #d == 1 and "" or "s", table.concat(C.describe(d, 6), ", ")), 0.74, 0.74, 0.74, true)
             if hidden > 0 then GameTooltip:AddLine(("%d not on show (another hero tree)."):format(hidden), 0.55, 0.55, 0.55, true) end
             GameTooltip:AddLine("Click to apply.", 0.55, 0.55, 0.55)
         end
         GameTooltip:Show()
     end))
-    p:HookScript("OnLeave", function() W.hide() GameTooltip:Hide() end)
-    pills[i] = p
-    return p
+    r:SetScript("OnLeave", function() W.hide() GameTooltip:Hide() end)
+    rows[i] = r
+    return r
 end
 
-local function label(i)
-    if labels[i] then return labels[i] end
-    local l = strip:CreateFontString(nil, "OVERLAY", "TalentKeeperFontSmall")
-    l:SetTextColor(0.55, 0.55, 0.55)
-    labels[i] = l
-    return l
+local function head(i)
+    if heads[i] then return heads[i] end
+    local h = pane:CreateFontString(nil, "OVERLAY", "TalentKeeperFontSmall")
+    h:SetTextColor(0.55, 0.55, 0.55)
+    heads[i] = h
+    return h
 end
 
 function W.refresh()
-    if not strip or not strip:IsVisible() then return end
+    if not pane or not pane:IsShown() then return end
     W.hide()
-    for _, p in ipairs(pills) do p:Hide() end
-    for _, l in ipairs(labels) do l:Hide() end
+    for _, r in ipairs(rows) do r:Hide() end
+    for _, h in ipairs(heads) do h:Hide() end
     local specID = B.specID()
     local active = specID and TK.db.active[specID]
-    local x, y, np, nl = 8, -6, 0, 0
-    local width = strip:GetWidth() - 8
-    local function place(w)
-        if x + w > width and x > 8 then x, y = 8, y - 26 end
-        local px, py = x, y
-        x = x + w + 6
-        return px, py
-    end
+    pane.title:SetText(specID and B.specName(specID) or "TalentKeeper")
+    local y, nr, nh = -36, 0, 0
     for _, line in ipairs(B.ordered(specID)) do
-        if line.header then
-            nl = nl + 1
-            local l = label(nl)
-            l:SetText(line.header)
-            local px, py = place(l:GetStringWidth() + 2)
-            l:ClearAllPoints()
-            l:SetPoint("TOPLEFT", px, py - 6)
-            l:Show()
+        if line.header ~= nil then
+            if line.header or nr > 0 then -- "No group" only when something came before it
+                nh = nh + 1
+                local h = head(nh)
+                h:SetText(line.header or "No group")
+                h:ClearAllPoints()
+                h:SetPoint("TOPLEFT", 10, y - 8)
+                h:Show()
+                y = y - 22
+            end
         elseif line.build then
-            np = np + 1
-            local b, p = line.build, pill(np)
-            p.b = b
-            p:SetText((b.main and "· " or "") .. b.name)
-            p:SetWidth(p:GetFontString():GetStringWidth() + 20)
+            nr = nr + 1
+            local b, r = line.build, row(nr)
+            r.b = b
+            r.text:SetText((b.main and "· " or "") .. b.name)
+            r.text:SetPoint("LEFT", b.main and 24 or 10, 0)
             local on = b.name == active
-            p:GetFontString():SetTextColor(on and 0.596 or 1, 1, on and 0.596 or 1)
-            p.bar:SetShown(on)
-            local px, py = place(p:GetWidth())
-            p:ClearAllPoints()
-            p:SetPoint("TOPLEFT", px, py)
-            p:Show()
+            r.text:SetTextColor(on and 0.596 or 1, 1, on and 0.596 or 1)
+            r.bar:SetShown(on)
+            r:ClearAllPoints()
+            r:SetPoint("TOPLEFT", 0, y); r:SetPoint("TOPRIGHT", 0, y)
+            r:Show()
+            y = y - ROW
         end
     end
-    if np == 0 then
-        nl = nl + 1
-        local l = label(nl)
-        l:SetText("No builds saved for this spec yet. Save one from the TalentKeeper button.")
-        l:ClearAllPoints()
-        l:SetPoint("TOPLEFT", 8, -11)
-        l:Show()
+    if nr == 0 then
+        nh = nh + 1
+        local h = head(nh)
+        h:SetText("No builds for this spec yet.")
+        h:ClearAllPoints()
+        h:SetPoint("TOPLEFT", 10, y - 8)
+        h:Show()
     end
-    strip:SetHeight(-y + 28)
 end
 
 local prev = TK.onChange
@@ -170,15 +177,58 @@ TK.onChange = function()
 end
 TK.on("ACTIVE_PLAYER_SPECIALIZATION_CHANGED", function() TK.safe(W.refresh)() end)
 
+-- Window size: drag the corner grip to scale the talent window (kept between sessions).
+local function applyScale()
+    if PlayerSpellsFrame and not InCombatLockdown() then PlayerSpellsFrame:SetScale(TK.db.windowScale or 1) end
+end
+
+local function grip()
+    local g = CreateFrame("Button", nil, PlayerSpellsFrame)
+    g:SetSize(16, 16)
+    g:SetPoint("BOTTOMRIGHT", -2, 2)
+    g:SetFrameLevel(PlayerSpellsFrame:GetFrameLevel() + 50)
+    g:SetNormalTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Up")
+    g:SetHighlightTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Highlight")
+    g:SetPushedTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Down")
+    g:RegisterForClicks("RightButtonUp")
+    g:SetScript("OnClick", function() if InCombatLockdown() then return end TK.db.windowScale = nil applyScale() end)
+    g:SetScript("OnMouseDown", function(self, button)
+        if button ~= "LeftButton" or InCombatLockdown() then return end
+        self:SetScript("OnUpdate", function()
+            local f = PlayerSpellsFrame
+            local x = GetCursorPosition()
+            local px = UIParent:GetEffectiveScale()
+            local width = x - f:GetLeft() * f:GetEffectiveScale()
+            local s = math.max(0.5, math.min(1.2, width / (f:GetWidth() * px)))
+            TK.db.windowScale = math.floor(s * 100 + 0.5) / 100
+            applyScale()
+        end)
+    end)
+    g:SetScript("OnMouseUp", function(self) self:SetScript("OnUpdate", nil) end)
+    g:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:SetText("Talent window size")
+        GameTooltip:AddLine("Drag to make the window smaller or bigger. Right-click for the normal size.", 0.74, 0.74, 0.74, true)
+        GameTooltip:Show()
+    end)
+    g:SetScript("OnLeave", GameTooltip_Hide)
+end
+
 EventUtil.ContinueOnAddOnLoaded("Blizzard_PlayerSpells", TK.safe(function()
     tf = PlayerSpellsFrame and PlayerSpellsFrame.TalentsFrame
     if not tf or not tf.GetTalentButtonByNodeID then return TK.log("talent window: no talent buttons found") end
-    strip = CreateFrame("Frame", nil, tf)
-    strip:SetPoint("TOPLEFT", PlayerSpellsFrame, "BOTTOMLEFT", 0, -2)
-    strip:SetPoint("TOPRIGHT", PlayerSpellsFrame, "BOTTOMRIGHT", 0, -2)
-    strip:SetHeight(34)
-    UI.fill(strip, "BACKGROUND", 0.031, 0.031, 0.031, 0.97)
-    strip:SetScript("OnShow", TK.safe(W.refresh))
-    strip:SetScript("OnSizeChanged", TK.safe(W.refresh))
-    tf:HookScript("OnHide", W.hide)
+    pane = CreateFrame("Frame", nil, UIParent)
+    pane:SetWidth(200)
+    pane:SetPoint("TOPLEFT", PlayerSpellsFrame, "TOPRIGHT", 2, 0)
+    pane:SetPoint("BOTTOMLEFT", PlayerSpellsFrame, "BOTTOMRIGHT", 2, 0)
+    pane:SetFrameStrata(PlayerSpellsFrame:GetFrameStrata())
+    UI.fill(pane, "BACKGROUND", 0.06, 0.06, 0.06, 0.98)
+    pane.title = pane:CreateFontString(nil, "OVERLAY", "TalentKeeperFontLarge")
+    pane.title:SetPoint("TOPLEFT", 10, -10)
+    pane:Hide()
+    tf:HookScript("OnShow", function() pane:Show() TK.safe(W.refresh)() end)
+    tf:HookScript("OnHide", function() W.hide() pane:Hide() end)
+    PlayerSpellsFrame:HookScript("OnShow", applyScale)
+    grip()
+    applyScale()
 end))
