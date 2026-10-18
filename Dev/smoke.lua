@@ -145,7 +145,7 @@ local menuGen
 -- this season: one dungeon (instance 501, where you are), one raid with one boss
 GetInstanceInfo = function() return "Dungeon A", "party", 8, nil, nil, nil, nil, 501 end
 C_ChallengeMode = { GetMapTable = function() return { 1 } end, GetMapUIInfo = function() return "Dungeon A", 1, 0, 0, 0, 501 end }
-EJ_GetNumTiers, EJ_GetCurrentTier, EJ_SelectTier = function() return 2 end, function() return 1 end, function() end
+EJ_GetNumTiers, EJ_GetCurrentTier, EJ_SelectTier, EJ_SelectInstance = function() return 2 end, function() return 1 end, function() end, function() end
 EJ_GetInstanceByIndex = function(i) if i == 1 then return 10, "Raid A" end end
 EJ_GetInstanceInfo = function() return "Raid A", nil, nil, nil, nil, nil, nil, nil, nil, 2700 end
 EJ_GetEncounterInfoByIndex = function(j) if j == 1 then return "Boss A", nil, nil, nil, nil, nil, 3001 end end

@@ -212,6 +212,7 @@ local function seasonRaids()
         if not journalID then break end
         local mapID = select(10, EJ_GetInstanceInfo(journalID))
         local raid = { name = name, key = mapID and ("zone:" .. mapID), bosses = {} }
+        EJ_SelectInstance(journalID) -- the journal lists a raid's bosses only once it's selected
         for j = 1, 20 do
             local boss, _, _, _, _, _, encounterID = EJ_GetEncounterInfoByIndex(j, journalID)
             if not boss then break end
@@ -220,7 +221,10 @@ local function seasonRaids()
         out[#out + 1] = raid
     end
     if prev then EJ_SelectTier(prev) end
-    if #out > 0 then raids = out end
+    local bosses, names = 0, {}
+    for _, r in ipairs(out) do bosses = bosses + #r.bosses names[#names + 1] = ("%s (%d)"):format(r.name, #r.bosses) end
+    TK.log("journal: raids %s", #names > 0 and table.concat(names, ", ") or "none")
+    if #out > 0 and bosses > 0 then raids = out end -- keep asking until the journal has the bosses
     return out
 end
 
