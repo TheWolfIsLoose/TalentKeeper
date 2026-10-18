@@ -513,6 +513,27 @@ T.apply(265, p265)
 ok(#B.list(265) == n265 - p265.counts.merges and said("Tidied Affliction"), "applied: merged builds gone")
 T.undo(265)
 ok(#B.list(265) == n265 and said("Put Affliction"), "undo puts the builds back")
+-- "Altar": boss or dungeon, decided by the build's neighbours
+local pl2 = T.places({ { key = "zone:2", name = "Altar of Fangs", kind = "dungeon" }, { key = "boss:8", name = "The Coiled Altar", kind = "boss" } })
+local plan2 = T.plan({
+    { id = 1, name = "Altar", hero = "H", picks = P(20) },
+    { id = 2, name = "Raid ST", hero = "H", picks = P(20, { [40] = "0:0" }), tags = { raid = "Raid" } },
+}, pl2)
+local _, alt = (function() for _, e in ipairs(plan2.cores) do for _, m in ipairs(e.members) do if m.id == 1 then return e, m end end end end)()
+local holderTags = {}
+for _, e in ipairs(plan2.cores) do for _, m in ipairs(e.members) do for k in pairs(m.tags) do holderTags[k] = true end end end
+ok(holderTags["boss:8"] and not holderTags["zone:2"], "'Altar' next to a raid build is the raid boss")
+-- fill up from a registered source
+TK.sources.Test = function(spec) return { { name = "Src all", text = "SPEC:265:1110", tags = { mplus = "Mythic+" } },
+    { name = "Src MR", text = "SPEC:265:1110", tags = { ["zone:1"] = "Murder Row" } } } end
+local before = #B.list(265)
+T.fill(265)
+local got
+for _, b in ipairs(B.list(265)) do if b.name == "Src all" then got = b end end
+ok(got and got.group == "Test" and got.tags.mplus and got.tags["zone:1"] and #B.list(265) == before + 1, "fill up: same talents fold their tags into one build")
+T.undo(265)
+ok(#B.list(265) == before, "undo after fill up")
+TK.sources.Test = nil
 section("tidy up planner")
 
 print_("smoke: all passed")

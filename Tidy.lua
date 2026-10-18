@@ -126,6 +126,7 @@ T.dist = dist
 -- members = { { id, action = "core" | "merge" | "swap", d, tags, why } }, why } }, notes, counts }.
 function T.plan(input, places)
     local notes = {}
+    local context
     local byId, reads = {}, {}
     for _, x in ipairs(input) do
         byId[x.id] = x
@@ -179,6 +180,30 @@ function T.plan(input, places)
             left = rest
         end
     end
+    -- raid or dungeon, for a build: its name / group, else the nearest build with a tag that says
+    local placeKind = {}
+    for _, p in ipairs(places or {}) do placeKind[p.key] = p.kind == "dungeon" and "dungeon" or "raid" end
+    local function tagKind(tags)
+        for key in pairs(tags or {}) do
+            if key == "raid" then return "raid" end
+            if key == "mplus" then return "dungeon" end
+            if placeKind[key] then return placeKind[key] end
+        end
+    end
+    context = function(x)
+        local k = reads[x.id].kinds
+        if (k.raid or 0) > (k.mplus or 0) then return "raid" end
+        if (k.mplus or 0) > (k.raid or 0) then return "dungeon" end
+        local best, bestD
+        for _, y in ipairs(input) do
+            local kind = y ~= x and tagKind(y.tags)
+            if kind then
+                local d = dist(x.picks, y.picks)
+                if d <= T.GAP and (not bestD or d < bestD) then best, bestD = kind, d end
+            end
+        end
+        return best
+    end
     -- what each build is for: its own tags, then places its name names
     local claims = {} -- key -> { { id, score, name } }
     local function claim(id, key, name, score)
@@ -187,8 +212,32 @@ function T.plan(input, places)
     end
     for _, x in ipairs(input) do
         for key, name in pairs(x.tags or {}) do claim(x.id, key, name, 10) end
-        for _, m in ipairs(reads[x.id].places) do
-            if m.score >= 2 then claim(x.id, m.place.key, m.place.name, m.score) end
+        local top = reads[x.id].places[1]
+        local placed = false -- already tagged for a dungeon / raid / boss: its name adds nothing
+        for key in pairs(x.tags or {}) do if key:find(":") then placed = true end end
+        if top and top.score >= 2 and not placed then
+            local tied = {}
+            for _, m in ipairs(reads[x.id].places) do if m.score == top.score then tied[#tied + 1] = m end end
+            if #tied > 1 then
+                -- "Altar": a boss or a dungeon? Go by what the build's name, group or nearest
+                -- tagged build says (raid or dungeon); still unsure: claim nothing, note it
+                local want = context(x)
+                local pick, count = nil, 0
+                for _, m in ipairs(tied) do
+                    local kind = (m.place.kind == "dungeon") and "dungeon" or "raid"
+                    if want == kind then pick, count = m, count + 1 end
+                end
+                if count ~= 1 then pick = nil end
+                if pick then
+                    claim(x.id, pick.place.key, pick.place.name, pick.score)
+                else
+                    local names = {}
+                    for _, m in ipairs(tied) do names[#names + 1] = m.place.name end
+                    notes[#notes + 1] = ("%s could mean %s: tag it yourself"):format(x.name, table.concat(names, " or "))
+                end
+            else
+                claim(x.id, top.place.key, top.place.name, top.score)
+            end
         end
     end
     local plan = { cores = {}, notes = notes, counts = { builds = #input, cores = 0, swaps = 0, merges = 0 } }
@@ -347,10 +396,15 @@ local function copy(t)
     return out
 end
 
+-- Keep a copy of a spec's builds so /tk undo can put them back.
+function T.snapshot(specID, why)
+    TK.db.undo = TK.db.undo or {}
+    TK.db.undo[specID] = { list = copy(B.list(specID)), active = TK.db.active[specID], why = why, at = date("%Y-%m-%d %H:%M:%S") }
+end
+
 function T.apply(specID, plan)
     local list = B.list(specID)
-    TK.db.undo = TK.db.undo or {}
-    TK.db.undo[specID] = { list = copy(list), active = TK.db.active[specID], at = date("%Y-%m-%d %H:%M:%S") }
+    T.snapshot(specID, "tidy up")
     local out, rename = {}, {}
     local function unique(name) return B.uniqueName(out, name) end
     for _, e in ipairs(plan.cores) do
@@ -401,10 +455,51 @@ function T.undo(specID)
     TK.db.active[specID] = u.active
     TK.db.undo[specID] = nil
     TK.log("tidy undone (%s)", B.specName(specID))
-    TK.chat(("Put %s's builds back as they were before tidying up."):format(B.specName(specID)))
+    TK.chat(("Put %s's builds back as they were before %s."):format(B.specName(specID), u.why or "tidying up"))
     TK.changed()
 end
 
+-- Fill up: pull builds from every registered source into a group named after it, tagged for
+-- what the source says each is for. Same talents as a build you have: its tags go on that build.
+-- A place you already tagged keeps your build. Your builds without a group move to "Migrated".
+function T.fill(specID)
+    local names = {}
+    for n in pairs(TK.sources) do names[#names + 1] = n end
+    table.sort(names)
+    if #names == 0 then return TK.chat("No build sources are available.") end
+    T.snapshot(specID, "filling up")
+    local list = B.list(specID)
+    for _, b in ipairs(list) do if not b.group then b.group = "Migrated" end end
+    local held = {}
+    for _, b in ipairs(list) do for k in pairs(b.tags or {}) do held[k] = true end end
+    local added, folded, tagged = 0, 0, 0
+    for _, src in ipairs(names) do
+        local ok, items = pcall(TK.sources[src], specID)
+        if not ok then TK.log("fill: %s failed: %s", src, tostring(items)) items = {} end
+        for _, it in ipairs(items or {}) do
+            if B.stringSpec(it.text) == specID then
+                local b, same = B.add(specID, { name = it.name, text = it.text, group = src })
+                local target = b or same
+                if b then added = added + 1 else folded = folded + 1 end
+                for key, name in pairs(it.tags or {}) do
+                    if not held[key] then
+                        held[key] = true
+                        target.tags = target.tags or {}
+                        target.tags[key] = name
+                        tagged = tagged + 1
+                    end
+                end
+            end
+        end
+        TK.log("fill (%s) from %s: %d items", B.specName(specID), src, #(items or {}))
+    end
+    TK.log("fill (%s): %d added, %d same as one you had, %d tags", B.specName(specID), added, folded, tagged)
+    TK.chat(("Filled up %s: %d new build%s, %d matched builds you had, %d tags. |cff98ff98/tk undo|r puts it back.")
+        :format(B.specName(specID), added, added == 1 and "" or "s", folded, tagged))
+    TK.changed()
+end
+
+TK.commands.fill = function() local s = B.specID() if s then T.fill(s) end end
 TK.commands.undo = function() local s = B.specID() if s then T.undo(s) end end
 TK.commands.tidy = function() local s = B.specID() if s then T.show(s) end end
 

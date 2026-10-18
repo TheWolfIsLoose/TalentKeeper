@@ -3,6 +3,7 @@ local addonName, TK = ...
 _G[addonName] = TK
 
 TK.commands = {}  -- /tk <sub> handlers, filled by other files
+TK.sources = {}   -- build sources other addons register: [name] = function(specID) return { { name, text, tags }, ... } end
 
 -- Saved builds changed: lets an open window redraw.
 function TK.changed() if TK.onChange then TK.onChange() end end

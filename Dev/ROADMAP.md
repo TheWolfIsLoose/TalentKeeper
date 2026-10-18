@@ -61,7 +61,10 @@ out the overlap.
    drops.
 4. **Tidy up as the addon's job.** *(First version in testing, 2026-10-18:
    Tidy up in the pane's header plans the whole spec on one screen; the
-   plan and its input are kept in saved data for tuning; /tk undo.)* One clearly explained pass that a new
+   plan and its input are kept in saved data for tuning; /tk undo. Fill up:
+   build sources register with the addon and fill a spec with builds tagged
+   for their dungeons and bosses; your ungrouped builds move to "Migrated".
+   Where sustainable source data comes from is open (player, 2026-10-18).)* One clearly explained pass that a new
    player can press and trust: group a spec's builds into a few core builds
    (hero tree as a hard split, then talent distance), keep the closest real
    build of each group as its core, turn the rest into swaps or merge
