@@ -54,6 +54,13 @@ up across the old builds ("Migrated") and the filled-in ones; the
 DevChecklist round "fill up + tidy up (Affliction)" is set. Read the saved
 plan (`tidy[specID]`: input, places, plan) and the log after the player's
 reload, tune the rules from it, then continue with the revisit list below.
+First Fill up + Tidy up run (Affliction, 19 source builds -> 9 distinct ->
+5 core, 4 swaps), fixes to make next: (1) raid and M+ builds must never be
+one family (content is a hard split, like the hero tree); the overall raid
+build landed as a swap of the M+ core 10 nodes away. (2) The overall build of
+a family (tagged Mythic+ / Raid) should be its core; the core was one
+dungeon's build 2 nodes from the overall one. (3) A build used for both raid
+bosses and dungeons (same talents) needs a sensible name and group.
 Open: where build data comes from sustainably (an optional data addon, a
 public API from a large site, or our own data file generated from an open
 dataset whose terms allow it).
