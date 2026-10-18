@@ -48,6 +48,16 @@ out the overlap.
 
 ## Next session: start here
 
+**Parked 2026-10-18 ~01:15 ET (not released; last release v0.2.0-alpha1).**
+In testing on Affliction: Fill up (from a registered build source) then Tidy
+up across the old builds ("Migrated") and the filled-in ones; the
+DevChecklist round "fill up + tidy up (Affliction)" is set. Read the saved
+plan (`tidy[specID]`: input, places, plan) and the log after the player's
+reload, tune the rules from it, then continue with the revisit list below.
+Open: where build data comes from sustainably (an optional data addon, a
+public API from a large site, or our own data file generated from an open
+dataset whose terms allow it).
+
 **Revisit (player, 2026-10-18), before more features:**
 1. **Import flow.** One import step that sets the build's name, its tags,
    and the main build it belongs to (if any), instead of import, then
