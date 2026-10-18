@@ -474,6 +474,16 @@ menuGen(nil, offer)
 ok(offer.children[1].label == "Tag " .. tb.name .. " for" and offer.children[2].kind == "checkbox", "tag offer menu")
 offer.children[2].args[2]()
 ok(tb.tags and tb.tags["zone:501"] == "Dungeon A", "tag from the offer: " .. tostring(tb.tags and next(tb.tags)))
+UnitClass = function() return "Warlock", "WARLOCK", 9 end
+GetNumSpecializationsForClassID = function() return 3 end
+GetInstanceInfo = function() return "Dungeon A", "party", 23, nil, nil, nil, nil, 501 end
+local mp = B.add(265, { name = "Aff M+", text = "SPEC:265:1111", tags = { mplus = "Mythic+" } })
+local hits = B.forHere(B.here())
+ok(#hits == 1 and hits[1].b == tb, "zone-in: builds tagged for this instance win over content tags")
+tb.tags = nil
+hits = B.forHere(B.here())
+ok(#hits == 1 and hits[1].b == mp and hits[1].specID == 265, "zone-in: else builds for its kind of content, any spec")
+B.delete(265, mp)
 section("tags")
 
 print_("smoke: all passed")

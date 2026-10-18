@@ -396,11 +396,33 @@ function B.tagNames(b)
     return out
 end
 
--- The instance you're in, as a situation (nil in the open world).
+-- The instance you're in, as a situation (nil in the open world); content = its content tag.
+local MYTHIC, KEYSTONE, DELVE = 23, 8, 208
 function B.here()
-    local name, kind, _, _, _, _, _, id = GetInstanceInfo()
+    local name, kind, difficulty, _, _, _, _, id = GetInstanceInfo()
     if not id or kind == "none" or kind == nil then return nil end
-    return { key = "zone:" .. id, name = name }
+    local content = (difficulty == DELVE and "delve") or (kind == "raid" and "raid")
+        or (kind == "party" and (difficulty == MYTHIC or difficulty == KEYSTONE) and "mplus") or nil
+    return { key = "zone:" .. id, name = name, content = content, difficulty = difficulty }
+end
+
+-- Builds of your class tagged for where you are: those tagged for this instance, or else those
+-- tagged for its kind of content. { { b, specID }, ... }, your current spec's first.
+function B.forHere(here)
+    local classID = select(3, UnitClass("player"))
+    local exact, content = {}, {}
+    for i = 1, GetNumSpecializationsForClassID(classID) or 0 do
+        local specID = GetSpecializationInfoForClassID(classID, i)
+        for _, b in ipairs(specID and TK.db.builds[specID] or {}) do
+            local t = b.tags or {}
+            local into = t[here.key] and exact or (here.content and t[here.content] and content)
+            if into then
+                local mine = specID == B.specID()
+                table.insert(into, mine and 1 or #into + 1, { b = b, specID = specID })
+            end
+        end
+    end
+    return #exact > 0 and exact or content
 end
 
 -- Saving or importing talents you already have as a build: tag that build instead.
