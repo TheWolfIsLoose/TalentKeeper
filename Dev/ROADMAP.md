@@ -48,6 +48,26 @@ out the overlap.
 
 ## Next session: start here
 
+**Revisit (player, 2026-10-18), before more features:**
+1. **Import flow.** One import step that sets the build's name, its tags,
+   and the main build it belongs to (if any), instead of import, then
+   rename, then tag, then Variant of.
+2. **Build actions without nested right-click menus.** Menus inside menus
+   feel dated. Rethink how actions on a build are reached (in the pane
+   itself, on the selected build) rather than a context menu tree.
+3. **Click to preview.** Clicking a build previews it on the tree (hover is
+   hard to read); applying becomes an explicit action. Keep the green glow
+   for talents the build takes; find an equally clear look for talents it
+   drops.
+4. **Tidy up as the addon's job.** One clearly explained pass that a new
+   player can press and trust: group a spec's builds into a few core builds
+   (hero tree as a hard split, then talent distance), keep the closest real
+   build of each group as its core, turn the rest into swaps or merge
+   near-copies, read the original names for intent (raid, M+, AoE / ST,
+   dungeon and boss names, hero tree) to propose names and tags, show the
+   whole plan on one screen before changing anything, and keep an undo.
+
+
 **Parked 2026-10-16, ~23:40 ET (not released; last release
 v0.2.0-alpha1).** Applying is solid (in place, confirmed across three specs).
 The GUI moved to a side pane on the talent window (no separate management
