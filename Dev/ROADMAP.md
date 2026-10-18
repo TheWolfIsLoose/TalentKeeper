@@ -60,9 +60,14 @@ you're in, Raid / Mythic+ / Delves, this season's M+ dungeons, and each of
 this season's raids (whole raid or a boss, from the dungeon journal).
 Saving or importing talents you already have opens that tag menu for the
 existing build instead. The pane shows a build's tags on its row (first tag
-+N) and in full on hover. Next: the "within a couple of talents: save as a
-swap" offer, swaps shown as swaps, then the played-here history and zone-in
-offers. Change marks on the tree
++N) and in full on hover. **Variants and tidy up (in testing, 2026-10-17):** any saved build can be
+made a variant of a main build (Variant of). Tidy up on a main build: the
+build closest to all the others becomes the main build (the rest become its
+swaps), builds more than a few talents from it become main builds of their
+own, and builds a talent apart can merge (tags combine). Nothing is
+synthesized: every build stays one that was saved, so none can break the
+tree's rules. Main builds push their changes down to variants as before.
+Next: the played-here history and zone-in offers. Change marks on the tree
 were redrawn in the talent window's own art (in testing).
 
 Earlier threads (history):

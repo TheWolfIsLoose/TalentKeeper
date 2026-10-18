@@ -428,6 +428,27 @@ ok(imp.main == "Base" and #imp.changes == 1 and imp.group == "M+", "an imported 
 B.setMain(imp, nil)
 ok(imp.main == nil and imp.changes == nil, "and a main build again")
 B.delete(267, imp) B.delete(267, base)
+-- Tidy up: main far from the rest, one far build, two a talent apart (digits = picks per node)
+local tm = B.add(265, { name = "TM", text = "SPEC:265:0000", group = "M+", tags = { mplus = "Mythic+" } })
+local t1 = B.add(265, { name = "T1", text = "SPEC:265:1110" , tags = { ["zone:1"] = "D1" } })
+local t2 = B.add(265, { name = "T2", text = "SPEC:265:1111", tags = { ["zone:2"] = "D2" } })
+local t3 = B.add(265, { name = "T3", text = "SPEC:265:1120" })
+for _, x in ipairs({ t1, t2, t3 }) do B.setMain(x, tm) end
+TK.compare.NEAR = 2
+local plan = B.tidyPlan(tm)
+ok(plan.center == t1, "closest build proposed as main: " .. tostring(plan.center and plan.center.name))
+B.makeMain(t1)
+ok(not t1.main and tm.main == "T1" and t2.main == "T1" and t3.main == "T1" and t1.group == "M+", "rebased onto the closest build")
+ok(#tm.changes == 3 and #t2.changes == 1, "swaps recomputed from the new main build")
+plan = B.tidyPlan(t1)
+ok(#plan.far == 1 and plan.far[1].b == tm, "far build offered as its own main build")
+ok(#plan.merges == 2, "builds a talent apart offered as merges: " .. #plan.merges)
+B.merge(t1, t2)
+ok(t1.tags["zone:2"] == "D2" and t1.tags["zone:1"] == "D1", "merge combines tags")
+B.merge(t3, t1)
+ok(not t3.main and tm.main == "T3" and t3.tags["zone:2"] == "D2", "keeping a variant over the main build makes it the main")
+TK.compare.NEAR = 6
+for _, x in ipairs({ tm, t3 }) do B.delete(265, x) end
 section("main builds and variants")
 
 local mb = B.list(267)[1]

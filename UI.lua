@@ -272,8 +272,43 @@ function UI.offerTags(b)
     end)
 end
 
+-- Tidy up: one menu of proposals for a main build's family; each click acts, then it reopens.
+function UI.tidy(main)
+    local function again(next) C_Timer.After(0, TK.safe(function() UI.tidy(next or main) end)) return MenuResponse.CloseAll end
+    MenuUtil.CreateContextMenu(UIParent, function(_, root)
+        local plan = B.tidyPlan(main)
+        local C = TK.compare
+        root:CreateTitle("Tidy up " .. main.name)
+        local any = false
+        if plan.center then
+            any = true
+            local c = plan.center
+            root:CreateButton(("Make |cffffffff%s|r the main build"):format(c.name), function() B.makeMain(c) return again(c) end)
+            root:CreateButton("|cff8c8c8c  closest to all the others; the rest become its swaps|r"):SetEnabled(false)
+        end
+        local center = plan.center or main
+        for _, f in ipairs(plan.far) do
+            any = true
+            root:CreateButton(("Make |cffffffff%s|r its own main build"):format(f.b.name), function() B.setMain(f.b, nil) return again(center) end)
+            root:CreateButton(("|cff8c8c8c  %d talents from %s|r"):format(f.n, center.name)):SetEnabled(false)
+        end
+        for _, m in ipairs(plan.merges) do
+            any = true
+            local how = #m.d == 0 and "same talents" or table.concat(C.describe(m.d, 2), ", ")
+            local sub = root:CreateButton(("Merge |cffffffff%s|r and |cffffffff%s|r |cff8c8c8c(%s)|r"):format(m.a.name, m.b.name, how))
+            sub:CreateTitle("Tags combine; keep whose talents?")
+            sub:CreateButton(m.a.name, function() B.merge(m.a, m.b) return again(center) end)
+            sub:CreateButton(m.b.name, function() B.merge(m.b, m.a) return again(center) end)
+        end
+        if not any then root:CreateButton("|cff98ff98Nothing to tidy.|r"):SetEnabled(false) end
+    end)
+end
+
 -- What you can do with a build: in its submenu here and in the talent window's side pane.
 function UI.buildActions(entry, specID, b)
+    if not b.main and #B.variantsOf(specID, b.name) > 0 then
+        entry:CreateButton("Tidy up this build and its variants", function() C_Timer.After(0, TK.safe(function() UI.tidy(b) end)) end)
+    end
     local summary = UI.tagSummary(b)
     UI.tagEntries(entry:CreateButton("Tags" .. (summary and (": " .. summary) or "")), b)
     entry:CreateButton("Update to current talents", function() B.updateToCurrent(b) end)

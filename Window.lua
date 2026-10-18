@@ -176,6 +176,10 @@ local function row(i)
         GameTooltip:SetText(self.b.name)
         local tags = B.tagNames(self.b)
         if #tags > 0 then GameTooltip:AddLine("For: " .. table.concat(tags, ", "), 0.596, 1, 0.596, true) end
+        if self.b.main and self.b.changes then
+            GameTooltip:AddLine(("Swaps from %s: %s"):format(self.b.main, #self.b.changes == 0 and "none"
+                or table.concat(C.describe(self.b.changes, 6), ", ")), 1, 1, 1, true)
+        end
         if not d then
             GameTooltip:AddLine("Couldn't read this build.", 1, 0.533, 0.533)
         elseif #d == 0 then
