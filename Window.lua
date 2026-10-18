@@ -85,7 +85,7 @@ local function place(m, button, c)
     if art.displayError then m.border:SetAtlas(art.displayError) end
     m.glow:SetShown(k ~= "rem")
     local icon = k == "swap" and c and choiceIcon(c.node, c.to)
-    m.icon:SetShown(icon ~= nil)
+    m.icon:SetShown(icon and true or false) -- icon is false, not nil, off a choice node
     if icon then m.icon:SetTexture(icon) end
     -- a rank change shows the build's rank; colorblind mode adds a sign
     local rank = k == "swap" and c and not icon and tonumber((c.to or ""):match("^(%d+)"))
@@ -172,7 +172,10 @@ local function row(i)
     r:SetScript("OnDragStop", TK.safe(function() W.drop() end))
     r:SetScript("OnEnter", TK.safe(function(self)
         local d, hidden = W.show(self.b)
-        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        -- inside the pane's empty bottom: right of it is often off screen, left of it covers the tree
+        -- ponytail: can cover the lowest rows once the list reaches the bottom; move it if that bites
+        GameTooltip:SetOwner(self, "ANCHOR_NONE")
+        GameTooltip:SetPoint("BOTTOMLEFT", pane, "BOTTOMLEFT", 6, 40)
         GameTooltip:SetText(self.b.name)
         local tags = B.tagNames(self.b)
         if #tags > 0 then GameTooltip:AddLine("For: " .. table.concat(tags, ", "), 0.596, 1, 0.596, true) end
