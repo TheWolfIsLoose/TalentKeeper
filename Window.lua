@@ -228,7 +228,8 @@ function W.refresh()
     local specID = B.specID()
     local active = specID and TK.db.active[specID]
     pane.title:SetText(specID and (B.specName(specID) .. " builds") or "TalentKeeper")
-    local y, nr, nh = -30, 0, 0
+    local y, nr, nh = -58, 0, 0
+    W.refreshSpecs()
     for _, line in ipairs(B.ordered(specID)) do
         if line.header ~= nil then
             if line.header or nr > 0 then -- "No group" only when something came before it
@@ -280,6 +281,49 @@ TK.onChange = function()
     TK.safe(W.refresh)()
 end
 TK.on("ACTIVE_PLAYER_SPECIALIZATION_CHANGED", function() TK.safe(W.refresh)() end)
+
+-- Spec buttons under the header: click one to change spec without leaving the talents.
+local specs = {}
+function W.refreshSpecs()
+    local cur = GetSpecialization and GetSpecialization()
+    for i, b in ipairs(specs) do
+        local on = i == cur
+        b.icon:SetDesaturated(not on)
+        b.icon:SetAlpha(on and 1 or 0.7)
+        b.ring(on and 0.596 or 0)
+    end
+end
+
+local function specButtons()
+    for i = 1, GetNumSpecializations() or 0 do
+        local specID, name, _, icon = GetSpecializationInfo(i)
+        local b = CreateFrame("Button", nil, pane)
+        b:SetSize(22, 22)
+        b:SetPoint("TOPLEFT", 8 + (i - 1) * 28, -32)
+        b.icon = b:CreateTexture(nil, "ARTWORK")
+        b.icon:SetPoint("TOPLEFT", 1, -1); b.icon:SetPoint("BOTTOMRIGHT", -1, 1)
+        b.icon:SetTexture(icon)
+        b.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+        b.ring = UI.ring(b, 0)
+        UI.fill(b, "HIGHLIGHT", 1, 1, 1, 0.15)
+        b:SetScript("OnClick", TK.safe(function()
+            if i == GetSpecialization() then return end
+            if InCombatLockdown() then return TK.chat("|cffff8888Can't change spec in combat.|r") end
+            TK.log("spec change to %s", name)
+            C_SpecializationInfo.SetSpecialization(i)
+        end))
+        b:SetScript("OnEnter", function(self)
+            GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+            GameTooltip:SetText(name)
+            local n = #(TK.db.builds[specID] or {})
+            GameTooltip:AddLine(i == GetSpecialization() and "Your spec now." or ("Click to change to %s (%d build%s)."):format(name, n, n == 1 and "" or "s"), 0.74, 0.74, 0.74, true)
+            GameTooltip:Show()
+        end)
+        b:SetScript("OnLeave", GameTooltip_Hide)
+        specs[i] = b
+    end
+    W.refreshSpecs()
+end
 
 -- Window size: drag the corner grip to scale the talent window (kept between sessions).
 local function applyScale()
@@ -372,6 +416,7 @@ EventUtil.ContinueOnAddOnLoaded("Blizzard_PlayerSpells", TK.safe(function()
     save:SetPoint("BOTTOMLEFT", 8, 8)
     local import = UI.button(pane, "Import", 98, function() TK.commands.import() end)
     import:SetPoint("BOTTOMRIGHT", -8, 8)
+    specButtons()
     pane:Hide()
     tf:HookScript("OnShow", function() pane:Show() TK.safe(W.refresh)() end)
     tf:HookScript("OnHide", function() W.hide() pane:Hide() end)
