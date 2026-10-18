@@ -22,7 +22,7 @@ local function Frame()
         if k == "SetScript" then return function(self, n, fn) self.scripts[n] = fn end end
         if k == "RegisterEvent" then return function(self, e) self.events[e] = true end end
         if k == "GetHeight" then return function() return 400 end end
-        if k == "GetFrameLevel" or k == "GetWidth" then return function() return 10 end end
+        if k == "GetFrameLevel" or k == "GetWidth" or k == "GetEffectiveScale" then return function() return 10 end end
         if k == "IsShown" or k == "IsVisible" then return function() return true end end
         if k:match("^Create") then return function() return Frame() end end
         return function() return Stub end
@@ -33,6 +33,8 @@ setmetatable(_G, { __index = function(_, k)
     if k:match("^[A-Z]") or k:match("^C_") then return Stub end
 end })
 CreateFrame = function() local f = Frame(); frames[#frames + 1] = f; return f end
+UIParent = Frame()
+GetCursorPosition = function() return 100, 100 end
 CreateFont = function() return Frame() end
 date, time = os.date, os.time
 strtrim = function(s) return (s:gsub("^%s+", ""):gsub("%s+$", "")) end
@@ -150,8 +152,8 @@ local menuGen
 GetInstanceInfo = function() return "Dungeon A", "party", 8, nil, nil, nil, nil, 501 end
 C_ChallengeMode = { GetMapTable = function() return { 1 } end, GetMapUIInfo = function() return "Dungeon A", 1, 0, 0, 0, 501 end }
 EJ_GetNumTiers, EJ_GetCurrentTier, EJ_SelectTier, EJ_SelectInstance = function() return 2 end, function() return 1 end, function() end, function() end
-EJ_GetInstanceByIndex = function(i) if i == 1 then return 10, "Raid A" end end
-EJ_GetInstanceInfo = function() return "Raid A", nil, nil, nil, nil, nil, nil, nil, nil, 2700 end
+EJ_GetInstanceByIndex = function(i) if i == 1 then return 10, "Raid A" elseif i == 2 then return 11, "World" end end
+EJ_GetInstanceInfo = function(id) if id == 11 then return "World", nil, nil, nil, nil, nil, nil, nil, false, 2200 end return "Raid A", nil, nil, nil, nil, nil, nil, nil, true, 2700 end
 EJ_GetEncounterInfoByIndex = function(j) if j == 1 then return "Boss A", nil, nil, nil, nil, nil, 3001 end end
 MenuUtil = { CreateContextMenu = function(_, gen) menuGen = gen end }
 
@@ -362,37 +364,25 @@ ok(#TK.db.log == 0, "log cleared")
 SlashCmdList.TALENTKEEPER("nonsense")
 ok(said("/tk save"), "help on unknown command")
 SlashCmdList.TALENTKEEPER("")
-ok(menuGen, "menu opens")
+ok(not said("Pick a specialization"), "quick list opens")
 section("slash commands")
 
-local function Desc(label)
-    local d = { label = label, children = {} }
-    local function add(kind) return function(self, text, ...) local c = Desc(text) c.kind = kind c.args = { ... } table.insert(self.children, c) return c end end
-    d.CreateTitle, d.CreateButton, d.CreateRadio, d.CreateDivider = add("title"), add("button"), add("radio"), add("divider")
-    d.CreateCheckbox = add("checkbox")
-    d.SetEnabled = function() end
-    d.AddInitializer = function(self, fn) self.init = fn end
-    return d
-end
-local function labelsOf(d) local t = {} for _, c in ipairs(d.children) do t[#t + 1] = c.kind .. ":" .. tostring(c.label) end return table.concat(t, ",") end
-local root = Desc("root")
-menuGen(nil, root)
-local flat = labelsOf(root)
-ok(flat:find("title:TalentKeeper: Destruction"), "title names the spec")
-ok(flat:find("title:Raid,radio:HC Cleave") and flat:find("radio:Solo"), "quick menu is flat: group titles, builds as radios: " .. flat)
-for _, c in ipairs(root.children) do ok(#c.children == 0, "no submenus in the quick menu: " .. tostring(c.label)) end
+local function labelsOf(items) local out = {} for _, it in ipairs(items) do
+    out[#out + 1] = it.heading and ("head:" .. it.heading) or ((it.checked and "check:" or "item:") .. (type(it.label) == "function" and it.label() or it.label)) end
+    return table.concat(out, ",") end
+local quick = TK.ui.quickItems(267)
+local flat = labelsOf(quick)
+ok(flat:find("head:Raid,check:HC Cleave") and flat:find("check:Solo"), "quick list: group headings, builds: " .. flat)
 local applied
 local realApply = B.apply
 B.apply = function(b) applied = b end
-for _, c in ipairs(root.children) do if c.label == "Solo" then c.args[2]() end end
+for _, it in ipairs(quick) do if it.label == "Solo" then it.onClick() end end
 B.apply = realApply
-ok(applied and applied.name == "Solo", "clicking a build in the quick menu applies it")
-local tm = Desc("root")
-TK.ui.tagEntries(tm, B.list(267)[1])
-local tl = labelsOf(tm)
-ok(tl:find("checkbox:Dungeon A |cff8c8c8c%(here%)|r") and tl:find("checkbox:Mythic%+") and tl:find("title:Mythic%+ dungeons")
-    and tl:find("title:Raid A,checkbox:Whole raid,checkbox:Boss A"), "tag list is flat: here, content, dungeons, raid bosses: " .. tl)
-for _, c in ipairs(tm.children) do ok(#c.children == 0, "no submenus in the tag list") end
+ok(applied and applied.name == "Solo", "clicking a build in the quick list applies it")
+local tl = labelsOf(TK.ui.tagItems(B.list(267)[1]))
+ok(tl:find("check:Dungeon A |cff8c8c8c%(here%)|r") and tl:find("check:Mythic%+") and tl:find("head:Mythic%+ dungeons")
+    and tl:find("head:Raid A,check:Whole raid,check:Boss A"), "tag list: here, content, dungeons, raid bosses: " .. tl)
+ok(not tl:find("World"), "no world bosses in the tag list")
 section("menu")
 
 local function setCurrent(p) C_Traits.GenerateImportString = function() return "SPEC:267:" .. p end end

@@ -1,5 +1,5 @@
--- TalentKeeper UI: fonts, buttons, the save / import dialog, the tag and group menus, the
--- quick build menu (key binding, /tk), and one small text window (copy a string, read the log).
+-- TalentKeeper UI: fonts, buttons, the save / import dialog, the picker (tags, groups, the
+-- quick build list for the key binding and /tk), and one small text window (copy, log).
 local addonName, TK = ...
 local B = TK.builds
 local UI = {}
@@ -189,11 +189,13 @@ local function makeDialog()
     dlg.group:SetPoint("TOPRIGHT", dlg.name, "BOTTOMRIGHT", -30, -22)
     caption(dlg, "Group (blank for none)", dlg.group)
     dlg.pick = button(dlg, "...", 24, function(self)
-        MenuUtil.CreateContextMenu(self, function(_, root)
-            root:CreateButton("No group", function() dlg.group.edit:SetText("") end)
+        UI.picker(self, "Group", function()
+            local cur = strtrim(dlg.group.edit:GetText())
+            local items = { { label = "No group", checked = function() return cur == "" end, onClick = function() dlg.group.edit:SetText("") end } }
             for _, g in ipairs(B.groups(B.specID())) do
-                root:CreateButton(g, function() dlg.group.edit:SetText(g) end)
+                items[#items + 1] = { label = g, checked = function() return cur == g end, onClick = function() dlg.group.edit:SetText(g) end }
             end
+            return items
         end)
     end)
     dlg.pick:SetPoint("LEFT", dlg.group, "RIGHT", 6, 0)
@@ -248,15 +250,15 @@ local function seasonRaids()
     for i = 1, 20 do
         local journalID, name = EJ_GetInstanceByIndex(i, true)
         if not journalID then break end
-        local mapID = select(10, EJ_GetInstanceInfo(journalID))
-        local raid = { name = name, key = mapID and ("zone:" .. mapID), bosses = {} }
+        local _, _, _, _, _, _, _, _, hasDifficulty, mapID = EJ_GetInstanceInfo(journalID)
+        local raid = { name = name, key = mapID and ("zone:" .. mapID), bosses = {}, world = hasDifficulty == false }
         EJ_SelectInstance(journalID) -- the journal lists a raid's bosses only once it's selected
         for j = 1, 20 do
             local boss, _, _, _, _, _, encounterID = EJ_GetEncounterInfoByIndex(j, journalID)
             if not boss then break end
             if encounterID then raid.bosses[#raid.bosses + 1] = { key = "boss:" .. encounterID, name = boss } end
         end
-        out[#out + 1] = raid
+        if not raid.world then out[#out + 1] = raid end -- world bosses aren't a place to tag
     end
     if prev then EJ_SelectTier(prev) end
     local bosses, names = 0, {}
@@ -280,33 +282,186 @@ UI.seasonRaids, UI.seasonDungeons = seasonRaids, seasonDungeons
 
 local CONTENT = { { key = "raid", name = "Raid" }, { key = "mplus", name = "Mythic+" }, { key = "delve", name = "Delves" } }
 
-local function tagBox(parent, b, s, label)
-    parent:CreateCheckbox(label or s.name, function() return b.tags and b.tags[s.key] ~= nil end,
-        function() B.toggleTag(b, s.key, s.name) end)
+-- Picker: the suite's flat list in a small panel (headings, 24px check rows, plain rows) ------
+-- UI.picker(owner, title, items) where items() returns, each time it draws:
+--   { heading = "Text" } | { label = "Text" or fn, checked = fn?, onClick = fn, keep = true? }
+-- A row with checked toggles and stays open; other rows close it unless keep is set.
+local pick
+local PW, PROW, PHEAD = 220, 24, 22
+local function pickRow(i)
+    if pick.rows[i] then return pick.rows[i] end
+    local r = CreateFrame("Button", nil, pick.list)
+    r:SetHeight(PROW)
+    UI.fill(r, "HIGHLIGHT", 0.851, 0.851, 0.851, 0.15)
+    r.box = CreateFrame("Frame", nil, r)
+    r.box:SetSize(16, 16)
+    r.box:SetPoint("LEFT", 8, 0)
+    fill(r.box, "BACKGROUND", 1, 1, 1, 0.08)
+    r.ring = ring(r.box, 0.4)
+    r.mark = r.box:CreateTexture(nil, "ARTWORK")
+    r.mark:SetPoint("TOPLEFT", 4, -4); r.mark:SetPoint("BOTTOMRIGHT", -4, 4)
+    r.mark:SetColorTexture(0.596, 1, 0.596, 1)
+    r.text = r:CreateFontString(nil, "OVERLAY", "TalentKeeperFontSmall")
+    r.text:SetPoint("RIGHT", -8, 0)
+    r.text:SetJustifyH("LEFT")
+    r.text:SetWordWrap(false)
+    r:SetScript("OnEnter", function(self) self.ring(0.7) end)
+    r:SetScript("OnLeave", function(self) self.ring(0.4) end)
+    r:SetScript("OnClick", TK.safe(function(self)
+        local it = self.item
+        if not it or not it.onClick then return end
+        local keep = it.onClick() == "keep" or it.keep or it.checked ~= nil and it.multi
+        if keep then UI.refreshPicker() else pick:Hide() end
+    end))
+    pick.rows[i] = r
+    return r
+end
+
+local function pickHead(i)
+    if pick.heads[i] then return pick.heads[i] end
+    local h = pick.list:CreateFontString(nil, "OVERLAY", "TalentKeeperFontSmall")
+    h:SetTextColor(0.55, 0.55, 0.55)
+    pick.heads[i] = h
+    return h
+end
+
+local function makePicker()
+    pick = CreateFrame("Frame", "TalentKeeperPicker", UIParent)
+    pick.rows, pick.heads, pick.offset = {}, {}, 0
+    pick:SetWidth(PW)
+    pick:SetFrameStrata("DIALOG")
+    pick:SetClampedToScreen(true)
+    pick:EnableMouse(true)
+    fill(pick, "BACKGROUND", 0.06, 0.06, 0.06, 0.98)
+    ring(pick, 0)
+    tinsert(UISpecialFrames, pick:GetName())
+    pick.title = pick:CreateFontString(nil, "OVERLAY", "TalentKeeperFont")
+    pick.title:SetPoint("TOPLEFT", 8, -7); pick.title:SetPoint("TOPRIGHT", -8, -7)
+    pick.title:SetJustifyH("LEFT")
+    pick.title:SetWordWrap(false)
+    local rule = pick:CreateTexture(nil, "OVERLAY")
+    rule:SetColorTexture(0, 0, 0, 1)
+    rule:SetHeight(1)
+    rule:SetPoint("TOPLEFT", 0, -26); rule:SetPoint("TOPRIGHT", 0, -26)
+    pick.list = CreateFrame("Frame", nil, pick)
+    pick.list:SetPoint("TOPLEFT", 0, -27); pick.list:SetPoint("BOTTOMRIGHT", 0, 4)
+    pick.list:SetClipsChildren(true)
+    pick.list:EnableMouseWheel(true)
+    pick.list:SetScript("OnMouseWheel", function(_, delta) pick.offset = pick.offset - delta * PROW * 3 UI.refreshPicker() end)
+    -- "more below": pulses 3 times, then holds
+    pick.more = pick:CreateFontString(nil, "OVERLAY", "TalentKeeperFontSmall")
+    pick.more:SetPoint("BOTTOM", 0, 4)
+    pick.more:SetText("v  more below  v")
+    pick.more:SetTextColor(0.596, 1, 0.596)
+    pick.pulse = pick.more:CreateAnimationGroup()
+    local a = pick.pulse:CreateAnimation("Alpha")
+    a:SetFromAlpha(1); a:SetToAlpha(0.3); a:SetDuration(0.5)
+    pick.pulse:SetLooping("BOUNCE")
+    pick.pulse:SetScript("OnLoop", function(self)
+        self.n = (self.n or 0) + 1
+        if self.n >= 6 then self:Stop() pick.more:SetAlpha(1) end
+    end)
+    -- a click anywhere else closes it
+    pick:RegisterEvent("GLOBAL_MOUSE_DOWN")
+    pick:SetScript("OnEvent", function(self)
+        if self:IsShown() and not self:IsMouseOver() and not (self.owner and self.owner:IsMouseOver()) then self:Hide() end
+    end)
+end
+
+function UI.refreshPicker()
+    if not pick or not pick:IsShown() then return end
+    for _, r in ipairs(pick.rows) do r:Hide() end
+    for _, h in ipairs(pick.heads) do h:Hide() end
+    local items = pick.items()
+    local total = 0
+    for _, it in ipairs(items) do total = total + (it.heading and PHEAD or PROW) end
+    local maxH = math.min(total, math.floor(UIParent:GetHeight() * 0.6))
+    pick:SetHeight(27 + maxH + 4)
+    local height = maxH
+    pick.offset = math.max(0, math.min(pick.offset, total - height))
+    local y, nr, nh = 0, 0, 0
+    for _, it in ipairs(items) do
+        local h = it.heading and PHEAD or PROW
+        local top = y - pick.offset
+        if top >= 0 and top + h <= height then
+            if it.heading then
+                nh = nh + 1
+                local fs = pickHead(nh)
+                fs:SetText(it.heading)
+                fs:ClearAllPoints()
+                fs:SetPoint("BOTTOMLEFT", pick.list, "TOPLEFT", 8, -(top + h - 3))
+                fs:Show()
+            else
+                nr = nr + 1
+                local r = pickRow(nr)
+                r.item = it
+                local check = it.checked ~= nil
+                r.box:SetShown(check)
+                if check then r.mark:SetShown(it.checked() and true or false) end
+                r.text:ClearAllPoints()
+                r.text:SetPoint("LEFT", check and 30 or 8, 0); r.text:SetPoint("RIGHT", -8, 0)
+                local label = type(it.label) == "function" and it.label() or it.label
+                r.text:SetText(label)
+                if it.disabled then r.text:SetTextColor(0.55, 0.55, 0.55) else r.text:SetTextColor(1, 1, 1) end
+                r:EnableMouse(not it.disabled)
+                r:ClearAllPoints()
+                r:SetPoint("TOPLEFT", 0, -top); r:SetPoint("TOPRIGHT", 0, -top)
+                r:Show()
+            end
+        end
+        y = y + h
+    end
+    local below = y - pick.offset > height
+    if below and not pick.more:IsShown() then pick.pulse.n = 0 pick.pulse:Play() end
+    pick.more:SetShown(below)
+end
+
+function UI.hidePicker() if pick then pick:Hide() end end
+
+function UI.picker(owner, title, items)
+    if not pick then makePicker() end
+    if pick:IsShown() and pick.owner == owner then return pick:Hide() end -- the same button closes it
+    pick.owner, pick.items, pick.offset = owner, items, 0
+    pick.title:SetText(title)
+    pick:ClearAllPoints()
+    if owner and owner ~= UIParent then
+        pick:SetPoint("TOPLEFT", owner, "BOTTOMLEFT", 0, -2)
+    else
+        local x, y = GetCursorPosition()
+        local s = UIParent:GetEffectiveScale()
+        pick:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", x / s, y / s)
+    end
+    pick:Show()
+    UI.refreshPicker()
+end
+
+-- Tags ----------------------------------------------------------------------------------
+local function tagItem(b, s, label)
+    return { label = label or s.name, multi = true, checked = function() return b.tags and b.tags[s.key] ~= nil end,
+        onClick = function() B.toggleTag(b, s.key, s.name) end }
 end
 
 -- One flat list: here, content, this season's dungeons, then each raid and its bosses.
-function UI.tagEntries(root, b)
+function UI.tagItems(b)
+    local items = {}
     local here = B.here()
-    if here then tagBox(root, b, here, here.name .. " |cff8c8c8c(here)|r") end
-    for _, s in ipairs(CONTENT) do tagBox(root, b, s) end
+    if here then items[#items + 1] = tagItem(b, here, here.name .. " |cff8c8c8c(here)|r") end
+    for _, s in ipairs(CONTENT) do items[#items + 1] = tagItem(b, s) end
     local dungeons = seasonDungeons()
     if #dungeons > 0 then
-        root:CreateTitle("Mythic+ dungeons")
-        for _, s in ipairs(dungeons) do tagBox(root, b, s) end
+        items[#items + 1] = { heading = "Mythic+ dungeons" }
+        for _, s in ipairs(dungeons) do items[#items + 1] = tagItem(b, s) end
     end
     for _, raid in ipairs(seasonRaids()) do
-        root:CreateTitle(raid.name)
-        if raid.key then tagBox(root, b, { key = raid.key, name = raid.name }, "Whole raid") end
-        for _, s in ipairs(raid.bosses) do tagBox(root, b, s) end
+        items[#items + 1] = { heading = raid.name }
+        if raid.key then items[#items + 1] = tagItem(b, { key = raid.key, name = raid.name }, "Whole raid") end
+        for _, s in ipairs(raid.bosses) do items[#items + 1] = tagItem(b, s) end
     end
+    return items
 end
 
 function UI.tagMenu(owner, b)
-    MenuUtil.CreateContextMenu(owner, function(_, root)
-        root:CreateTitle(b.name .. " is for")
-        UI.tagEntries(root, b)
-    end)
+    UI.picker(owner, b.name .. " is for", function() return UI.tagItems(b) end)
 end
 
 -- "Raid +2"
@@ -316,44 +471,43 @@ function UI.tagSummary(b)
     return names[1] .. (#names > 1 and (" +" .. (#names - 1)) or "")
 end
 
+function UI.groupItems(specID, b)
+    local items = { { label = "No group", checked = function() return not b.group end, onClick = function() B.setGroup(b, nil) end } }
+    for _, g in ipairs(B.groups(specID)) do
+        items[#items + 1] = { label = g, checked = function() return b.group == g end, onClick = function() B.setGroup(b, g) end }
+    end
+    items[#items + 1] = { label = "New group...", onClick = function()
+        UI.textWindow({ title = "New group for " .. b.name, singleLine = true, okText = "Move",
+            onOK = function(name) if strtrim(name) ~= "" then B.setGroup(b, name) end end })
+    end }
+    return items
+end
+
 function UI.groupMenu(owner, specID, b)
-    MenuUtil.CreateContextMenu(owner, function(_, root)
-        root:CreateTitle("Move " .. b.name .. " to")
-        root:CreateRadio("No group", function() return not b.group end, function() B.setGroup(b, nil) end)
-        for _, g in ipairs(B.groups(specID)) do
-            root:CreateRadio(g, function() return b.group == g end, function() B.setGroup(b, g) end)
-        end
-        root:CreateButton("New group...", function()
-            UI.textWindow({ title = "New group for " .. b.name, singleLine = true, okText = "Move",
-                onOK = function(name) if strtrim(name) ~= "" then B.setGroup(b, name) end end })
-        end)
-    end)
+    UI.picker(owner, "Move " .. b.name .. " to", function() return UI.groupItems(specID, b) end)
 end
 
 -- Quick menu (key binding, /tk): this spec's builds; click one to apply it -------------------
-local function generator(_, root)
-    local specID = B.specID()
-    if not specID then return root:CreateTitle("TalentKeeper") end
-    root:CreateTitle("TalentKeeper: " .. B.specName(specID))
-    local any = false
+function UI.quickItems(specID)
+    local items = {}
     for _, line in ipairs(B.ordered(specID)) do
         if line.header then
-            root:CreateTitle(line.header)
+            items[#items + 1] = { heading = line.header }
         elseif line.build then
-            any = true
             local b = line.build
             local tags = UI.tagSummary(b)
-            root:CreateRadio(b.name .. (tags and ("  |cff8c8c8c" .. tags .. "|r") or ""),
-                function() return TK.db.active[specID] == b.name end,
-                function() B.apply(b) return MenuResponse.Close end)
+            items[#items + 1] = { label = b.name .. (tags and ("  |cff8c8c8c" .. tags .. "|r") or ""),
+                checked = function() return TK.db.active[specID] == b.name end, onClick = function() B.apply(b) end }
         end
     end
-    if not any then root:CreateButton("|cff8c8c8cNo builds saved for this spec yet|r"):SetEnabled(false) end
+    if #items == 0 then items[1] = { label = "No builds saved for this spec yet.", disabled = true } end
+    return items
 end
 
 function UI.openMenu(owner)
-    if not B.specID() then return TK.chat("Pick a specialization first.") end
-    MenuUtil.CreateContextMenu(owner or UIParent, generator)
+    local specID = B.specID()
+    if not specID then return TK.chat("Pick a specialization first.") end
+    UI.picker(owner or UIParent, B.specName(specID) .. " builds", function() return UI.quickItems(specID) end)
 end
 
 -- Key binding (Bindings.xml)

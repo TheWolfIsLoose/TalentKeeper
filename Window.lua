@@ -202,30 +202,27 @@ local function head(i)
         local g, specID = self.group, B.specID()
         if not g then return end
         armedGroup = nil
-        MenuUtil.CreateContextMenu(self, function(_, root)
-            root:CreateTitle(g)
-            root:CreateButton("Rename group", function()
-                UI.textWindow({ title = "Rename group", text = g, singleLine = true, okText = "Rename",
-                    onOK = function(name) B.renameGroup(specID, g, name) end })
-            end)
+        UI.picker(self, g, function()
             local n = 0
             for _, b in ipairs(B.list(specID)) do if b.group == g then n = n + 1 end end
-            root:CreateButton("Ungroup its builds", function()
-                for _, b in ipairs(B.list(specID)) do if b.group == g then b.group = nil end end
-                TK.changed()
-            end)
-            local del = root:CreateButton("Delete it and its builds", function()
-                if armedGroup == g then
-                    armedGroup = nil
-                    B.deleteGroup(specID, g)
-                    return MenuResponse.CloseAll
-                end
-                armedGroup = g
-                return MenuResponse.Refresh
-            end)
-            del:AddInitializer(function(frame)
-                frame.fontString:SetText(armedGroup == g and ("|cffff8888Sure? Deletes %d build%s|r"):format(n, n == 1 and "" or "s") or "Delete it and its builds")
-            end)
+            return {
+                { label = "Rename group", onClick = function()
+                    UI.textWindow({ title = "Rename group", text = g, singleLine = true, okText = "Rename",
+                        onOK = function(name) B.renameGroup(specID, g, name) end })
+                end },
+                { label = "Ungroup its builds", onClick = function()
+                    for _, b in ipairs(B.list(specID)) do if b.group == g then b.group = nil end end
+                    TK.changed()
+                end },
+                { label = function()
+                    return armedGroup == g and ("|cffff8888Sure? Deletes %d build%s|r"):format(n, n == 1 and "" or "s") or "Delete it and its builds"
+                end, onClick = function()
+                    if armedGroup == g then armedGroup = nil B.deleteGroup(specID, g) return end
+                    armedGroup = g
+                    C_Timer.After(3, function() if armedGroup == g then armedGroup = nil UI.refreshPicker() end end)
+                    return "keep"
+                end },
+            }
         end)
     end))
     heads[i] = h
@@ -531,7 +528,7 @@ EventUtil.ContinueOnAddOnLoaded("Blizzard_PlayerSpells", TK.safe(function()
     specButtons()
     pane:Hide()
     tf:HookScript("OnShow", function() pane:Show() TK.safe(W.refresh)() end)
-    tf:HookScript("OnHide", function() W.hide() pane:Hide() end)
+    tf:HookScript("OnHide", function() W.hide() UI.hidePicker() pane:Hide() end)
     PlayerSpellsFrame:HookScript("OnShow", applyScale)
     grip()
     applyScale()
