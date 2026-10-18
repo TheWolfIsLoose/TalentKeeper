@@ -22,7 +22,7 @@ local function Frame()
         if k == "SetScript" then return function(self, n, fn) self.scripts[n] = fn end end
         if k == "RegisterEvent" then return function(self, e) self.events[e] = true end end
         if k == "GetHeight" then return function() return 400 end end
-        if k == "GetFrameLevel" or k == "GetWidth" or k == "GetEffectiveScale" then return function() return 10 end end
+        if k == "GetFrameLevel" or k == "GetWidth" or k == "GetEffectiveScale" or k == "GetStringWidth" then return function() return 10 end end
         if k == "IsShown" or k == "IsVisible" then return function() return true end end
         if k:match("^Create") then return function() return Frame() end end
         return function() return Stub end

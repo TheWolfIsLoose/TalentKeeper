@@ -287,19 +287,19 @@ local CONTENT = { { key = "delve", name = "Delves / open world" } }
 --   { heading = "Text" } | { label = "Text" or fn, checked = fn?, onClick = fn, keep = true? }
 -- A row with checked toggles and stays open; other rows close it unless keep is set.
 local pick
-local PW, PROW, PHEAD = 220, 24, 22
+local PROW, PHEAD, PTITLE, PPAD = 18, 18, 20, 6 -- dense rows (the guide allows 18px in dense lists)
 local function pickRow(i)
     if pick.rows[i] then return pick.rows[i] end
     local r = CreateFrame("Button", nil, pick.list)
     r:SetHeight(PROW)
     UI.fill(r, "HIGHLIGHT", 0.851, 0.851, 0.851, 0.15)
     r.box = CreateFrame("Frame", nil, r)
-    r.box:SetSize(16, 16)
-    r.box:SetPoint("LEFT", 8, 0)
+    r.box:SetSize(12, 12)
+    r.box:SetPoint("LEFT", PPAD, 0)
     fill(r.box, "BACKGROUND", 1, 1, 1, 0.08)
     r.ring = ring(r.box, 0.4)
     r.mark = r.box:CreateTexture(nil, "ARTWORK")
-    r.mark:SetPoint("TOPLEFT", 4, -4); r.mark:SetPoint("BOTTOMRIGHT", -4, 4)
+    r.mark:SetPoint("TOPLEFT", 3, -3); r.mark:SetPoint("BOTTOMRIGHT", -3, 3)
     r.mark:SetColorTexture(0.596, 1, 0.596, 1)
     r.text = r:CreateFontString(nil, "OVERLAY", "TalentKeeperFontSmall")
     r.text:SetPoint("RIGHT", -8, 0)
@@ -328,7 +328,6 @@ end
 local function makePicker()
     pick = CreateFrame("Frame", "TalentKeeperPicker", UIParent)
     pick.rows, pick.heads, pick.bars, pick.offset = {}, {}, {}, 0
-    pick:SetWidth(PW)
     pick:SetFrameStrata("DIALOG")
     pick:SetClampedToScreen(true)
     pick:EnableMouse(true)
@@ -336,21 +335,23 @@ local function makePicker()
     ring(pick, 0)
     tinsert(UISpecialFrames, pick:GetName())
     pick.title = pick:CreateFontString(nil, "OVERLAY", "TalentKeeperFont")
-    pick.title:SetPoint("TOPLEFT", 8, -7); pick.title:SetPoint("TOPRIGHT", -8, -7)
+    pick.title:SetPoint("TOPLEFT", PPAD, -5); pick.title:SetPoint("TOPRIGHT", -PPAD, -5)
     pick.title:SetJustifyH("LEFT")
+    pick.measure = pick:CreateFontString(nil, "OVERLAY", "TalentKeeperFontSmall")
+    pick.measure:Hide()
     pick.title:SetWordWrap(false)
     local rule = pick:CreateTexture(nil, "OVERLAY")
     rule:SetColorTexture(0, 0, 0, 1)
     rule:SetHeight(1)
-    rule:SetPoint("TOPLEFT", 0, -26); rule:SetPoint("TOPRIGHT", 0, -26)
+    rule:SetPoint("TOPLEFT", 0, -PTITLE); rule:SetPoint("TOPRIGHT", 0, -PTITLE)
     pick.list = CreateFrame("Frame", nil, pick)
-    pick.list:SetPoint("TOPLEFT", 0, -27); pick.list:SetPoint("BOTTOMRIGHT", 0, 4)
+    pick.list:SetPoint("TOPLEFT", 0, -(PTITLE + 3)); pick.list:SetPoint("BOTTOMRIGHT", 0, 3)
     pick.list:SetClipsChildren(true)
     pick.list:EnableMouseWheel(true)
     pick.list:SetScript("OnMouseWheel", function(_, delta) pick.offset = pick.offset - delta * PROW * 3 UI.refreshPicker() end)
     -- "more below": pulses 3 times, then holds
     pick.more = pick:CreateFontString(nil, "OVERLAY", "TalentKeeperFontSmall")
-    pick.more:SetPoint("BOTTOM", 0, 4)
+    pick.more:SetPoint("BOTTOM", 0, 3)
     pick.more:SetText("v  more below  v")
     pick.more:SetTextColor(0.596, 1, 0.596)
     pick.pulse = pick.more:CreateAnimationGroup()
@@ -369,7 +370,7 @@ local function makePicker()
 end
 
 -- Items split into columns at { column = true }; { bar = true } is a short divider.
-local PBAR = 9
+local PBAR = 7
 local function itemHeight(it) return it.heading and PHEAD or it.bar and PBAR or it.column and 0 or PROW end
 
 function UI.refreshPicker()
@@ -387,13 +388,33 @@ function UI.refreshPicker()
         for _, it in ipairs(col) do h = h + itemHeight(it) end
         total = math.max(total, h)
     end
-    pick:SetWidth(PW * #cols)
+    -- each column as wide as its longest line (the title sets the minimum)
+    local widths, x0 = {}, {}
+    for c, col in ipairs(cols) do
+        local w = 0
+        for _, it in ipairs(col) do
+            local text = it.heading or (type(it.label) == "function" and it.label() or it.label)
+            if text then
+                pick.measure:SetText(text)
+                w = math.max(w, pick.measure:GetStringWidth() + PPAD * 2 + ((it.checked ~= nil and not it.heading) and 18 or 0))
+            end
+        end
+        widths[c] = math.ceil(w)
+    end
+    pick.measure:SetFontObject("TalentKeeperFont")
+    pick.measure:SetText(pick.title:GetText() or "")
+    local titleW = pick.measure:GetStringWidth() + PPAD * 2
+    pick.measure:SetFontObject("TalentKeeperFontSmall")
+    local sum = 0
+    for c = 1, #cols do x0[c] = sum sum = sum + widths[c] end
+    if sum < titleW then widths[#cols] = widths[#cols] + math.ceil(titleW - sum) sum = math.ceil(titleW) end
+    pick:SetWidth(sum)
     local height = math.min(total, math.floor(UIParent:GetHeight() * 0.6))
-    pick:SetHeight(27 + height + 4)
+    pick:SetHeight(PTITLE + 3 + height + 3)
     pick.offset = math.max(0, math.min(pick.offset, total - height))
     local nr, nh, nb, below = 0, 0, 0, false
     for c, col in ipairs(cols) do
-        local x, y = (c - 1) * PW, 0
+        local x, y, cw = x0[c], 0, widths[c]
         for _, it in ipairs(col) do
             local h = itemHeight(it)
             local top = y - pick.offset
@@ -404,7 +425,7 @@ function UI.refreshPicker()
                     local fs = pickHead(nh)
                     fs:SetText(it.heading)
                     fs:ClearAllPoints()
-                    fs:SetPoint("BOTTOMLEFT", pick.list, "TOPLEFT", x + 8, -(top + h - 3))
+                    fs:SetPoint("BOTTOMLEFT", pick.list, "TOPLEFT", x + PPAD, -(top + h - 3))
                     fs:Show()
                 elseif it.bar then
                     nb = nb + 1
@@ -412,12 +433,12 @@ function UI.refreshPicker()
                     if not t then
                         t = pick.list:CreateTexture(nil, "ARTWORK")
                         t:SetColorTexture(1, 1, 1, 0.12)
-                        t:SetSize(PW - 16, 1)
                         t:SetTexelSnappingBias(0); t:SetSnapToPixelGrid(false)
                         pick.bars[nb] = t
                     end
                     t:ClearAllPoints()
-                    t:SetPoint("TOPLEFT", x + 8, -(top + 4))
+                    t:SetSize(cw - PPAD * 2, 1)
+                    t:SetPoint("TOPLEFT", x + PPAD, -(top + 3))
                     t:Show()
                 else
                     nr = nr + 1
@@ -427,13 +448,13 @@ function UI.refreshPicker()
                     r.box:SetShown(check)
                     if check then r.mark:SetShown(it.checked() and true or false) end
                     r.text:ClearAllPoints()
-                    r.text:SetPoint("LEFT", check and 30 or 8, 0); r.text:SetPoint("RIGHT", -8, 0)
+                    r.text:SetPoint("LEFT", check and (PPAD + 18) or PPAD, 0); r.text:SetPoint("RIGHT", -PPAD, 0)
                     local label = type(it.label) == "function" and it.label() or it.label
                     r.text:SetText(label)
                     if it.disabled then r.text:SetTextColor(0.55, 0.55, 0.55) else r.text:SetTextColor(1, 1, 1) end
                     r:EnableMouse(not it.disabled)
                     r:ClearAllPoints()
-                    r:SetWidth(PW)
+                    r:SetWidth(cw)
                     r:SetPoint("TOPLEFT", x, -top)
                     r:Show()
                 end
