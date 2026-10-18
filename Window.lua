@@ -174,6 +174,8 @@ local function row(i)
         local d, hidden = W.show(self.b)
         GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
         GameTooltip:SetText(self.b.name)
+        local tags = B.tagNames(self.b)
+        if #tags > 0 then GameTooltip:AddLine("For: " .. table.concat(tags, ", "), 0.596, 1, 0.596, true) end
         if not d then
             GameTooltip:AddLine("Couldn't read this build.", 1, 0.533, 0.533)
         elseif #d == 0 then
@@ -181,7 +183,7 @@ local function row(i)
         else
             GameTooltip:AddLine(("%d change%s, marked on the tree: %s"):format(#d, #d == 1 and "" or "s", table.concat(C.describe(d, 6), ", ")), 0.74, 0.74, 0.74, true)
             if hidden > 0 then GameTooltip:AddLine(("%d not on show (another hero tree)."):format(hidden), 0.55, 0.55, 0.55, true) end
-            GameTooltip:AddLine("Click to apply. Right-click for more; drag onto a group to move it.", 0.55, 0.55, 0.55, true)
+            GameTooltip:AddLine("Click to apply. Right-click to tag it and more; drag onto a group to move it.", 0.55, 0.55, 0.55, true)
         end
         GameTooltip:Show()
     end))
@@ -241,7 +243,9 @@ function W.refresh()
             r.b = b
             r.text:SetText((b.main and "· " or "") .. b.name)
             r.text:SetPoint("LEFT", b.main and 20 or 8, 0)
-            r.status:SetText(b.outdated and "Outdated" or b.needsReview and "Needs review" or "")
+            local warn = b.outdated and "Outdated" or b.needsReview and "Needs review"
+            r.status:SetText(warn or UI.tagSummary(b) or "")
+            if warn then r.status:SetTextColor(1, 0.722, 0.302) else r.status:SetTextColor(0.55, 0.55, 0.55) end
             r.stripe:SetShown(nr % 2 == 0)
             local on = b.name == active
             r.text:SetTextColor(on and 0.596 or 1, 1, on and 0.596 or 1)

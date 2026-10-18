@@ -55,9 +55,14 @@ window) with a size grip for the window. Untested when parked: the hero
 emblem mark, right-click / drag in the pane, Save current / Import buttons
 and the suite styling pass (the DevChecklist round is still set). Then:
 search / compare / other specs if missed, free editing, a release.
-Next up from the product model: tags on builds and the "same as / tag it
-instead" offer at save, the pane showing each build with its tags and swaps,
-then the played-here history and zone-in offers. Change marks on the tree
+**Tags (in testing, 2026-10-17):** right-click a build > Tags: the instance
+you're in, Raid / Mythic+ / Delves, this season's M+ dungeons, and each of
+this season's raids (whole raid or a boss, from the dungeon journal).
+Saving or importing talents you already have opens that tag menu for the
+existing build instead. The pane shows a build's tags on its row (first tag
++N) and in full on hover. Next: the "within a couple of talents: save as a
+swap" offer, swaps shown as swaps, then the played-here history and zone-in
+offers. Change marks on the tree
 were redrawn in the talent window's own art (in testing).
 
 Earlier threads (history):

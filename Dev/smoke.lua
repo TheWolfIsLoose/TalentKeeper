@@ -142,6 +142,13 @@ local lib = {
 }
 LibStub = function(name) if name == "LibTalentTree-1.0" then return lib end end
 local menuGen
+-- this season: one dungeon (instance 501, where you are), one raid with one boss
+GetInstanceInfo = function() return "Dungeon A", "party", 8, nil, nil, nil, nil, 501 end
+C_ChallengeMode = { GetMapTable = function() return { 1 } end, GetMapUIInfo = function() return "Dungeon A", 1, 0, 0, 0, 501 end }
+EJ_GetNumTiers, EJ_GetCurrentTier, EJ_SelectTier = function() return 2 end, function() return 1 end, function() end
+EJ_GetInstanceByIndex = function(i) if i == 1 then return 10, "Raid A" end end
+EJ_GetInstanceInfo = function() return "Raid A", nil, nil, nil, nil, nil, nil, nil, nil, 2700 end
+EJ_GetEncounterInfoByIndex = function(j) if j == 1 then return "Boss A", nil, nil, nil, nil, nil, 3001 end end
 MenuUtil = { CreateContextMenu = function(_, gen) menuGen = gen end }
 
 -- Load in TOC order ---------------------------------------------------------------
@@ -353,6 +360,7 @@ local function Desc(label)
     local d = { label = label, children = {} }
     local function add(kind) return function(self, text, ...) local c = Desc(text) c.kind = kind c.args = { ... } table.insert(self.children, c) return c end end
     d.CreateTitle, d.CreateButton, d.CreateRadio, d.CreateDivider = add("title"), add("button"), add("radio"), add("divider")
+    d.CreateCheckbox = add("checkbox")
     d.SetEnabled = function() end
     d.AddInitializer = function(self, fn) self.init = fn end
     return d
@@ -373,6 +381,14 @@ for _, c in ipairs(raid.children[1].children) do sub[#sub + 1] = tostring(c.labe
 sub = table.concat(sub, ",")
 ok(del and sub:find("Rename") and sub:find("Copy talent string"), "build submenu: rename, copy, delete: " .. sub)
 ok(sub:find("Differs from your current talents by 1"), "submenu says how it differs from current talents")
+local tagsMenu
+for _, c in ipairs(raid.children[1].children) do if tostring(c.label):find("^Tags") then tagsMenu = c end end
+local tl = {}
+local function walk(d) for _, c in ipairs(d.children) do tl[#tl + 1] = c.kind .. ":" .. tostring(c.label) walk(c) end end
+walk(tagsMenu)
+tl = table.concat(tl, ",")
+ok(tl:find("checkbox:Dungeon A |cff8c8c8c%(here%)|r") and tl:find("checkbox:Mythic%+") and tl:find("button:Mythic%+ dungeons")
+    and tl:find("button:Raid A,checkbox:Whole raid,checkbox:Boss A"), "tags menu: here, content, dungeons, raid bosses: " .. tl)
 local before = #B.list(267)
 ok(del.args[1]() == MenuResponse.Refresh, "first delete click arms")
 ok(del.args[1]() == MenuResponse.CloseAll and #B.list(267) == before - 1, "second click deletes")
@@ -407,5 +423,23 @@ ok(mb.group == "M+", "move to a group (trimmed)")
 B.setGroup(mb, "")
 ok(mb.group == nil, "move out of groups")
 section("groups")
+
+local tb = B.list(267)[1]
+B.toggleTag(tb, "boss:3001", "Boss A")
+B.toggleTag(tb, "raid", "Raid")
+ok(TK.ui.tagSummary(tb) == "Boss A +1" and tb.tags.raid == "Raid", "tags saved and summarized")
+B.toggleTag(tb, "raid", "Raid")
+B.toggleTag(tb, "boss:3001", "Boss A")
+ok(tb.tags == nil and TK.ui.tagSummary(tb) == nil, "untagging clears tags")
+menuGen = nil
+setCurrent(tb.text:match("^SPEC:267:(.*)$"))
+B.saveCurrent("Again")
+ok(said("Same talents as |cffffffff" .. tb.name) and menuGen, "saving talents you have offers to tag that build")
+local offer = Desc("root")
+menuGen(nil, offer)
+ok(offer.children[1].label == "Tag " .. tb.name .. " for" and offer.children[2].kind == "checkbox", "tag offer menu")
+offer.children[2].args[2]()
+ok(tb.tags and tb.tags["zone:501"] == "Dungeon A", "tag from the offer: " .. tostring(tb.tags and next(tb.tags)))
+section("tags")
 
 print_("smoke: all passed")

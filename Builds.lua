@@ -128,7 +128,7 @@ function B.saveCurrent(name)
         name = name ~= "" and name or ("%s %d"):format(B.specName(specID), #list + 1),
         text = text, pvp = currentPvp(),
     })
-    if not b then return TK.chat(("Same talents as |cffffffff%s|r, so nothing new to save."):format(same.name)) end
+    if not b then return B.offerTag(same) end
     TK.db.active[specID] = b.name
     TK.log("saved '%s' (%s)", b.name, B.specName(specID))
     TK.chat(("Saved |cffffffff%s|r.%s"):format(b.name, TK.compare.nearNote(list, b)))
@@ -143,7 +143,7 @@ function B.importString(text, name)
         name = name and name ~= "" and name or ("Imported %d"):format(#list + 1),
         text = strtrim(text),
     })
-    if not b then return TK.chat(("Same talents as |cffffffff%s|r (%s), so nothing new to save."):format(same.name, B.specName(spec))) end
+    if not b then return B.offerTag(same) end
     TK.log("imported '%s' (%s)", b.name, B.specName(spec))
     TK.chat(("Saved |cffffffff%s|r for %s.%s"):format(b.name, B.specName(spec), TK.compare.nearNote(list, b)))
     TK.changed()
@@ -287,6 +287,37 @@ function B.setGear(b, name)
     b.gear = name
     TK.log("'%s' gear set: %s", b.name, name or "none")
     TK.changed()
+end
+
+-- Situations a build is for ----------------------------------------------------------
+-- b.tags[key] = name. Keys: "raid", "mplus", "delve" (content), "zone:<instanceID>" (a
+-- dungeon, raid or delve), "boss:<encounterID>". One situation can tag builds in several specs.
+function B.toggleTag(b, key, name)
+    b.tags = b.tags or {}
+    b.tags[key] = not b.tags[key] and name or nil
+    TK.log("'%s' %s %s", b.name, b.tags[key] and "tagged for" or "untagged", name)
+    if not next(b.tags) then b.tags = nil end
+    TK.changed()
+end
+
+function B.tagNames(b)
+    local out = {}
+    for _, name in pairs(b.tags or {}) do out[#out + 1] = name end
+    table.sort(out)
+    return out
+end
+
+-- The instance you're in, as a situation (nil in the open world).
+function B.here()
+    local name, kind, _, _, _, _, _, id = GetInstanceInfo()
+    if not id or kind == "none" or kind == nil then return nil end
+    return { key = "zone:" .. id, name = name }
+end
+
+-- Saving or importing talents you already have as a build: tag that build instead.
+function B.offerTag(same)
+    TK.chat(("Same talents as |cffffffff%s|r, so nothing new to save. Tag it for what you'd have saved this for."):format(same.name))
+    TK.ui.offerTags(same)
 end
 
 function B.delete(specID, b)

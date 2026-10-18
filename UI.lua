@@ -200,8 +200,82 @@ local function buildEntry(parent, specID, b, list, current)
     UI.buildActions(entry, specID, b)
 end
 
+-- Tags: the situations a build is for ----------------------------------------------------
+-- This season's raids and their bosses, from the dungeon journal (read once it has them).
+local raids
+local function seasonRaids()
+    if raids or not EJ_GetNumTiers then return raids or {} end
+    local out, prev = {}, EJ_GetCurrentTier()
+    EJ_SelectTier(EJ_GetNumTiers())
+    for i = 1, 20 do
+        local journalID, name = EJ_GetInstanceByIndex(i, true)
+        if not journalID then break end
+        local mapID = select(10, EJ_GetInstanceInfo(journalID))
+        local raid = { name = name, key = mapID and ("zone:" .. mapID), bosses = {} }
+        for j = 1, 20 do
+            local boss, _, _, _, _, _, encounterID = EJ_GetEncounterInfoByIndex(j, journalID)
+            if not boss then break end
+            if encounterID then raid.bosses[#raid.bosses + 1] = { key = "boss:" .. encounterID, name = boss } end
+        end
+        out[#out + 1] = raid
+    end
+    if prev then EJ_SelectTier(prev) end
+    if #out > 0 then raids = out end
+    return out
+end
+
+local function seasonDungeons()
+    local out = {}
+    for _, id in ipairs(C_ChallengeMode and C_ChallengeMode.GetMapTable() or {}) do
+        local name, _, _, _, _, mapID = C_ChallengeMode.GetMapUIInfo(id)
+        if name and mapID then out[#out + 1] = { key = "zone:" .. mapID, name = name } end
+    end
+    table.sort(out, function(a, c) return a.name < c.name end)
+    return out
+end
+
+local CONTENT = { { key = "raid", name = "Raid" }, { key = "mplus", name = "Mythic+" }, { key = "delve", name = "Delves" } }
+
+local function tagBox(parent, b, s, label)
+    parent:CreateCheckbox(label or s.name, function() return b.tags and b.tags[s.key] ~= nil end,
+        function() B.toggleTag(b, s.key, s.name) end)
+end
+
+function UI.tagEntries(parent, b)
+    local here = B.here()
+    if here then tagBox(parent, b, here, here.name .. " |cff8c8c8c(here)|r") end
+    for _, s in ipairs(CONTENT) do tagBox(parent, b, s) end
+    local dungeons = seasonDungeons()
+    if #dungeons > 0 then
+        local sub = parent:CreateButton("Mythic+ dungeons")
+        for _, s in ipairs(dungeons) do tagBox(sub, b, s) end
+    end
+    for _, raid in ipairs(seasonRaids()) do
+        local sub = parent:CreateButton(raid.name)
+        if raid.key then tagBox(sub, b, { key = raid.key, name = raid.name }, "Whole raid") end
+        for _, s in ipairs(raid.bosses) do tagBox(sub, b, s) end
+    end
+end
+
+-- "Tags: Raid +2"
+function UI.tagSummary(b)
+    local names = B.tagNames(b)
+    if #names == 0 then return nil end
+    return names[1] .. (#names > 1 and (" +" .. (#names - 1)) or "")
+end
+
+-- After saving a build you already have: a menu to tag that build instead.
+function UI.offerTags(b)
+    MenuUtil.CreateContextMenu(UIParent, function(_, root)
+        root:CreateTitle("Tag " .. b.name .. " for")
+        UI.tagEntries(root, b)
+    end)
+end
+
 -- What you can do with a build: in its submenu here and in the talent window's side pane.
 function UI.buildActions(entry, specID, b)
+    local summary = UI.tagSummary(b)
+    UI.tagEntries(entry:CreateButton("Tags" .. (summary and (": " .. summary) or "")), b)
     entry:CreateButton("Update to current talents", function() B.updateToCurrent(b) end)
     entry:CreateButton("Save current talents as a variant", function()
         local main = b.main or b.name
