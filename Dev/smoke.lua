@@ -382,7 +382,7 @@ for _, it in ipairs(quick) do if it.label == "Solo" then it.onClick() end end
 B.apply = realApply
 ok(applied and applied.name == "Solo", "clicking a build in the quick list applies it")
 local tl = labelsOf(TK.ui.tagItems(B.list(267)[1]))
-ok(tl:find("^check:Delves,check:Open world,head:Mythic%+ dungeons,check:Dungeon A,head:Raid A,check:Boss A$"),
+ok(tl:find("^check:Delves / open world,head:Mythic%+ dungeons,check:Dungeon A,head:Raid A,check:Boss A$"),
     "tag list: delves, open world, dungeons, then raid bosses (no Raid / Mythic+ / whole raid): " .. tl)
 local cols = 0
 for _, it in ipairs(TK.ui.tagItems(B.list(267)[1])) do if it.column then cols = cols + 1 end end
