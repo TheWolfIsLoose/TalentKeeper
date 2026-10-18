@@ -56,7 +56,13 @@ nothing set, "Use <current build>" or Choose... (an untagged delve takes the
 shared Delves / open world tag). Asks once per place; hides when a key starts.
 Logged as "prompt: ...".
 
-Then: raid bosses, the season view.
+Confirmed 2026-10-18 (open world: chose and applied; Murder Row: offered the
+tagged build, Switch applied it, 0 differences).
+
+**Parked 2026-10-18 ~13:00 ET (not released).** Next: raid bosses (next
+unkilled boss from the lockout on zone-in and after each kill, changeable in
+the prompt). Testing needs a full raid clear on a character, when the player
+has the time. Then the season view.
 
 ---
 
