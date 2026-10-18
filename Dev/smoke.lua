@@ -421,6 +421,13 @@ ok(main.group == "M+" and var.group == "M+", "moving a variant moves its whole f
 B.delete(267, main)
 ok(var.main == nil and var.changes == nil, "variants become main builds when the main is deleted")
 setCurrent("1000")
+local base = B.add(267, { name = "Base", text = "SPEC:267:1200", group = "M+" })
+local imp = B.add(267, { name = "Imported", text = "SPEC:267:1210" })
+B.setMain(imp, base)
+ok(imp.main == "Base" and #imp.changes == 1 and imp.group == "M+", "an imported build becomes a variant of a main build")
+B.setMain(imp, nil)
+ok(imp.main == nil and imp.changes == nil, "and a main build again")
+B.delete(267, imp) B.delete(267, base)
 section("main builds and variants")
 
 local mb = B.list(267)[1]

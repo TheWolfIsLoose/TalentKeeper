@@ -234,6 +234,30 @@ local function changesFrom(mainText, text)
     return out
 end
 
+-- Make a saved build (e.g. one just imported) a variant of a main build, or a main build again
+-- (main = nil). Its own variants move with it to the new main build.
+function B.setMain(b, main)
+    local specID = B.findSpec(b)
+    if main and main.main then main = find(B.list(specID), main.main) or main end
+    if main == b then return end
+    if not main then
+        b.main, b.changes, b.needsReview = nil, nil, nil
+        TK.log("'%s' is a main build again", b.name)
+        return TK.changed()
+    end
+    if B.findSpec(main) ~= specID then return TK.chat("|cffff8888That build is for another spec.|r") end
+    local family = { b, unpack(B.variantsOf(specID, b.name)) }
+    for _, x in ipairs(family) do
+        local changes = changesFrom(main.text, x.text)
+        if not changes then return TK.chat(("|cffff8888Couldn't read %s.|r"):format(x.name)) end
+        x.main, x.changes, x.needsReview, x.group = main.name, changes, nil, main.group
+    end
+    local n = #b.changes
+    TK.log("'%s' made a variant of '%s': %s", b.name, main.name, table.concat(TK.compare.describe(b.changes), ", "))
+    TK.chat(("|cffffffff%s|r is now a variant of %s (%d change%s)."):format(b.name, main.name, n, n == 1 and "" or "s"))
+    TK.changed()
+end
+
 -- Save your current talents as a variant of a main build (variants of variants hang off the main).
 function B.saveVariant(main, name)
     local specID = B.specID()

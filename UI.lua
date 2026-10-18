@@ -282,6 +282,13 @@ function UI.buildActions(entry, specID, b)
         UI.textWindow({ title = "Save variant of " .. main, singleLine = true, okText = "Save", text = main .. " variant",
             onOK = function(name) B.saveVariant(b, name) end })
     end)
+    local of = entry:CreateButton("Variant of" .. (b.main and (": " .. b.main) or ""))
+    of:CreateRadio("None (a main build)", function() return not b.main end, function() B.setMain(b, nil) end)
+    for _, x in ipairs(B.list(specID)) do
+        if x ~= b and not x.main then
+            of:CreateRadio(x.name, function() return b.main == x.name end, function() B.setMain(b, x) end)
+        end
+    end
     UI.gearMenu(entry, b)
     local move = entry:CreateButton("Group" .. (b.group and (": " .. b.group) or ""))
     move:CreateRadio("No group", function() return not b.group end, function() B.setGroup(b, nil) end)
