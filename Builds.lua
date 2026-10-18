@@ -380,9 +380,21 @@ end
 
 -- Situations a build is for ----------------------------------------------------------
 -- b.tags[key] = name. Keys: "raid", "mplus", "delve" (content), "zone:<instanceID>" (a
--- dungeon, raid or delve), "boss:<encounterID>". One situation can tag builds in several specs.
+-- dungeon, raid or delve), "boss:<encounterID>". One build per spec per situation; one
+-- situation can point at builds in several specs.
+-- A situation points at one build per spec: tagging a build takes the tag off the spec's others.
 function B.toggleTag(b, key, name)
     b.tags = b.tags or {}
+    if not b.tags[key] then
+        for _, x in ipairs(B.list(B.findSpec(b))) do
+            if x ~= b and x.tags and x.tags[key] then
+                x.tags[key] = nil
+                if not next(x.tags) then x.tags = nil end
+                TK.log("'%s' untagged %s (moved to '%s')", x.name, name, b.name)
+                TK.chat(("%s moved from |cffffffff%s|r to |cffffffff%s|r."):format(name, x.name, b.name))
+            end
+        end
+    end
     b.tags[key] = not b.tags[key] and name or nil
     TK.log("'%s' %s %s", b.name, b.tags[key] and "tagged for" or "untagged", name)
     if not next(b.tags) then b.tags = nil end

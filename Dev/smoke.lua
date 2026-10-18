@@ -477,6 +477,11 @@ ok(tb.tags and tb.tags["zone:501"] == "Dungeon A", "tag from the offer: " .. tos
 UnitClass = function() return "Warlock", "WARLOCK", 9 end
 GetNumSpecializationsForClassID = function() return 3 end
 GetInstanceInfo = function() return "Dungeon A", "party", 23, nil, nil, nil, nil, 501 end
+local other = B.list(267)[2]
+B.toggleTag(tb, "zone:9", "D9")
+B.toggleTag(other, "zone:9", "D9")
+ok(other.tags["zone:9"] and not (tb.tags and tb.tags["zone:9"]) and said("D9 moved from"), "a tag moves: one build per spec per situation")
+other.tags = nil
 local mp = B.add(265, { name = "Aff M+", text = "SPEC:265:1111", tags = { mplus = "Mythic+" } })
 local hits = B.forHere(B.here())
 ok(#hits == 1 and hits[1].b == tb, "zone-in: builds tagged for this instance win over content tags")
