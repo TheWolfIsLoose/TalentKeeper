@@ -247,6 +247,12 @@ local currencyInfo = C_Traits.GetTreeCurrencyInfo
 C_Traits.GetTreeCurrencyInfo = function() return { { traitCurrencyID = 1, quantity = 4 } } end
 B.saveCurrent("short")
 ok(said("left to spend") and not (function() for _, x in ipairs(B.list(267)) do if x.name == "short" then return true end end end)(), "won't save with points left to spend")
+C_Traits.GetTreeCurrencyInfo = function() return { { traitCurrencyID = 1, quantity = 0 }, { traitCurrencyID = 2, quantity = 0 }, { traitCurrencyID = 9, quantity = 0 }, { traitCurrencyID = 8, quantity = 10 } } end
+local subInfo, activeHero = C_Traits.GetSubTreeInfo, C_ClassTalents.GetActiveHeroTalentSpec
+C_Traits.GetSubTreeInfo = function() return { traitCurrencyID = 9 } end
+C_ClassTalents.GetActiveHeroTalentSpec = function() return 1 end
+ok(not B.unspent(), "the other hero tree's unspent points don't block saving")
+C_Traits.GetSubTreeInfo, C_ClassTalents.GetActiveHeroTalentSpec = subInfo, activeHero
 C_Traits.GetTreeCurrencyInfo = currencyInfo
 
 -- in place on a small simulated tree: only differences change, apex ranks add up, hero kept

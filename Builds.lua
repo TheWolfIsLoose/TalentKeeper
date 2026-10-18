@@ -103,11 +103,18 @@ function B.unsaved()
     return cfg and C_Traits.ConfigHasStagedChanges and C_Traits.ConfigHasStagedChanges(cfg) or false
 end
 -- Points left to spend (saving then would save a build short of points, which can't be applied).
+-- Class, spec and the hero tree you have on: the other hero tree's points always sit unspent.
 function B.unspent()
     local cfg = C_ClassTalents.GetActiveConfigID()
     local treeID = cfg and C_ClassTalents.GetTraitTreeForSpec(B.specID())
-    for _, c in ipairs(treeID and C_Traits.GetTreeCurrencyInfo(cfg, treeID, false) or {}) do
-        if (c.quantity or 0) > 0 then return true end
+    local hero = C_ClassTalents.GetActiveHeroTalentSpec and C_ClassTalents.GetActiveHeroTalentSpec()
+    local heroInfo = hero and C_Traits.GetSubTreeInfo(cfg, hero)
+    local heroCurrency = heroInfo and heroInfo.traitCurrencyID
+    for i, c in ipairs(treeID and C_Traits.GetTreeCurrencyInfo(cfg, treeID, false) or {}) do
+        if (i <= 2 or c.traitCurrencyID == heroCurrency) and (c.quantity or 0) > 0 then
+            TK.log("unspent: currency %s has %d", tostring(c.traitCurrencyID), c.quantity)
+            return true
+        end
     end
     return false
 end
