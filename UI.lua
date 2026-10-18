@@ -234,6 +234,8 @@ local function seasonDungeons()
     return out
 end
 
+UI.seasonRaids, UI.seasonDungeons = seasonRaids, seasonDungeons
+
 local CONTENT = { { key = "raid", name = "Raid" }, { key = "mplus", name = "Mythic+" }, { key = "delve", name = "Delves" } }
 
 local function tagBox(parent, b, s, label)
@@ -272,110 +274,8 @@ function UI.offerTags(b)
     end)
 end
 
--- Tidy up: one menu of proposals for a main build's family; each click acts, then it reopens.
-function UI.tidy(main)
-    local function again(next) C_Timer.After(0, TK.safe(function() UI.tidy(next or main) end)) return MenuResponse.CloseAll end
-    MenuUtil.CreateContextMenu(UIParent, function(_, root)
-        local plan = B.tidyPlan(main)
-        local C = TK.compare
-        root:CreateTitle("Tidy up " .. main.name)
-        local any = false
-        if plan.center then
-            any = true
-            local c = plan.center
-            root:CreateButton(("Make |cffffffff%s|r the main build"):format(c.name), function() B.makeMain(c) return again(c) end)
-            root:CreateButton("|cff8c8c8c  closest to all the others; the rest become its swaps|r"):SetEnabled(false)
-        end
-        local center = plan.center or main
-        for _, f in ipairs(plan.far) do
-            any = true
-            root:CreateButton(("Make |cffffffff%s|r its own main build"):format(f.b.name), function() B.setMain(f.b, nil) return again(center) end)
-            root:CreateButton(("|cff8c8c8c  %d talents from %s|r"):format(f.n, center.name)):SetEnabled(false)
-        end
-        for _, m in ipairs(plan.merges) do
-            any = true
-            local how = #m.d == 0 and "same talents" or table.concat(C.describe(m.d, 2), ", ")
-            local sub = root:CreateButton(("Merge |cffffffff%s|r and |cffffffff%s|r |cff8c8c8c(%s)|r"):format(m.a.name, m.b.name, how))
-            sub:CreateTitle("Tags combine; keep whose talents?")
-            sub:CreateButton(m.a.name, function() B.merge(m.a, m.b) return again(center) end)
-            sub:CreateButton(m.b.name, function() B.merge(m.b, m.a) return again(center) end)
-        end
-        if not any then root:CreateButton("|cff98ff98Nothing to tidy.|r"):SetEnabled(false) end
-    end)
-end
-
--- Zone-in offer ------------------------------------------------------------------------------
--- Entering an instance: the builds you tagged for it (or its kind of content), across your
--- class's specs. Quiet when you already have one of this spec's on.
-local offer, offered
-local function offerFrame()
-    offer = CreateFrame("Frame", "TalentKeeperOffer", UIParent)
-    offer:SetWidth(280)
-    offer:SetPoint("TOP", 0, -150)
-    offer:SetFrameStrata("DIALOG")
-    offer:SetMovable(true); offer:EnableMouse(true); offer:RegisterForDrag("LeftButton")
-    offer:SetScript("OnDragStart", offer.StartMoving)
-    offer:SetScript("OnDragStop", offer.StopMovingOrSizing)
-    offer:SetClampedToScreen(true)
-    fill(offer, "BACKGROUND", 0.06, 0.06, 0.06, 0.97)
-    ring(offer, 0)
-    local mark = offer:CreateTexture(nil, "ARTWORK")
-    mark:SetSize(16, 16)
-    mark:SetPoint("TOPLEFT", 10, -9)
-    mark:SetTexture("Interface\\AddOns\\" .. addonName .. "\\icon.png")
-    offer.title = offer:CreateFontString(nil, "OVERLAY", "TalentKeeperFont")
-    offer.title:SetPoint("LEFT", mark, "RIGHT", 6, 0)
-    offer.close = button(offer, "Not now", 80, function() offer:Hide() end)
-    offer.close:SetPoint("BOTTOMRIGHT", -10, 10)
-    offer.rows = {}
-end
-
-function UI.offer(here, list)
-    if not offer then offerFrame() end
-    offer.title:SetText("Builds for " .. here.name)
-    for _, r in ipairs(offer.rows) do r:Hide() end
-    for i, x in ipairs(list) do
-        local r = offer.rows[i]
-        if not r then r = button(offer, "", 260, function(self) offer:Hide() B.apply(self.b) end) offer.rows[i] = r end
-        r.b = x.b
-        local mine = x.specID == B.specID()
-        r:SetText(mine and x.b.name or ("%s |cff8c8c8c(%s)|r"):format(x.b.name, B.specName(x.specID)))
-        r:SetEnabled(mine)
-        r:ClearAllPoints()
-        r:SetPoint("TOPLEFT", 10, -32 - (i - 1) * 28)
-        r:Show()
-    end
-    offer:SetHeight(32 + #list * 28 + 40)
-    offer:Show()
-end
-
-TK.on("PLAYER_ENTERING_WORLD", function()
-    C_Timer.After(2, TK.safe(function()
-        local here = B.here()
-        if not here then offered = nil return end
-        if offered == here.key then return end
-        offered = here.key
-        local list = B.forHere(here)
-        local names, current = {}, B.currentString()
-        local on
-        for _, x in ipairs(list) do
-            names[#names + 1] = x.b.name
-            local d = x.specID == B.specID() and TK.compare.diff(current, x.b.text)
-            if d and #d == 0 then on = x.b end
-        end
-        TK.log("zone-in %s (%s, %s, difficulty %s): %s%s", here.name, here.key, tostring(here.content), tostring(here.difficulty),
-            #names > 0 and table.concat(names, ", ") or "no tagged builds", on and (" — already on " .. on.name) or "")
-        if #list == 0 then return end
-        if on then return TK.chat(("You're on |cffffffff%s|r for %s."):format(on.name, here.name)) end
-        UI.offer(here, list)
-    end))
-end)
-
 -- What you can do with a build: in its submenu here and in the talent window's side pane.
 function UI.buildActions(entry, specID, b)
-    if not b.main and #B.variantsOf(specID, b.name) > 0 then
-        entry:CreateButton("Tidy up this build and its variants", function() C_Timer.After(0, TK.safe(function() UI.tidy(b) end)) end)
-    end
     local summary = UI.tagSummary(b)
     UI.tagEntries(entry:CreateButton("Tags" .. (summary and (": " .. summary) or "")), b)
     entry:CreateButton("Update to current talents", function() B.updateToCurrent(b) end)

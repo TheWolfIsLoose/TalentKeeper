@@ -428,27 +428,6 @@ ok(imp.main == "Base" and #imp.changes == 1 and imp.group == "M+", "an imported 
 B.setMain(imp, nil)
 ok(imp.main == nil and imp.changes == nil, "and a main build again")
 B.delete(267, imp) B.delete(267, base)
--- Tidy up: main far from the rest, one far build, two a talent apart (digits = picks per node)
-local tm = B.add(265, { name = "TM", text = "SPEC:265:0000", group = "M+", tags = { mplus = "Mythic+" } })
-local t1 = B.add(265, { name = "T1", text = "SPEC:265:1110" , tags = { ["zone:1"] = "D1" } })
-local t2 = B.add(265, { name = "T2", text = "SPEC:265:1111", tags = { ["zone:2"] = "D2" } })
-local t3 = B.add(265, { name = "T3", text = "SPEC:265:1120" })
-for _, x in ipairs({ t1, t2, t3 }) do B.setMain(x, tm) end
-TK.compare.NEAR = 2
-local plan = B.tidyPlan(tm)
-ok(plan.center == t1, "closest build proposed as main: " .. tostring(plan.center and plan.center.name))
-B.makeMain(t1)
-ok(not t1.main and tm.main == "T1" and t2.main == "T1" and t3.main == "T1" and t1.group == "M+", "rebased onto the closest build")
-ok(#tm.changes == 3 and #t2.changes == 1, "swaps recomputed from the new main build")
-plan = B.tidyPlan(t1)
-ok(#plan.far == 1 and plan.far[1].b == tm, "far build offered as its own main build")
-ok(#plan.merges == 2, "builds a talent apart offered as merges: " .. #plan.merges)
-B.merge(t1, t2)
-ok(t1.tags["zone:2"] == "D2" and t1.tags["zone:1"] == "D1", "merge combines tags")
-B.merge(t3, t1)
-ok(not t3.main and tm.main == "T3" and t3.tags["zone:2"] == "D2", "keeping a variant over the main build makes it the main")
-TK.compare.NEAR = 6
-for _, x in ipairs({ tm, t3 }) do B.delete(265, x) end
 section("main builds and variants")
 
 local mb = B.list(267)[1]
@@ -490,5 +469,50 @@ hits = B.forHere(B.here())
 ok(#hits == 1 and hits[1].b == mp and hits[1].specID == 265, "zone-in: else builds for its kind of content, any spec")
 B.delete(265, mp)
 section("tags")
+
+-- Tidy up planner (pure: picks given directly)
+local T = TK.tidy
+local places = T.places({ { key = "zone:1", name = "Murder Row", kind = "dungeon" }, { key = "zone:2", name = "Altar of Fangs", kind = "dungeon" },
+    { key = "boss:3", name = "Kith'ix", kind = "boss" }, { key = "boss:4", name = "Nymora the Shrouded", kind = "boss" } })
+local function P(n, extra) local p = {} for i = 1, n do p[i] = "0:0" end for k, v in pairs(extra or {}) do p[k] = v end return p end
+local far = P(20) for i = 21, 28 do far[i] = "0:0" end for i = 1, 8 do far[i] = nil end
+local input = {
+    { id = 1, name = "M+ Baseline", hero = "Soul Harvester", picks = P(20) },
+    { id = 2, name = "Altar", hero = "Soul Harvester", picks = P(20, { [30] = "0:0" }) },
+    { id = 3, name = "copy", hero = "Soul Harvester", picks = P(20) },
+    { id = 4, name = "KITHIX", hero = "Soul Harvester", picks = far },
+    { id = 5, name = "Raid ST", hero = "Hellcaller", picks = P(20) },
+    { id = 6, name = "Imported 8", hero = "Soul Harvester", picks = P(20, { [31] = "0:0" }) },
+    { id = 7, name = "MR aoe", hero = "Soul Harvester", picks = P(20, { [32] = "0:0", [33] = "0:0" }), tags = { mplus = "Mythic+" } },
+}
+local plan = T.plan(input, places)
+local function find(id) for _, e in ipairs(plan.cores) do for _, m in ipairs(e.members) do if m.id == id then return e, m end end end end
+local e1, m1 = find(1)
+ok(m1.action == "core" and e1.name == "Soul Harvester M+", "core named from hero tree and names: " .. tostring(e1.name))
+ok(select(2, find(3)).action == "merge" and select(2, find(6)).action == "merge", "copies and nameless near-copies merge")
+local _, m2 = find(2)
+ok(m2.action == "swap" and m2.tags["zone:2"] == "Altar of Fangs", "'Altar' read as Altar of Fangs, kept as a swap")
+local _, m7 = find(7)
+ok(m7.action == "swap" and m7.tags["zone:1"] == "Murder Row" and m7.tags.mplus == "Mythic+", "'MR' read as Murder Row; its own tag kept")
+ok(not m1.tags.mplus, "Mythic+ stays with the one build tagged for it")
+local e4, m4 = find(4)
+ok(m4.action == "core" and e4 ~= e1 and m4.tags["boss:3"] == "Kith'ix", "far build is its own core; 'KITHIX' read as Kith'ix")
+local e5 = find(5)
+ok(e5.name == "Hellcaller Raid ST" and e5.group == "Raid", "other hero tree never combined: " .. e5.name)
+ok(T.read("Nym", places).places[1].place.key == "boss:4", "'Nym' read as the start of a boss name")
+ok(plan.counts.cores == 3 and plan.counts.swaps == 2 and plan.counts.merges == 2, "counts")
+local before265 = #B.list(265)
+B.add(265, { name = "Altar", text = "SPEC:265:1101" })
+B.add(265, { name = "copy", text = "SPEC:265:1100" })
+B.add(265, { name = "copy2", text = "SPEC:265:1100 " })
+local n265 = #B.list(265)
+T.show(265)
+local p265 = TK.db.tidy[265].plan
+ok(p265 and TK.db.tidy[265].input[1].picks, "plan and its input kept in saved data")
+T.apply(265, p265)
+ok(#B.list(265) == n265 - p265.counts.merges and said("Tidied Affliction"), "applied: merged builds gone")
+T.undo(265)
+ok(#B.list(265) == n265 and said("Put Affliction"), "undo puts the builds back")
+section("tidy up planner")
 
 print_("smoke: all passed")

@@ -258,63 +258,7 @@ function B.setMain(b, main)
     TK.changed()
 end
 
--- Tidy up a main build's family ---------------------------------------------------------------
--- Every build stays a real, saved build (nothing is synthesized, so nothing can break the
--- tree's rules): the build closest to all the others becomes the main build, builds far from
--- it become main builds of their own, and builds a talent apart can merge (tags combine).
-local MERGE = 1 -- talents apart or fewer: offered as a merge
-function B.family(main)
-    local specID = B.findSpec(main)
-    return { main, unpack(B.variantsOf(specID, main.name)) }, specID
-end
-
-function B.tidyPlan(main)
-    local fam = B.family(main)
-    local C = TK.compare
-    local function apart(a, b) local d = C.diff(a.text, b.text) return d and #d or 99, d end
-    local center, best = main, nil
-    for _, x in ipairs(fam) do
-        local sum = 0
-        for _, y in ipairs(fam) do sum = sum + apart(x, y) end
-        if not best or sum < best or (sum == best and x == main) then center, best = x, sum end
-    end
-    local plan = { center = center ~= main and center or nil, far = {}, merges = {} }
-    local near = {}
-    for _, x in ipairs(fam) do
-        local n = apart(center, x)
-        if n > TK.compare.NEAR then plan.far[#plan.far + 1] = { b = x, n = n } else near[#near + 1] = x end
-    end
-    for i = 1, #near do
-        for j = i + 1, #near do
-            local n, d = apart(near[i], near[j])
-            if n <= MERGE then plan.merges[#plan.merges + 1] = { a = near[i], b = near[j], d = d } end
-        end
-    end
-    return plan
-end
-
--- Make b the main build of its family (the old main build becomes one of its variants).
-function B.makeMain(b)
-    local specID = B.findSpec(b)
-    local old = b.main and find(B.list(specID), b.main)
-    if not old then return end
-    B.setMain(b, nil)
-    b.group = old.group
-    B.setMain(old, b)
-end
-
--- Keep one build of two; the other's tags and swaps move onto it, then it's deleted.
-function B.merge(keep, drop)
-    local specID = B.findSpec(keep)
-    if not drop.main and keep.main == drop.name then B.makeMain(keep) end -- dropping the main build
-    for k, v in pairs(drop.tags or {}) do keep.tags = keep.tags or {} keep.tags[k] = keep.tags[k] or v end
-    keep.gear = keep.gear or drop.gear
-    local wasActive = TK.db.active[specID] == drop.name
-    TK.log("merged '%s' into '%s'", drop.name, keep.name)
-    B.delete(specID, drop)
-    if wasActive then TK.db.active[specID] = keep.name end
-    TK.changed()
-end
+B.changesFrom = changesFrom
 
 -- Save your current talents as a variant of a main build (variants of variants hang off the main).
 function B.saveVariant(main, name)

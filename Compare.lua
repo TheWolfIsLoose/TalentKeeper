@@ -7,7 +7,6 @@ local C = {}
 TK.compare = C
 
 local NEAR = 6 -- builds this many talents apart or fewer count as near matches
-C.NEAR = NEAR
 
 -- Tree data for every class, so builds for specs and classes you aren't on read too.
 local LTT = LibStub and LibStub("LibTalentTree-1.0", true)

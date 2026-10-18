@@ -59,7 +59,9 @@ out the overlap.
    hard to read); applying becomes an explicit action. Keep the green glow
    for talents the build takes; find an equally clear look for talents it
    drops.
-4. **Tidy up as the addon's job.** One clearly explained pass that a new
+4. **Tidy up as the addon's job.** *(First version in testing, 2026-10-18:
+   Tidy up in the pane's header plans the whole spec on one screen; the
+   plan and its input are kept in saved data for tuning; /tk undo.)* One clearly explained pass that a new
    player can press and trust: group a spec's builds into a few core builds
    (hero tree as a hard split, then talent distance), keep the closest real
    build of each group as its core, turn the rest into swaps or merge
