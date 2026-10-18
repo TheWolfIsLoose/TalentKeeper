@@ -21,6 +21,9 @@ local function Frame()
     return setmetatable(f, { __index = function(t, k)
         if k == "SetScript" then return function(self, n, fn) self.scripts[n] = fn end end
         if k == "RegisterEvent" then return function(self, e) self.events[e] = true end end
+        if k == "GetHeight" then return function() return 400 end end
+        if k == "GetFrameLevel" or k == "GetWidth" then return function() return 10 end end
+        if k == "IsShown" or k == "IsVisible" then return function() return true end end
         if k:match("^Create") then return function() return Frame() end end
         return function() return Stub end
     end })
@@ -48,7 +51,8 @@ local function runTimers() local t = timers; timers = {}; for _, fn in ipairs(t)
 C_AddOns = { GetAddOnMetadata = function() return "@project-version@" end, LoadAddOn = function() end }
 UISpecialFrames = {}
 SlashCmdList = {}
-EventUtil = { ContinueOnAddOnLoaded = function() end }
+local onSpells = {}
+EventUtil = { ContinueOnAddOnLoaded = function(_, fn) onSpells[#onSpells + 1] = fn end }
 InCombatLockdown = function() return false end
 GetNumClasses = function() return 1 end
 GetClassInfo = function() return "Warlock", "WARLOCK", 9 end
@@ -361,7 +365,6 @@ SlashCmdList.TALENTKEEPER("")
 ok(menuGen, "menu opens")
 section("slash commands")
 
-local calls = {}
 local function Desc(label)
     local d = { label = label, children = {} }
     local function add(kind) return function(self, text, ...) local c = Desc(text) c.kind = kind c.args = { ... } table.insert(self.children, c) return c end end
@@ -371,64 +374,28 @@ local function Desc(label)
     d.AddInitializer = function(self, fn) self.init = fn end
     return d
 end
+local function labelsOf(d) local t = {} for _, c in ipairs(d.children) do t[#t + 1] = c.kind .. ":" .. tostring(c.label) end return table.concat(t, ",") end
 local root = Desc("root")
 menuGen(nil, root)
-local labels = {}
-for _, c in ipairs(root.children) do labels[#labels + 1] = c.kind .. ":" .. tostring(c.label) end
-local flat = table.concat(labels, ",")
+local flat = labelsOf(root)
 ok(flat:find("title:TalentKeeper: Destruction"), "title names the spec")
-ok(flat:find("radio:Solo,") and flat:find("button:Raid,"), "ungrouped builds and the group submenu: " .. flat)
-ok(flat:find("button:Save current talents") and flat:find("button:Import a talent string"), "save and import entries")
-local raid
-for _, c in ipairs(root.children) do if c.label == "Raid" then raid = c end end
-ok(#raid.children == 2 and raid.children[1].kind == "radio", "group holds its builds")
-local sub, del = {}, nil
-for _, c in ipairs(raid.children[1].children) do sub[#sub + 1] = tostring(c.label); if c.label == "Delete" then del = c end end
-sub = table.concat(sub, ",")
-ok(del and sub:find("Rename") and sub:find("Copy talent string"), "build submenu: rename, copy, delete: " .. sub)
-ok(sub:find("Differs from your current talents by 1"), "submenu says how it differs from current talents")
-local tagsMenu
-for _, c in ipairs(raid.children[1].children) do if tostring(c.label):find("^Tags") then tagsMenu = c end end
-local tl = {}
-local function walk(d) for _, c in ipairs(d.children) do tl[#tl + 1] = c.kind .. ":" .. tostring(c.label) walk(c) end end
-walk(tagsMenu)
-tl = table.concat(tl, ",")
-ok(tl:find("checkbox:Dungeon A |cff8c8c8c%(here%)|r") and tl:find("checkbox:Mythic%+") and tl:find("button:Mythic%+ dungeons")
-    and tl:find("button:Raid A,checkbox:Whole raid,checkbox:Boss A"), "tags menu: here, content, dungeons, raid bosses: " .. tl)
-local before = #B.list(267)
-ok(del.args[1]() == MenuResponse.Refresh, "first delete click arms")
-ok(del.args[1]() == MenuResponse.CloseAll and #B.list(267) == before - 1, "second click deletes")
+ok(flat:find("title:Raid,radio:HC Cleave") and flat:find("radio:Solo"), "quick menu is flat: group titles, builds as radios: " .. flat)
+for _, c in ipairs(root.children) do ok(#c.children == 0, "no submenus in the quick menu: " .. tostring(c.label)) end
+local applied
+local realApply = B.apply
+B.apply = function(b) applied = b end
+for _, c in ipairs(root.children) do if c.label == "Solo" then c.args[2]() end end
+B.apply = realApply
+ok(applied and applied.name == "Solo", "clicking a build in the quick menu applies it")
+local tm = Desc("root")
+TK.ui.tagEntries(tm, B.list(267)[1])
+local tl = labelsOf(tm)
+ok(tl:find("checkbox:Dungeon A |cff8c8c8c%(here%)|r") and tl:find("checkbox:Mythic%+") and tl:find("title:Mythic%+ dungeons")
+    and tl:find("title:Raid A,checkbox:Whole raid,checkbox:Boss A"), "tag list is flat: here, content, dungeons, raid bosses: " .. tl)
+for _, c in ipairs(tm.children) do ok(#c.children == 0, "no submenus in the tag list") end
 section("menu")
 
--- Main builds and variants
 local function setCurrent(p) C_Traits.GenerateImportString = function() return "SPEC:267:" .. p end end
-local main = B.add(267, { name = "Main", text = "SPEC:267:1200", group = "Raid" })
-setCurrent("1210")
-B.saveVariant(main, "Var")
-local var = B.list(267)[#B.list(267)]
-ok(var.main == "Main" and var.group == "Raid" and #var.changes == 1, "variant saved with its changes and group")
-ok(TK.compare.write(267, TK.compare.picks("SPEC:267:1200")) == "SPEC:267:1200", "writer round-trips")
-setCurrent("0200")
-B.updateToCurrent(main)
-ok(main.text == "SPEC:267:0200" and var.text == "SPEC:267:0210" and not var.needsReview, "variant follows its main build")
-setCurrent("0210")
-B.updateToCurrent(main)
-ok(var.needsReview, "variant needs review when the main build changes the same talent")
-B.rename(267, main, "Main2")
-ok(var.main == "Main2", "variant follows a renamed main build")
-B.setGroup(var, "M+")
-ok(main.group == "M+" and var.group == "M+", "moving a variant moves its whole family")
-B.delete(267, main)
-ok(var.main == nil and var.changes == nil, "variants become main builds when the main is deleted")
-setCurrent("1000")
-local base = B.add(267, { name = "Base", text = "SPEC:267:1200", group = "M+" })
-local imp = B.add(267, { name = "Imported", text = "SPEC:267:1210" })
-B.setMain(imp, base)
-ok(imp.main == "Base" and #imp.changes == 1 and imp.group == "M+", "an imported build becomes a variant of a main build")
-B.setMain(imp, nil)
-ok(imp.main == nil and imp.changes == nil, "and a main build again")
-B.delete(267, imp) B.delete(267, base)
-section("main builds and variants")
 
 local mb = B.list(267)[1]
 B.setGroup(mb, "  M+  ")
@@ -444,14 +411,10 @@ ok(TK.ui.tagSummary(tb) == "Boss A +1" and tb.tags.raid == "Raid", "tags saved a
 B.toggleTag(tb, "raid", "Raid")
 B.toggleTag(tb, "boss:3001", "Boss A")
 ok(tb.tags == nil and TK.ui.tagSummary(tb) == nil, "untagging clears tags")
-menuGen = nil
 setCurrent(tb.text:match("^SPEC:267:(.*)$"))
 B.saveCurrent("Again")
-ok(said("Same talents as |cffffffff" .. tb.name) and menuGen, "saving talents you have offers to tag that build")
-local offer = Desc("root")
-menuGen(nil, offer)
-ok(offer.children[1].label == "Tag " .. tb.name .. " for" and offer.children[2].kind == "checkbox", "tag offer menu")
-offer.children[2].args[2]()
+ok(said("Same talents as |cffffffff" .. tb.name) and TK.selected == tb, "saving talents you have selects that build")
+B.toggleTag(tb, "zone:501", "Dungeon A")
 ok(tb.tags and tb.tags["zone:501"] == "Dungeon A", "tag from the offer: " .. tostring(tb.tags and next(tb.tags)))
 UnitClass = function() return "Warlock", "WARLOCK", 9 end
 GetNumSpecializationsForClassID = function() return 3 end
@@ -470,70 +433,50 @@ ok(#hits == 1 and hits[1].b == mp and hits[1].specID == 265, "zone-in: else buil
 B.delete(265, mp)
 section("tags")
 
--- Tidy up planner (pure: picks given directly)
-local T = TK.tidy
-local places = T.places({ { key = "zone:1", name = "Murder Row", kind = "dungeon" }, { key = "zone:2", name = "Altar of Fangs", kind = "dungeon" },
-    { key = "boss:3", name = "Kith'ix", kind = "boss" }, { key = "boss:4", name = "Nymora the Shrouded", kind = "boss" } })
-local function P(n, extra) local p = {} for i = 1, n do p[i] = "0:0" end for k, v in pairs(extra or {}) do p[k] = v end return p end
-local far = P(20) for i = 21, 28 do far[i] = "0:0" end for i = 1, 8 do far[i] = nil end
-local input = {
-    { id = 1, name = "M+ Baseline", hero = "Soul Harvester", picks = P(20) },
-    { id = 2, name = "Altar", hero = "Soul Harvester", picks = P(20, { [30] = "0:0" }) },
-    { id = 3, name = "copy", hero = "Soul Harvester", picks = P(20) },
-    { id = 4, name = "KITHIX", hero = "Soul Harvester", picks = far },
-    { id = 5, name = "Raid ST", hero = "Hellcaller", picks = P(20) },
-    { id = 6, name = "Imported 8", hero = "Soul Harvester", picks = P(20, { [31] = "0:0" }) },
-    { id = 7, name = "MR aoe", hero = "Soul Harvester", picks = P(20, { [32] = "0:0", [33] = "0:0" }), tags = { mplus = "Mythic+" } },
-}
-local plan = T.plan(input, places)
-local function find(id) for _, e in ipairs(plan.cores) do for _, m in ipairs(e.members) do if m.id == id then return e, m end end end end
-local e1, m1 = find(1)
-ok(m1.action == "core" and e1.name == "Soul Harvester M+", "core named from hero tree and names: " .. tostring(e1.name))
-ok(select(2, find(3)).action == "merge" and select(2, find(6)).action == "merge", "copies and nameless near-copies merge")
-local _, m2 = find(2)
-ok(m2.action == "swap" and m2.tags["zone:2"] == "Altar of Fangs", "'Altar' read as Altar of Fangs, kept as a swap")
-local _, m7 = find(7)
-ok(m7.action == "swap" and m7.tags["zone:1"] == "Murder Row" and m7.tags.mplus == "Mythic+", "'MR' read as Murder Row; its own tag kept")
-ok(not m1.tags.mplus, "Mythic+ stays with the one build tagged for it")
-local e4, m4 = find(4)
-ok(m4.action == "core" and e4 ~= e1 and m4.tags["boss:3"] == "Kith'ix", "far build is its own core; 'KITHIX' read as Kith'ix")
-local e5 = find(5)
-ok(e5.name == "Hellcaller Raid ST" and e5.group == "Raid", "other hero tree never combined: " .. e5.name)
-ok(T.read("Nym", places).places[1].place.key == "boss:4", "'Nym' read as the start of a boss name")
-ok(plan.counts.cores == 3 and plan.counts.swaps == 2 and plan.counts.merges == 2, "counts")
-local before265 = #B.list(265)
-B.add(265, { name = "Altar", text = "SPEC:265:1101" })
-B.add(265, { name = "copy", text = "SPEC:265:1100" })
-B.add(265, { name = "copy2", text = "SPEC:265:1100 " })
-local n265 = #B.list(265)
-T.show(265)
-local p265 = TK.db.tidy[265].plan
-ok(p265 and TK.db.tidy[265].input[1].picks, "plan and its input kept in saved data")
-T.apply(265, p265)
-ok(#B.list(265) == n265 - p265.counts.merges and said("Tidied Affliction"), "applied: merged builds gone")
-T.undo(265)
-ok(#B.list(265) == n265 and said("Put Affliction"), "undo puts the builds back")
--- "Altar": boss or dungeon, decided by the build's neighbours
-local pl2 = T.places({ { key = "zone:2", name = "Altar of Fangs", kind = "dungeon" }, { key = "boss:8", name = "The Coiled Altar", kind = "boss" } })
-local plan2 = T.plan({
-    { id = 1, name = "Altar", hero = "H", picks = P(20) },
-    { id = 2, name = "Raid ST", hero = "H", picks = P(20, { [40] = "0:0" }), tags = { raid = "Raid" } },
-}, pl2)
-local _, alt = (function() for _, e in ipairs(plan2.cores) do for _, m in ipairs(e.members) do if m.id == 1 then return e, m end end end end)()
-local holderTags = {}
-for _, e in ipairs(plan2.cores) do for _, m in ipairs(e.members) do for k in pairs(m.tags) do holderTags[k] = true end end end
-ok(holderTags["boss:8"] and not holderTags["zone:2"], "'Altar' next to a raid build is the raid boss")
--- fill up from a registered source
-TK.sources.Test = function(spec) return { { name = "Src all", text = "SPEC:265:1110", tags = { mplus = "Mythic+" } },
-    { name = "Src MR", text = "SPEC:265:1110", tags = { ["zone:1"] = "Murder Row" } } } end
-local before = #B.list(265)
-T.fill(265)
-local got
-for _, b in ipairs(B.list(265)) do if b.name == "Src all" then got = b end end
-ok(got and got.group == "Test" and got.tags.mplus and got.tags["zone:1"] and #B.list(265) == before + 1, "fill up: same talents fold their tags into one build")
-T.undo(265)
-ok(#B.list(265) == before, "undo after fill up")
-TK.sources.Test = nil
-section("tidy up planner")
+-- groups: save into a group, rename it, delete it with its builds
+setCurrent("2222")
+B.saveCurrent("Grouped", "Lab")
+local gb = B.list(267)[#B.list(267)]
+ok(gb.group == "Lab" and TK.selected == gb, "save current goes into the chosen group and is selected")
+B.importString("SPEC:267:2223", "Imp", "Lab")
+ok(B.list(267)[#B.list(267)].group == "Lab", "import goes into the chosen group")
+B.renameGroup(267, "Lab", "Test")
+ok(gb.group == "Test", "group renamed")
+local n0 = #B.list(267)
+B.deleteGroup(267, "Test")
+ok(#B.list(267) == n0 - 2, "group deleted with its builds")
+-- old saved data: variant and gear fields are dropped once
+TalentKeeperDB.plainBuilds = nil
+TalentKeeperDB.tidy = {}
+B.list(267)[1].main, B.list(267)[1].gear = "x", "y"
+fire("ADDON_LOADED", "TalentKeeper")
+ok(B.list(267)[1].main == nil and B.list(267)[1].gear == nil and TalentKeeperDB.tidy == nil, "old variant / gear / tidy data cleared")
+section("groups and old data")
+
+-- the side pane: rows, click to select (preview), the panel's buttons, the save / import dialog
+PlayerSpellsFrame = Frame()
+PlayerSpellsFrame.TalentsFrame = Frame()
+PlayerSpellsFrame.TalentsFrame.GetTalentButtonByNodeID = function() return nil end
+PlayerSpellsFrame.TalentsFrame.HeroTalentsContainer = false
+GetNumSpecializations, GetSpecialization = function() return 3 end, function() return 3 end
+GetSpecializationInfo = function(i) return 264 + i, "Spec" .. i, nil, 1 end
+for _, fn in ipairs(onSpells) do fn() end
+local before = #frames
+local tfShow = PlayerSpellsFrame.TalentsFrame.scripts
+TK.selected = nil
+TK.window.refresh() -- pane hidden until the talent window shows: nothing to draw yet
+local function rowsNow() local out = {} for _, f in ipairs(frames) do if f.scripts.OnDoubleClick then out[#out + 1] = f end end return out end
+-- show it: HookScript is a stub, so call the refresh the hook would
+TK.window.refresh()
+local rs = rowsNow()
+ok(#rs > 0, "pane draws build rows: " .. #rs)
+rawset(rs[1], "dragged", false)
+rs[1].scripts.OnClick(rs[1], "LeftButton")
+ok(TK.selected == rs[1].b, "click selects a build")
+rs[1].scripts.OnClick(rs[1], "LeftButton")
+ok(TK.selected == nil, "click again clears the selection")
+TK.ui.buildDialog(true)
+TK.ui.buildDialog(false)
+section("side pane and dialog")
 
 print_("smoke: all passed")

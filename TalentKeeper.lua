@@ -3,7 +3,6 @@ local addonName, TK = ...
 _G[addonName] = TK
 
 TK.commands = {}  -- /tk <sub> handlers, filled by other files
-TK.sources = {}   -- build sources other addons register: [name] = function(specID) return { { name, text, tags }, ... } end
 
 -- Saved builds changed: lets an open window redraw.
 function TK.changed() if TK.onChange then TK.onChange() end end
@@ -64,6 +63,13 @@ TK.on("ADDON_LOADED", function(name)
     if db.freeNodeFix ~= 2 then -- 2: also marks left by checking a build after another was applied
         for _, list in pairs(db.builds) do for _, b in ipairs(list) do b.outdated = nil end end
         db.freeNodeFix = 2
+    end
+    -- Variants, gear sets and tidy-up data are gone: every build is a plain build now.
+    if not db.plainBuilds then
+        for _, list in pairs(db.builds) do
+            for _, b in ipairs(list) do b.main, b.changes, b.needsReview, b.gear = nil, nil, nil, nil end
+        end
+        db.tidy, db.undo, db.plainBuilds = nil, nil, true
     end
     local version = C_AddOns.GetAddOnMetadata(addonName, "Version")
     if TK.build then version = "dev " .. TK.build elseif version:find("@") then version = "dev" else version = "v" .. version end

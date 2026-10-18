@@ -1,5 +1,5 @@
--- TalentKeeper UI: fonts, the button by Blizzard's loadout dropdown, the build menu,
--- and one small text window (name a build, paste / copy a string, read the log).
+-- TalentKeeper UI: fonts, buttons, the save / import dialog, the tag and group menus, the
+-- quick build menu (key binding, /tk), and one small text window (copy a string, read the log).
 local addonName, TK = ...
 local B = TK.builds
 local UI = {}
@@ -134,70 +134,108 @@ function UI.textWindow(opts)
     if opts.readOnly then win.edit:SetCursorPosition(#win.fixedText) win.edit:HighlightText() end
 end
 
--- Build menu ---------------------------------------------------------------------------
-local armed -- the build whose Delete was clicked once (second click within 3 s deletes)
-
--- How a build differs from the talents you have now, as the top of its submenu.
-local function diffLines(entry, current, b)
-    local C = TK.compare
-    local d = current and C.diff(current, b.text)
-    if not d then return end
-    local hero = C.heroName(b.text)
-    if hero then entry:CreateTitle(hero) end
-    if #d == 0 then
-        entry:CreateTitle("|cff98ff98Matches your current talents|r")
-    else
-        entry:CreateTitle(("Differs from your current talents by %d:"):format(#d))
-        for _, line in ipairs(C.describe(d, 8)) do
-            entry:CreateButton("|cffbdbdbd" .. line .. "|r"):SetEnabled(false)
-        end
-    end
-    if b.outdated then
-        entry:CreateButton(("|cffffb84dOutdated: %d talent%s no longer fit your tree|r"):format(b.outdated, b.outdated == 1 and "" or "s")):SetEnabled(false)
-    end
-    entry:CreateDivider()
+-- Save / import dialog -----------------------------------------------------------------
+-- One step: the talent string (import only), the build's name and its group.
+local dlg
+local function editBox(parent, multi)
+    local box = CreateFrame("Frame", nil, parent)
+    box:SetHeight(24)
+    fill(box, "BACKGROUND", 1, 1, 1, 0.08)
+    local setRing = ring(box, 0.4)
+    local e = CreateFrame("EditBox", nil, box)
+    e:SetFontObject(ChatFontNormal)
+    e:SetAutoFocus(false)
+    e:SetMultiLine(multi or false)
+    e:SetPoint("TOPLEFT", 6, -4); e:SetPoint("BOTTOMRIGHT", -6, 4)
+    e:SetScript("OnEditFocusGained", function() setRing(0.596) end)
+    e:SetScript("OnEditFocusLost", function() setRing(0.4) end)
+    e:SetScript("OnEscapePressed", function(self) self:ClearFocus() dlg:Hide() end)
+    e:SetScript("OnTabPressed", function(self) if self.next then self.next:SetFocus() end end)
+    box:SetScript("OnMouseDown", function() e:SetFocus() end)
+    box.edit = e
+    return box
 end
 
-local function label(list, b)
-    local text = b.main and ("|cff8c8c8c·|r " .. b.name) or b.name
-    local same = TK.compare.sameAsEarlier(list, b)
-    if same then text = text .. "  |cff8c8c8csame as " .. same.name .. "|r" end
-    if b.outdated then text = text .. "  |cffffb84dOutdated|r" end
-    if b.needsReview then text = text .. "  |cffffb84dNeeds review|r" end
-    return text
+local function caption(parent, text, anchor)
+    local fs = parent:CreateFontString(nil, "OVERLAY", "TalentKeeperFontSmall")
+    fs:SetTextColor(0.55, 0.55, 0.55)
+    fs:SetText(text)
+    fs:SetPoint("BOTTOMLEFT", anchor, "TOPLEFT", 0, 3)
+    return fs
 end
 
--- Gear set picker: the player's Blizzard equipment sets, or none.
-function UI.gearMenu(parent, b, flat)
-    local sub = flat and parent or parent:CreateButton("Gear set" .. (b.gear and (": " .. b.gear) or ""))
-    sub:CreateRadio("None", function() return b.gear == nil end, function() B.setGear(b, nil) end)
-    for _, id in ipairs(C_EquipmentSet and C_EquipmentSet.GetEquipmentSetIDs() or {}) do
-        local name = C_EquipmentSet.GetEquipmentSetInfo(id)
-        if name then sub:CreateRadio(name, function() return b.gear == name end, function() B.setGear(b, name) end) end
+local function makeDialog()
+    dlg = CreateFrame("Frame", "TalentKeeperBuildDialog", UIParent)
+    dlg:SetWidth(380)
+    dlg:SetPoint("CENTER")
+    dlg:SetFrameStrata("DIALOG")
+    dlg:SetMovable(true); dlg:EnableMouse(true); dlg:RegisterForDrag("LeftButton")
+    dlg:SetScript("OnDragStart", dlg.StartMoving)
+    dlg:SetScript("OnDragStop", dlg.StopMovingOrSizing)
+    dlg:SetClampedToScreen(true)
+    fill(dlg, "BACKGROUND", 0.031, 0.031, 0.031, 0.97)
+    ring(dlg, 0)
+    tinsert(UISpecialFrames, dlg:GetName())
+    dlg.title = dlg:CreateFontString(nil, "OVERLAY", "TalentKeeperFontLarge")
+    dlg.title:SetPoint("TOPLEFT", 12, -10)
+    dlg.text = editBox(dlg, true)
+    dlg.text:SetHeight(64)
+    dlg.text:SetPoint("TOPLEFT", 12, -54); dlg.text:SetPoint("TOPRIGHT", -12, -54)
+    dlg.textCap = caption(dlg, "Talent string", dlg.text)
+    dlg.name = editBox(dlg)
+    dlg.nameCap = caption(dlg, "Name", dlg.name)
+    dlg.group = editBox(dlg)
+    dlg.group:SetPoint("TOPLEFT", dlg.name, "BOTTOMLEFT", 0, -22)
+    dlg.group:SetPoint("TOPRIGHT", dlg.name, "BOTTOMRIGHT", -30, -22)
+    caption(dlg, "Group (blank for none)", dlg.group)
+    dlg.pick = button(dlg, "...", 24, function(self)
+        MenuUtil.CreateContextMenu(self, function(_, root)
+            root:CreateButton("No group", function() dlg.group.edit:SetText("") end)
+            for _, g in ipairs(B.groups(B.specID())) do
+                root:CreateButton(g, function() dlg.group.edit:SetText(g) end)
+            end
+        end)
+    end)
+    dlg.pick:SetPoint("LEFT", dlg.group, "RIGHT", 6, 0)
+    dlg.text.edit.next, dlg.name.edit.next, dlg.group.edit.next = dlg.name.edit, dlg.group.edit, nil
+    dlg.cancel = button(dlg, "Cancel", 80, function() dlg:Hide() end)
+    dlg.cancel:SetPoint("BOTTOMRIGHT", -12, 12)
+    dlg.ok = button(dlg, "Save", 80, function()
+        local text, name, group = dlg.text.edit:GetText(), strtrim(dlg.name.edit:GetText()), strtrim(dlg.group.edit:GetText())
+        group = group ~= "" and group or nil
+        dlg:Hide()
+        TK.lastGroup = group
+        if dlg.import then B.importString(text, name, group) else B.saveCurrent(name, group) end
+    end)
+    dlg.ok:SetPoint("RIGHT", dlg.cancel, "LEFT", -8, 0)
+    for _, box in ipairs({ dlg.name, dlg.group }) do
+        box.edit:SetScript("OnEnterPressed", function() dlg.ok:Click() end)
     end
+    dlg:SetScript("OnHide", function() dlg.text.edit:ClearFocus() dlg.name.edit:ClearFocus() dlg.group.edit:ClearFocus() end)
 end
 
--- A variant's changes from its main build, by talent name.
-local function variantLines(entry, b)
-    if not b.main then return end
-    local n = b.changes and #b.changes or 0
-    entry:CreateTitle(("Variant of %s: %d change%s"):format(b.main, n, n == 1 and "" or "s"))
-    for _, line in ipairs(TK.compare.describe(b.changes or {}, 6)) do
-        entry:CreateButton("|cffbdbdbd" .. line .. "|r"):SetEnabled(false)
-    end
-    if b.needsReview then
-        entry:CreateButton("|cffffb84dNeeds review: its main build changed a talent this variant changes too|r"):SetEnabled(false)
-    end
-    entry:CreateDivider()
-end
-
-local function buildEntry(parent, specID, b, list, current)
-    local entry = parent:CreateRadio(label(list, b),
-        function() return TK.db.active[specID] == b.name end,
-        function() B.apply(b) return MenuResponse.Close end)
-    variantLines(entry, b)
-    diffLines(entry, current, b)
-    UI.buildActions(entry, specID, b)
+-- import = true: paste a string; otherwise save your current talents.
+function UI.buildDialog(import)
+    local specID = B.specID()
+    if not specID then return TK.chat("Pick a specialization first.") end
+    if not dlg then makeDialog() end
+    dlg.import = import
+    dlg.title:SetText(import and "Import a build" or "Save your current talents")
+    dlg.text:SetShown(import)
+    dlg.textCap:SetShown(import)
+    dlg.name:ClearAllPoints()
+    local top = import and -148 or -54
+    dlg.name:SetPoint("TOPLEFT", 12, top); dlg.name:SetPoint("TOPRIGHT", -12, top)
+    dlg:SetHeight(-top + 24 + 22 + 24 + 56)
+    dlg.text.edit:SetText("")
+    dlg.name.edit:SetText(import and "" or ("%s %d"):format(B.specName(specID), #B.list(specID) + 1))
+    local sel = TK.selected
+    dlg.group.edit:SetText((sel and sel.group) or TK.lastGroup or "")
+    dlg.ok:SetText(import and "Import" or "Save")
+    dlg:Show()
+    local first = import and dlg.text.edit or dlg.name.edit
+    first:SetFocus()
+    first:HighlightText()
 end
 
 -- Tags: the situations a build is for ----------------------------------------------------
@@ -247,136 +285,74 @@ local function tagBox(parent, b, s, label)
         function() B.toggleTag(b, s.key, s.name) end)
 end
 
-function UI.tagEntries(parent, b)
+-- One flat list: here, content, this season's dungeons, then each raid and its bosses.
+function UI.tagEntries(root, b)
     local here = B.here()
-    if here then tagBox(parent, b, here, here.name .. " |cff8c8c8c(here)|r") end
-    for _, s in ipairs(CONTENT) do tagBox(parent, b, s) end
+    if here then tagBox(root, b, here, here.name .. " |cff8c8c8c(here)|r") end
+    for _, s in ipairs(CONTENT) do tagBox(root, b, s) end
     local dungeons = seasonDungeons()
     if #dungeons > 0 then
-        local sub = parent:CreateButton("Mythic+ dungeons")
-        for _, s in ipairs(dungeons) do tagBox(sub, b, s) end
+        root:CreateTitle("Mythic+ dungeons")
+        for _, s in ipairs(dungeons) do tagBox(root, b, s) end
     end
     for _, raid in ipairs(seasonRaids()) do
-        local sub = parent:CreateButton(raid.name)
-        if raid.key then tagBox(sub, b, { key = raid.key, name = raid.name }, "Whole raid") end
-        for _, s in ipairs(raid.bosses) do tagBox(sub, b, s) end
+        root:CreateTitle(raid.name)
+        if raid.key then tagBox(root, b, { key = raid.key, name = raid.name }, "Whole raid") end
+        for _, s in ipairs(raid.bosses) do tagBox(root, b, s) end
     end
 end
 
--- "Tags: Raid +2"
+function UI.tagMenu(owner, b)
+    MenuUtil.CreateContextMenu(owner, function(_, root)
+        root:CreateTitle(b.name .. " is for")
+        UI.tagEntries(root, b)
+    end)
+end
+
+-- "Raid +2"
 function UI.tagSummary(b)
     local names = B.tagNames(b)
     if #names == 0 then return nil end
     return names[1] .. (#names > 1 and (" +" .. (#names - 1)) or "")
 end
 
--- After saving a build you already have: a menu to tag that build instead.
-function UI.offerTags(b)
-    MenuUtil.CreateContextMenu(UIParent, function(_, root)
-        root:CreateTitle("Tag " .. b.name .. " for")
-        UI.tagEntries(root, b)
+function UI.groupMenu(owner, specID, b)
+    MenuUtil.CreateContextMenu(owner, function(_, root)
+        root:CreateTitle("Move " .. b.name .. " to")
+        root:CreateRadio("No group", function() return not b.group end, function() B.setGroup(b, nil) end)
+        for _, g in ipairs(B.groups(specID)) do
+            root:CreateRadio(g, function() return b.group == g end, function() B.setGroup(b, g) end)
+        end
+        root:CreateButton("New group...", function()
+            UI.textWindow({ title = "New group for " .. b.name, singleLine = true, okText = "Move",
+                onOK = function(name) if strtrim(name) ~= "" then B.setGroup(b, name) end end })
+        end)
     end)
 end
 
--- What you can do with a build: in its submenu here and in the talent window's side pane.
-function UI.buildActions(entry, specID, b)
-    local summary = UI.tagSummary(b)
-    UI.tagEntries(entry:CreateButton("Tags" .. (summary and (": " .. summary) or "")), b)
-    entry:CreateButton("Update to current talents", function() B.updateToCurrent(b) end)
-    entry:CreateButton("Save current talents as a variant", function()
-        local main = b.main or b.name
-        UI.textWindow({ title = "Save variant of " .. main, singleLine = true, okText = "Save", text = main .. " variant",
-            onOK = function(name) B.saveVariant(b, name) end })
-    end)
-    local of = entry:CreateButton("Variant of" .. (b.main and (": " .. b.main) or ""))
-    of:CreateRadio("None (a main build)", function() return not b.main end, function() B.setMain(b, nil) end)
-    for _, x in ipairs(B.list(specID)) do
-        if x ~= b and not x.main then
-            of:CreateRadio(x.name, function() return b.main == x.name end, function() B.setMain(b, x) end)
-        end
-    end
-    UI.gearMenu(entry, b)
-    local move = entry:CreateButton("Group" .. (b.group and (": " .. b.group) or ""))
-    move:CreateRadio("No group", function() return not b.group end, function() B.setGroup(b, nil) end)
-    local seen = {}
-    for _, x in ipairs(B.list(specID)) do
-        if x.group and not seen[x.group] then
-            seen[x.group] = true
-            local g = x.group
-            move:CreateRadio(g, function() return b.group == g end, function() B.setGroup(b, g) end)
-        end
-    end
-    move:CreateButton("New group...", function()
-        UI.textWindow({ title = "New group for " .. b.name, singleLine = true, okText = "Move",
-            onOK = function(name) if strtrim(name) ~= "" then B.setGroup(b, name) end end })
-    end)
-    entry:CreateButton("Rename", function()
-        UI.textWindow({ title = "Rename build", text = b.name, singleLine = true, okText = "Rename",
-            onOK = function(name) B.rename(specID, b, name) end })
-    end)
-    entry:CreateButton("Copy talent string", function()
-        UI.textWindow({ title = "Talent string: " .. b.name, text = b.text, readOnly = true })
-    end)
-    local del = entry:CreateButton("Delete", function()
-        if armed == b then
-            armed = nil
-            B.delete(specID, b)
-            return MenuResponse.CloseAll
-        end
-        armed = b
-        C_Timer.After(3, function() if armed == b then armed = nil end end)
-        return MenuResponse.Refresh
-    end)
-    del:AddInitializer(function(frame)
-        frame.fontString:SetText(armed == b and "|cffff8888Sure?|r" or "Delete")
-    end)
-end
-
+-- Quick menu (key binding, /tk): this spec's builds; click one to apply it -------------------
 local function generator(_, root)
     local specID = B.specID()
     if not specID then return root:CreateTitle("TalentKeeper") end
     root:CreateTitle("TalentKeeper: " .. B.specName(specID))
-    local list = B.list(specID)
-    local current = B.currentString()
-    if #list == 0 then
-        local none = root:CreateButton("|cff8c8c8cNo builds saved for this spec yet|r")
-        none:SetEnabled(false)
-    end
-    -- main builds in list order, each followed by its variants
-    local names = {}
-    for _, b in ipairs(list) do names[b.name] = true end
-    local function isVariant(b) return b.main and names[b.main] end
-    local function family(parent, b)
-        buildEntry(parent, specID, b, list, current)
-        for _, v in ipairs(B.variantsOf(specID, b.name)) do buildEntry(parent, specID, v, list, current) end
-    end
-    local groups, order = {}, {}
-    for _, b in ipairs(list) do
-        if not isVariant(b) then
-            if b.group then
-                if not groups[b.group] then groups[b.group] = {}; order[#order + 1] = b.group end
-                table.insert(groups[b.group], b)
-            else
-                family(root, b)
-            end
+    local any = false
+    for _, line in ipairs(B.ordered(specID)) do
+        if line.header then
+            root:CreateTitle(line.header)
+        elseif line.build then
+            any = true
+            local b = line.build
+            local tags = UI.tagSummary(b)
+            root:CreateRadio(b.name .. (tags and ("  |cff8c8c8c" .. tags .. "|r") or ""),
+                function() return TK.db.active[specID] == b.name end,
+                function() B.apply(b) return MenuResponse.Close end)
         end
     end
-    for _, name in ipairs(order) do
-        local g = root:CreateButton(name)
-        for _, b in ipairs(groups[name]) do family(g, b) end
-    end
-    root:CreateDivider()
-    root:CreateButton("Save current talents", function()
-        UI.textWindow({ title = "Save current talents", singleLine = true, okText = "Save",
-            text = ("%s %d"):format(B.specName(specID), #list + 1),
-            onOK = function(name) B.saveCurrent(name) end })
-    end)
-    root:CreateButton("Import a talent string", TK.commands.import)
+    if not any then root:CreateButton("|cff8c8c8cNo builds saved for this spec yet|r"):SetEnabled(false) end
 end
 
 function UI.openMenu(owner)
     if not B.specID() then return TK.chat("Pick a specialization first.") end
-    armed = nil
     MenuUtil.CreateContextMenu(owner or UIParent, generator)
 end
 
@@ -384,25 +360,3 @@ end
 BINDING_HEADER_TALENTKEEPER = "TalentKeeper"
 BINDING_NAME_TALENTKEEPER_MENU = "Open your builds"
 function TalentKeeper_OpenMenu() TK.safe(UI.openMenu)() end
-
--- Button beside Blizzard's loadout dropdown --------------------------------------------
-EventUtil.ContinueOnAddOnLoaded("Blizzard_PlayerSpells", TK.safe(function()
-    local tf = PlayerSpellsFrame and PlayerSpellsFrame.TalentsFrame
-    if not tf or not tf.LoadSystem then return TK.log("talent window: no loadout dropdown found") end
-    local bt = CreateFrame("Button", nil, tf)
-    bt:SetSize(24, 24)
-    bt:SetPoint("RIGHT", tf.LoadSystem, "LEFT", -4, 0)
-    local icon = bt:CreateTexture(nil, "ARTWORK")
-    icon:SetAllPoints()
-    icon:SetTexture("Interface\\AddOns\\" .. addonName .. "\\icon.png")
-    local hover = fill(bt, "HIGHLIGHT", 0.851, 0.851, 0.851, 0.15)
-    hover:SetBlendMode("ADD")
-    bt:SetScript("OnClick", TK.safe(function(self) UI.openMenu(self) end))
-    bt:SetScript("OnEnter", function(self)
-        GameTooltip:SetOwner(self, "ANCHOR_TOP")
-        GameTooltip:SetText("TalentKeeper")
-        GameTooltip:AddLine("Your saved builds for this spec.", 0.74, 0.74, 0.74, true)
-        GameTooltip:Show()
-    end)
-    bt:SetScript("OnLeave", GameTooltip_Hide)
-end))

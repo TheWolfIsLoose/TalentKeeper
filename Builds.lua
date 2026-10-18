@@ -125,7 +125,7 @@ local function cantSave()
     if B.unspent() then TK.chat(UNSPENT) return true end
 end
 
-function B.saveCurrent(name)
+function B.saveCurrent(name, group)
     local specID = B.specID()
     if cantSave() then return end
     local text = currentString()
@@ -133,26 +133,28 @@ function B.saveCurrent(name)
     local list = B.list(specID)
     local b, same = B.add(specID, {
         name = name ~= "" and name or ("%s %d"):format(B.specName(specID), #list + 1),
-        text = text, pvp = currentPvp(),
+        text = text, pvp = currentPvp(), group = group,
     })
-    if not b then return B.offerTag(same) end
+    if not b then return B.same(same) end
     TK.db.active[specID] = b.name
     TK.log("saved '%s' (%s)", b.name, B.specName(specID))
     TK.chat(("Saved |cffffffff%s|r.%s"):format(b.name, TK.compare.nearNote(list, b)))
+    TK.selected = b
     TK.changed()
 end
 
-function B.importString(text, name)
+function B.importString(text, name, group)
     local spec, err = B.stringSpec(text)
     if not spec then return TK.chat("|cffff8888" .. err .. "|r") end
     local list = B.list(spec)
     local b, same = B.add(spec, {
         name = name and name ~= "" and name or ("Imported %d"):format(#list + 1),
-        text = strtrim(text),
+        text = strtrim(text), group = group,
     })
-    if not b then return B.offerTag(same) end
+    if not b then return B.same(same) end
     TK.log("imported '%s' (%s)", b.name, B.specName(spec))
     TK.chat(("Saved |cffffffff%s|r for %s.%s"):format(b.name, B.specName(spec), TK.compare.nearNote(list, b)))
+    TK.selected = b
     TK.changed()
 end
 
@@ -160,7 +162,6 @@ function B.rename(specID, b, name)
     local old = b.name
     b.name = B.uniqueName(B.list(specID), name, b)
     if TK.db.active[specID] == old then TK.db.active[specID] = b.name end
-    for _, v in ipairs(B.variantsOf(specID, old)) do v.main = b.name end
     TK.log("renamed '%s' to '%s'", old, b.name)
     TK.changed()
 end
@@ -168,53 +169,59 @@ end
 -- Move a build into a group (nil = no group).
 function B.setGroup(b, group)
     group = group and strtrim(group) or nil
-    group = group ~= "" and group or nil
-    local specID = B.findSpec(b)
-    local main = b.main and specID and find(B.list(specID), b.main) or b
-    main.group = group
-    for _, v in ipairs(specID and B.variantsOf(specID, main.name) or {}) do v.group = group end -- variants stay with their main build
-    TK.log("'%s' moved to %s", main.name, group or "no group")
+    b.group = group ~= "" and group or nil
+    TK.log("'%s' moved to %s", b.name, b.group or "no group")
     TK.changed()
 end
 
--- Main builds and variants ---------------------------------------------------------------
--- A variant keeps a full string (so applying, copying and comparing work as for any build)
--- plus main = its main build's name and changes = { { node, from, to } } from that build.
+function B.groups(specID)
+    local out, seen = {}, {}
+    for _, b in ipairs(B.list(specID)) do
+        if b.group and not seen[b.group] then seen[b.group] = true out[#out + 1] = b.group end
+    end
+    return out
+end
+
+function B.renameGroup(specID, old, new)
+    new = strtrim(new or "")
+    if new == "" or new == old then return end
+    for _, b in ipairs(B.list(specID)) do if b.group == old then b.group = new end end
+    TK.log("group '%s' renamed to '%s'", old, new)
+    TK.changed()
+end
+
+-- Delete a group and every build in it.
+function B.deleteGroup(specID, group)
+    local list, kept, n = B.list(specID), {}, 0
+    for _, b in ipairs(list) do
+        if b.group == group then
+            n = n + 1
+            if TK.db.active[specID] == b.name then TK.db.active[specID] = nil end
+        else kept[#kept + 1] = b end
+    end
+    TK.db.builds[specID] = kept
+    TK.log("deleted group '%s' (%d builds)", group, n)
+    TK.chat(("Deleted %s and its %d build%s."):format(group, n, n == 1 and "" or "s"))
+    TK.changed()
+end
+
 function B.findSpec(b)
     for specID, list in pairs(TK.db.builds) do
         for _, x in ipairs(list) do if x == b then return specID end end
     end
 end
 
-function B.variantsOf(specID, mainName)
-    local out = {}
-    for _, v in ipairs(B.list(specID)) do if v.main == mainName then out[#out + 1] = v end end
-    return out
-end
-
 -- Builds as lines in display order: each group (first seen first) as { header = name } then
--- its builds, then { header = false } and the builds without a group; every main build is
--- followed by its variants. hit(b), when given, filters (a family shows if any of it matches).
-function B.ordered(specID, hit)
-    local list = specID and B.list(specID) or {}
-    local names = {}
-    for _, b in ipairs(list) do names[b.name] = true end
+-- its builds, then { header = false } and the builds without a group.
+function B.ordered(specID)
     local groups, order, loose = {}, {}, {}
-    for _, b in ipairs(list) do
-        if not (b.main and names[b.main]) then
-            local shown = {}
-            for _, x in ipairs({ b, unpack(B.variantsOf(specID, b.name)) }) do
-                if not hit or hit(x) then shown[#shown + 1] = x end
-            end
-            if #shown > 0 then
-                local into = loose
-                if b.group then
-                    if not groups[b.group] then groups[b.group] = {}; order[#order + 1] = b.group end
-                    into = groups[b.group]
-                end
-                for _, x in ipairs(shown) do into[#into + 1] = x end
-            end
+    for _, b in ipairs(specID and B.list(specID) or {}) do
+        local into = loose
+        if b.group then
+            if not groups[b.group] then groups[b.group] = {}; order[#order + 1] = b.group end
+            into = groups[b.group]
         end
+        into[#into + 1] = b
     end
     local lines = {}
     for _, g in ipairs(order) do
@@ -226,99 +233,17 @@ function B.ordered(specID, hit)
     return lines
 end
 
-local function changesFrom(mainText, text)
-    local d = TK.compare.diff(mainText, text)
-    if not d then return nil end
-    local out = {}
-    for _, c in ipairs(d) do out[#out + 1] = { node = c.node, from = c.from, to = c.to } end
-    return out
-end
-
--- Make a saved build (e.g. one just imported) a variant of a main build, or a main build again
--- (main = nil). Its own variants move with it to the new main build.
-function B.setMain(b, main)
-    local specID = B.findSpec(b)
-    if main and main.main then main = find(B.list(specID), main.main) or main end
-    if main == b then return end
-    if not main then
-        b.main, b.changes, b.needsReview = nil, nil, nil
-        TK.log("'%s' is a main build again", b.name)
-        return TK.changed()
-    end
-    if B.findSpec(main) ~= specID then return TK.chat("|cffff8888That build is for another spec.|r") end
-    local family = { b, unpack(B.variantsOf(specID, b.name)) }
-    for _, x in ipairs(family) do
-        local changes = changesFrom(main.text, x.text)
-        if not changes then return TK.chat(("|cffff8888Couldn't read %s.|r"):format(x.name)) end
-        x.main, x.changes, x.needsReview, x.group = main.name, changes, nil, main.group
-    end
-    local n = #b.changes
-    TK.log("'%s' made a variant of '%s': %s", b.name, main.name, table.concat(TK.compare.describe(b.changes), ", "))
-    TK.chat(("|cffffffff%s|r is now a variant of %s (%d change%s)."):format(b.name, main.name, n, n == 1 and "" or "s"))
-    TK.changed()
-end
-
-B.changesFrom = changesFrom
-
--- Save your current talents as a variant of a main build (variants of variants hang off the main).
-function B.saveVariant(main, name)
-    local specID = B.specID()
-    if cantSave() then return end
-    if B.findSpec(main) ~= specID then return TK.chat("|cffff8888That build is for another spec.|r") end
-    if main.main then main = find(B.list(specID), main.main) or main end
-    local text = currentString()
-    local changes = text and changesFrom(main.text, text)
-    if not changes then return TK.chat("|cffff8888Couldn't read your talents.|r") end
-    if #changes == 0 then return TK.chat(("Your talents match |cffffffff%s|r, so there's no variant to save."):format(main.name)) end
-    local b, same = B.add(specID, { name = name ~= "" and name or (main.name .. " variant"), text = text, pvp = currentPvp(),
-        main = main.name, changes = changes, group = main.group })
-    if not b then return TK.chat(("Same talents as |cffffffff%s|r, so nothing new to save."):format(same.name)) end
-    TK.db.active[specID] = b.name
-    TK.log("saved variant '%s' of '%s': %s", b.name, main.name, table.concat(TK.compare.describe(changes), ", "))
-    TK.chat(("Saved |cffffffff%s|r as a variant of %s (%d change%s)."):format(b.name, main.name, #changes, #changes == 1 and "" or "s"))
-    TK.changed()
-end
-
--- Replace a build's talents with your current ones. A main build's variants follow it:
--- each keeps its own changes; where the main build changed the same talent, it needs review.
+-- Replace a build's talents with your current ones.
 function B.updateToCurrent(b)
     local specID = B.specID()
     if cantSave() then return end
     if B.findSpec(b) ~= specID then return TK.chat("|cffff8888That build is for another spec.|r") end
     local text = currentString()
     if not text then return TK.chat("|cffff8888Couldn't read your talents.|r") end
-    local C = TK.compare
-    if b.main then
-        local main = find(B.list(specID), b.main)
-        b.changes = main and changesFrom(main.text, text) or nil
-    end
-    b.text, b.pvp, b.outdated, b.needsReview = text, currentPvp(), nil, nil
+    b.text, b.pvp, b.outdated = text, currentPvp(), nil
+    TK.db.active[specID] = b.name
     TK.log("updated '%s' to current talents", b.name)
-    local follow, review = 0, {}
-    for _, v in ipairs(B.variantsOf(specID, b.name)) do
-        local picks, collisions = C.overlay(b.text, v.changes or {})
-        local newText = picks and C.write(specID, picks)
-        if newText then
-            v.text = newText
-            v.changes = changesFrom(b.text, newText) or v.changes
-            follow = follow + 1
-            if #collisions > 0 then
-                v.needsReview = true
-                review[#review + 1] = ("%s (%s)"):format(v.name, table.concat(C.describe(collisions, 2), ", "))
-            end
-            TK.log("variant '%s' follows: %d changes, %d need review", v.name, #v.changes, #collisions)
-        end
-    end
-    local msg = ("Updated |cffffffff%s|r to your current talents."):format(b.name)
-    if follow > 0 then msg = msg .. (" %d variant%s follow it."):format(follow, follow == 1 and "" or "s") end
-    if #review > 0 then msg = msg .. " |cffffb84dNeeds review:|r " .. table.concat(review, "; ") end
-    TK.chat(msg)
-    TK.changed()
-end
-
-function B.setGear(b, name)
-    b.gear = name
-    TK.log("'%s' gear set: %s", b.name, name or "none")
+    TK.chat(("Updated |cffffffff%s|r to your current talents."):format(b.name))
     TK.changed()
 end
 
@@ -381,10 +306,11 @@ function B.forHere(here)
     return #exact > 0 and exact or content
 end
 
--- Saving or importing talents you already have as a build: tag that build instead.
-function B.offerTag(same)
-    TK.chat(("Same talents as |cffffffff%s|r, so nothing new to save. Tag it for what you'd have saved this for."):format(same.name))
-    TK.ui.offerTags(same)
+-- Saving or importing talents you already have as a build: point at that build instead.
+function B.same(same)
+    TK.chat(("Same talents as |cffffffff%s|r, so nothing new to save. It's selected in the list."):format(same.name))
+    TK.selected = same
+    TK.changed()
 end
 
 function B.delete(specID, b)
@@ -393,7 +319,7 @@ function B.delete(specID, b)
     if not i then return end
     table.remove(list, i)
     if TK.db.active[specID] == b.name then TK.db.active[specID] = nil end
-    for _, v in ipairs(B.variantsOf(specID, b.name)) do v.main, v.changes, v.needsReview = nil, nil, nil end -- they become main builds
+    if TK.selected == b then TK.selected = nil end
     TK.log("deleted '%s' (%s)", b.name, B.specName(specID))
     TK.chat(("Deleted |cffffffff%s|r."):format(b.name))
     TK.changed()
@@ -451,18 +377,11 @@ TK.on("CONFIG_COMMIT_FAILED", function(configID)
     lastApply.failed = true -- reported by the check after applying, if the talents didn't land
 end)
 
--- After the talents are in: PvP talents, gear set, and the check 5 s later.
+-- After the talents are in: PvP talents, and the check 5 s later.
 local function finish(b, specID)
     if lastApply and lastApply.b == b then lastApply.committed = true end -- the next config update times the apply
     TK.changed()
     setPvp(b)
-    if b.gear and C_EquipmentSet then
-        local setID = C_EquipmentSet.GetEquipmentSetID(b.gear)
-        local equipped = setID and select(4, C_EquipmentSet.GetEquipmentSetInfo(setID))
-        if equipped then TK.debug("gear set %s already on", b.gear)
-        elseif setID then C_EquipmentSet.UseEquipmentSet(setID)
-        else TK.chat(("|cffffb84dGear set %s not found.|r"):format(b.gear)) end
-    end
     C_Timer.After(5, TK.safe(function() verify(b) end))
 end
 
@@ -762,9 +681,4 @@ TK.on("PLAYER_LOGIN", function()
 end)
 
 TK.commands.save = function(name) B.saveCurrent(name) end
-TK.commands.import = function()
-    TK.ui.textWindow({
-        title = "Import a talent string", okText = "Save", text = "",
-        onOK = function(text) B.importString(text) end,
-    })
-end
+TK.commands.import = function() TK.ui.buildDialog(true) end

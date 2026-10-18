@@ -1,5 +1,5 @@
--- TalentKeeper on the talent window: your builds in a side pane beside it. Hover one to see on
--- the tree what it would change; click to apply; right-click or drag to organize.
+-- TalentKeeper on the talent window: your builds in a side pane beside it. Click one to preview
+-- it on the tree; the panel under the list applies, tags, groups, renames, copies or deletes it.
 local _, TK = ...
 local B, C, UI = TK.builds, TK.compare, TK.ui
 local W = {}
@@ -129,77 +129,105 @@ end
 
 -- The side pane of builds -----------------------------------------------------------------
 -- Docked to the window's right edge, at our own scale (parented to UIParent, shown with the
--- talent window). Groups as headings, each main build with its variants indented under it.
+-- talent window). Groups as headings; the list scrolls; the selected build's panel sits below.
 local pane, rows, heads = nil, {}, {}
-local ROW = 24
+local ROW, HEAD, TOP = 24, 22, -58
+local offset = 0
+local detail -- the selected build's panel
+
+local function selectBuild(b)
+    TK.selected = (TK.selected ~= b) and b or nil
+    W.refresh()
+end
 
 local function row(i)
     if rows[i] then return rows[i] end
-    local r = CreateFrame("Button", nil, pane)
+    local r = CreateFrame("Button", nil, pane.list)
     r:SetHeight(ROW)
-    r:SetPoint("LEFT", 0, 0); r:SetPoint("RIGHT", 0, 0)
     r.stripe = UI.fill(r, "BACKGROUND", 1, 1, 1, 0.05)
+    r.sel = UI.fill(r, "BACKGROUND", 0.596, 1, 0.596, 0.12)
     UI.fill(r, "HIGHLIGHT", 0.851, 0.851, 0.851, 0.15)
     r.status = r:CreateFontString(nil, "OVERLAY", "TalentKeeperFontSmall")
     r.status:SetPoint("RIGHT", -8, 0)
-    r.status:SetTextColor(1, 0.722, 0.302)
     r.bar = r:CreateTexture(nil, "OVERLAY")
     r.bar:SetColorTexture(0.596, 1, 0.596, 1)
     r.bar:SetPoint("TOPLEFT"); r.bar:SetPoint("BOTTOMLEFT"); r.bar:SetWidth(2)
     r.text = r:CreateFontString(nil, "OVERLAY", "TalentKeeperFont")
+    r.text:SetPoint("LEFT", 8, 0)
     r.text:SetPoint("RIGHT", r.status, "LEFT", -6, 0)
     r.text:SetJustifyH("LEFT")
     r.text:SetWordWrap(false)
-    r:RegisterForClicks("LeftButtonUp", "RightButtonUp")
     r:RegisterForDrag("LeftButton")
-    r:SetScript("OnClick", TK.safe(function(self, button)
+    r:SetScript("OnClick", TK.safe(function(self)
         if self.dragged then self.dragged = nil return end
-        W.hide()
-        if button == "RightButton" then
-            local b, specID = self.b, B.specID()
-            return MenuUtil.CreateContextMenu(self, function(_, root)
-                root:CreateTitle(b.name)
-                UI.buildActions(root, specID, b)
-            end)
-        end
+        selectBuild(self.b)
+    end))
+    r:SetScript("OnDoubleClick", TK.safe(function(self)
+        TK.selected = self.b
         B.apply(self.b)
     end))
     r:SetScript("OnDragStart", function(self)
         self.dragged, W.dragging = true, self.b
-        W.hide() GameTooltip:Hide()
+        GameTooltip:Hide()
         SetCursor("Interface\\Cursor\\UI-Cursor-Move")
     end)
     r:SetScript("OnDragStop", TK.safe(function() W.drop() end))
     r:SetScript("OnEnter", TK.safe(function(self)
-        local d, hidden = W.show(self.b)
         GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
         GameTooltip:SetText(self.b.name)
+        local hero = C.heroName(self.b.text)
+        if hero then GameTooltip:AddLine(hero, 0.74, 0.74, 0.74) end
         local tags = B.tagNames(self.b)
         if #tags > 0 then GameTooltip:AddLine("For: " .. table.concat(tags, ", "), 0.596, 1, 0.596, true) end
-        if self.b.main and self.b.changes then
-            GameTooltip:AddLine(("Swaps from %s: %s"):format(self.b.main, #self.b.changes == 0 and "none"
-                or table.concat(C.describe(self.b.changes, 6), ", ")), 1, 1, 1, true)
-        end
-        if not d then
-            GameTooltip:AddLine("Couldn't read this build.", 1, 0.533, 0.533)
-        elseif #d == 0 then
-            GameTooltip:AddLine("Same as your talents.", 0.74, 0.74, 0.74)
-        else
-            GameTooltip:AddLine(("%d change%s, marked on the tree: %s"):format(#d, #d == 1 and "" or "s", table.concat(C.describe(d, 6), ", ")), 0.74, 0.74, 0.74, true)
-            if hidden > 0 then GameTooltip:AddLine(("%d not on show (another hero tree)."):format(hidden), 0.55, 0.55, 0.55, true) end
-            GameTooltip:AddLine("Click to apply. Right-click to tag it and more; drag onto a group to move it.", 0.55, 0.55, 0.55, true)
-        end
+        GameTooltip:AddLine("Click to preview on the tree, double-click to apply. Drag onto a group to move it.", 0.55, 0.55, 0.55, true)
         GameTooltip:Show()
     end))
-    r:SetScript("OnLeave", function() W.hide() GameTooltip:Hide() end)
+    r:SetScript("OnLeave", GameTooltip_Hide)
     rows[i] = r
     return r
 end
 
+-- Group headings: click for the group's own menu (rename, delete).
+local armedGroup
 local function head(i)
     if heads[i] then return heads[i] end
-    local h = pane:CreateFontString(nil, "OVERLAY", "TalentKeeperFontSmall")
-    h:SetTextColor(0.55, 0.55, 0.55)
+    local h = CreateFrame("Button", nil, pane.list)
+    h:SetHeight(HEAD)
+    h.text = h:CreateFontString(nil, "OVERLAY", "TalentKeeperFontSmall")
+    h.text:SetPoint("LEFT", 8, -3)
+    h.text:SetTextColor(0.55, 0.55, 0.55)
+    h:SetScript("OnEnter", function(self) if self.group then self.text:SetTextColor(1, 1, 1) end end)
+    h:SetScript("OnLeave", function(self) self.text:SetTextColor(0.55, 0.55, 0.55) end)
+    h:SetScript("OnClick", TK.safe(function(self)
+        local g, specID = self.group, B.specID()
+        if not g then return end
+        armedGroup = nil
+        MenuUtil.CreateContextMenu(self, function(_, root)
+            root:CreateTitle(g)
+            root:CreateButton("Rename group", function()
+                UI.textWindow({ title = "Rename group", text = g, singleLine = true, okText = "Rename",
+                    onOK = function(name) B.renameGroup(specID, g, name) end })
+            end)
+            local n = 0
+            for _, b in ipairs(B.list(specID)) do if b.group == g then n = n + 1 end end
+            root:CreateButton("Ungroup its builds", function()
+                for _, b in ipairs(B.list(specID)) do if b.group == g then b.group = nil end end
+                TK.changed()
+            end)
+            local del = root:CreateButton("Delete it and its builds", function()
+                if armedGroup == g then
+                    armedGroup = nil
+                    B.deleteGroup(specID, g)
+                    return MenuResponse.CloseAll
+                end
+                armedGroup = g
+                return MenuResponse.Refresh
+            end)
+            del:AddInitializer(function(frame)
+                frame.fontString:SetText(armedGroup == g and ("|cffff8888Sure? Deletes %d build%s|r"):format(n, n == 1 and "" or "s") or "Delete it and its builds")
+            end)
+        end)
+    end))
     heads[i] = h
     return h
 end
@@ -211,69 +239,163 @@ function W.drop()
     ResetCursor()
     if not b then return end
     local target -- nil: no drop target; false: no group
-    for _, h in ipairs(heads) do if h:IsShown() and h.group ~= nil and h:IsMouseOver() then target = h.group end end
+    for _, h in ipairs(heads) do if h:IsShown() and h:IsMouseOver() then target = h.group or false end end
     for _, r in ipairs(rows) do if r:IsShown() and r:IsMouseOver() then target = r.b.group or false end end
-    if pane.newGroup:IsMouseOver() then
+    if pane.newGroup:IsShown() and pane.newGroup:IsMouseOver() then
         return UI.textWindow({ title = "New group for " .. b.name, singleLine = true, okText = "Move",
             onOK = function(name) if strtrim(name) ~= "" then B.setGroup(b, name) end end })
     end
     if target ~= nil and (target or nil) ~= b.group then B.setGroup(b, target or nil) end
 end
 
+-- The selected build's panel -----------------------------------------------------------------
+local armedBuild
+local function refreshDetail(specID)
+    local b = TK.selected
+    if b and B.findSpec(b) ~= specID then b, TK.selected = nil, nil end
+    for _, bt in ipairs(detail.buttons) do bt:SetShown(b ~= nil) end
+    if not b then
+        detail.name:SetText("")
+        detail.info:SetText("Click a build to preview it on the tree.")
+        W.hide()
+        return
+    end
+    detail.name:SetText(b.name)
+    local d, hidden = W.show(b)
+    local parts = {}
+    local hero = C.heroName(b.text)
+    if hero then parts[#parts + 1] = hero end
+    if not d then parts[#parts + 1] = "|cffff8888can't read it|r"
+    elseif #d == 0 then parts[#parts + 1] = "|cff98ff98your talents now|r"
+    else parts[#parts + 1] = ("%d change%s marked"):format(#d, #d == 1 and "" or "s") end
+    if b.outdated then parts[#parts + 1] = "|cffffb84doutdated|r" end
+    local tags = UI.tagSummary(b)
+    detail.info:SetText(table.concat(parts, " · ") .. "\n" .. (tags and ("For: " .. tags) or "|cff8c8c8cNot tagged for anything|r"))
+    detail.apply:SetEnabled(d ~= nil and #d > 0)
+    detail.delete:SetText(armedBuild == b and "|cffff8888Sure?|r" or "Delete")
+end
+
+local function makeDetail()
+    detail = CreateFrame("Frame", nil, pane)
+    detail:SetPoint("BOTTOMLEFT", 0, 36); detail:SetPoint("BOTTOMRIGHT", 0, 36)
+    detail:SetHeight(128)
+    local rule = detail:CreateTexture(nil, "OVERLAY")
+    rule:SetColorTexture(0, 0, 0, 1)
+    rule:SetHeight(1)
+    rule:SetPoint("TOPLEFT"); rule:SetPoint("TOPRIGHT")
+    detail.name = detail:CreateFontString(nil, "OVERLAY", "TalentKeeperFont")
+    detail.name:SetPoint("TOPLEFT", 8, -8); detail.name:SetPoint("TOPRIGHT", -8, -8)
+    detail.name:SetJustifyH("LEFT")
+    detail.name:SetWordWrap(false)
+    detail.info = detail:CreateFontString(nil, "OVERLAY", "TalentKeeperFontSmall")
+    detail.info:SetPoint("TOPLEFT", 8, -24); detail.info:SetPoint("TOPRIGHT", -8, -24)
+    detail.info:SetJustifyH("LEFT")
+    detail.info:SetTextColor(0.74, 0.74, 0.74)
+    detail.info:SetSpacing(2)
+    local W3 = 64
+    local function on(fn) return function(self) local b = TK.selected if b then fn(b, self) end end end
+    detail.apply = UI.button(detail, "Apply", 204, on(function(b) B.apply(b) end))
+    detail.apply:SetPoint("TOPLEFT", 8, -54)
+    local tags = UI.button(detail, "Tags", W3, on(function(b, self) UI.tagMenu(self, b) end))
+    tags:SetPoint("TOPLEFT", 8, -82)
+    local group = UI.button(detail, "Group", W3, on(function(b, self) UI.groupMenu(self, B.specID(), b) end))
+    group:SetPoint("LEFT", tags, "RIGHT", 6, 0)
+    local rename = UI.button(detail, "Rename", W3, on(function(b)
+        UI.textWindow({ title = "Rename build", text = b.name, singleLine = true, okText = "Rename",
+            onOK = function(name) B.rename(B.specID(), b, name) end })
+    end))
+    rename:SetPoint("LEFT", group, "RIGHT", 6, 0)
+    local copy = UI.button(detail, "Copy", W3, on(function(b)
+        UI.textWindow({ title = "Talent string: " .. b.name, text = b.text, readOnly = true })
+    end))
+    copy:SetPoint("TOPLEFT", 8, -108)
+    local update = UI.button(detail, "Resave", W3, on(function(b) B.updateToCurrent(b) end))
+    update:SetPoint("LEFT", copy, "RIGHT", 6, 0)
+    update:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:SetText("Resave")
+        GameTooltip:AddLine("Replace this build's talents with the ones you have now.", 0.74, 0.74, 0.74, true)
+        GameTooltip:Show()
+    end)
+    update:SetScript("OnLeave", GameTooltip_Hide)
+    detail.delete = UI.button(detail, "Delete", W3, on(function(b)
+        if armedBuild == b then
+            armedBuild = nil
+            B.delete(B.specID(), b)
+            return
+        end
+        armedBuild = b
+        C_Timer.After(3, function() if armedBuild == b then armedBuild = nil TK.safe(W.refresh)() end end)
+        W.refresh()
+    end))
+    detail.delete:SetPoint("LEFT", update, "RIGHT", 6, 0)
+    detail.buttons = { detail.apply, tags, group, rename, copy, update, detail.delete }
+end
+
 function W.refresh()
     if not pane or not pane:IsShown() then return end
-    W.hide()
     for _, r in ipairs(rows) do r:Hide() end
     for _, h in ipairs(heads) do h:Hide() end
     local specID = B.specID()
     local active = specID and TK.db.active[specID]
     pane.title:SetText(specID and (B.specName(specID) .. " builds") or "TalentKeeper")
-    local y, nr, nh = -58, 0, 0
     W.refreshSpecs()
-    pane.fill:SetShown(next(TK.sources) ~= nil)
+    -- lay out every line, then show the ones inside the list's window
+    local lines, y = {}, 0
     for _, line in ipairs(B.ordered(specID)) do
         if line.header ~= nil then
-            if line.header or nr > 0 then -- "No group" only when something came before it
-                nh = nh + 1
-                local h = head(nh)
-                h:SetText(line.header or "No group")
-                h.group = line.header
-                h:ClearAllPoints()
-                h:SetPoint("TOPLEFT", 8, y - 8)
-                h:Show()
-                y = y - 22
+            if line.header or #lines > 0 then -- "No group" only when something came before it
+                lines[#lines + 1] = { header = line.header, y = y }
+                y = y + HEAD
             end
-        elseif line.build then
+        else
+            lines[#lines + 1] = { build = line.build, y = y }
+            y = y + ROW
+        end
+    end
+    local height = pane.list:GetHeight()
+    offset = math.max(0, math.min(offset, y + 28 - height))
+    local nr, nh, n = 0, 0, 0
+    local function visible(ly, h) return ly - offset >= 0 and ly - offset + h <= height end
+    for _, line in ipairs(lines) do
+        if line.build then n = n + 1 end
+        if line.header ~= nil and visible(line.y, HEAD) then
+            nh = nh + 1
+            local h = head(nh)
+            h.text:SetText(line.header or "No group")
+            h.group = line.header or nil
+            h:ClearAllPoints()
+            h:SetPoint("TOPLEFT", 0, -(line.y - offset)); h:SetPoint("TOPRIGHT", 0, -(line.y - offset))
+            h:Show()
+        elseif line.build and visible(line.y, ROW) then
             nr = nr + 1
             local b, r = line.build, row(nr)
             r.b = b
-            r.text:SetText((b.main and "· " or "") .. b.name)
-            r.text:SetPoint("LEFT", b.main and 20 or 8, 0)
-            local warn = b.outdated and "Outdated" or b.needsReview and "Needs review"
-            r.status:SetText(warn or UI.tagSummary(b) or "")
-            if warn then r.status:SetTextColor(1, 0.722, 0.302) else r.status:SetTextColor(0.55, 0.55, 0.55) end
-            r.stripe:SetShown(nr % 2 == 0)
-            local on = b.name == active
-            r.text:SetTextColor(on and 0.596 or 1, 1, on and 0.596 or 1)
-            r.bar:SetShown(on)
+            r.text:SetText(b.name)
+            r.status:SetText(b.outdated and "Outdated" or UI.tagSummary(b) or "")
+            if b.outdated then r.status:SetTextColor(1, 0.722, 0.302) else r.status:SetTextColor(0.55, 0.55, 0.55) end
+            r.stripe:SetShown(n % 2 == 0)
+            r.sel:SetShown(b == TK.selected)
+            local isOn = b.name == active
+            r.text:SetTextColor(isOn and 0.596 or 1, 1, isOn and 0.596 or 1)
+            r.bar:SetShown(isOn)
             r:ClearAllPoints()
-            r:SetPoint("TOPLEFT", 0, y); r:SetPoint("TOPRIGHT", 0, y)
+            r:SetPoint("TOPLEFT", 0, -(line.y - offset)); r:SetPoint("TOPRIGHT", 0, -(line.y - offset))
             r:Show()
-            y = y - ROW
         end
     end
     pane.newGroup:ClearAllPoints()
-    pane.newGroup:SetPoint("TOPLEFT", 8, y - 8)
-    pane.newGroup:SetShown(nr > 0)
-    if nr == 0 then
-        nh = nh + 1
-        local h = head(nh)
-        h:SetText("No builds for this spec yet.")
+    pane.newGroup:SetPoint("TOPLEFT", 8, -(y - offset + 6))
+    pane.newGroup:SetShown(n > 0 and visible(y + 6, 20))
+    if n == 0 then
+        local h = head(1)
+        h.text:SetText("No builds for this spec yet.")
         h.group = nil
         h:ClearAllPoints()
-        h:SetPoint("TOPLEFT", 8, y - 8)
+        h:SetPoint("TOPLEFT", 0, 0); h:SetPoint("TOPRIGHT", 0, 0)
         h:Show()
     end
+    refreshDetail(specID)
 end
 
 local prev = TK.onChange
@@ -281,7 +403,9 @@ TK.onChange = function()
     if prev then prev() end
     TK.safe(W.refresh)()
 end
-TK.on("ACTIVE_PLAYER_SPECIALIZATION_CHANGED", function() TK.safe(W.refresh)() end)
+TK.on("ACTIVE_PLAYER_SPECIALIZATION_CHANGED", function() TK.selected = nil offset = 0 TK.safe(W.refresh)() end)
+-- your talents changed (an apply landed, a click in the tree): redraw the preview
+TK.on("TRAIT_CONFIG_UPDATED", function() TK.safe(W.refresh)() end)
 
 -- Spec buttons under the header: click one to change spec without leaving the talents.
 local specs = {}
@@ -381,57 +505,28 @@ EventUtil.ContinueOnAddOnLoaded("Blizzard_PlayerSpells", TK.safe(function()
     mark:SetTexture("Interface\\AddOns\\TalentKeeper\\icon.png")
     pane.title = pane:CreateFontString(nil, "OVERLAY", "TalentKeeperFont")
     pane.title:SetPoint("LEFT", mark, "RIGHT", 6, 0)
-    local tidy = CreateFrame("Button", nil, pane)
-    tidy:SetSize(60, 20)
-    tidy:SetPoint("RIGHT", pane, "TOPRIGHT", -6, -13)
-    local tt = tidy:CreateFontString(nil, "OVERLAY", "TalentKeeperFontSmall")
-    tt:SetPoint("RIGHT")
-    tt:SetText("Tidy up")
-    tt:SetTextColor(0.596, 1, 0.596)
-    tidy:SetScript("OnClick", TK.safe(function() local s = B.specID() if s then TK.tidy.show(s) end end))
-    tidy:SetScript("OnEnter", function(self)
-        tt:SetTextColor(1, 1, 1)
-        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-        GameTooltip:SetText("Tidy up")
-        GameTooltip:AddLine("Sort this spec's builds into a few core builds with their swaps. Shows the plan first; nothing changes until you confirm, and /tk undo puts it back.", 0.74, 0.74, 0.74, true)
-        GameTooltip:Show()
-    end)
-    tidy:SetScript("OnLeave", function() tt:SetTextColor(0.596, 1, 0.596) GameTooltip:Hide() end)
-    pane.fill = CreateFrame("Button", nil, pane)
-    pane.fill:SetSize(44, 20)
-    pane.fill:SetPoint("RIGHT", tidy, "LEFT", -8, 0)
-    local ft = pane.fill:CreateFontString(nil, "OVERLAY", "TalentKeeperFontSmall")
-    ft:SetPoint("RIGHT")
-    ft:SetText("Fill up")
-    ft:SetTextColor(0.596, 1, 0.596)
-    pane.fill:SetScript("OnClick", TK.safe(function() local s = B.specID() if s then TK.tidy.fill(s) end end))
-    pane.fill:SetScript("OnEnter", function(self)
-        ft:SetTextColor(1, 1, 1)
-        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-        GameTooltip:SetText("Fill up")
-        GameTooltip:AddLine("Bring in builds for this spec from the available build sources, tagged for their dungeons and bosses. Then Tidy up sorts them. /tk undo puts it back.", 0.74, 0.74, 0.74, true)
-        GameTooltip:Show()
-    end)
-    pane.fill:SetScript("OnLeave", function() ft:SetTextColor(0.596, 1, 0.596) GameTooltip:Hide() end)
     local rule = pane:CreateTexture(nil, "OVERLAY")
     rule:SetColorTexture(0, 0, 0, 1)
     rule:SetHeight(1)
     rule:SetPoint("TOPLEFT", 0, -26); rule:SetPoint("TOPRIGHT", 0, -26)
-    pane.newGroup = CreateFrame("Frame", nil, pane)
+    makeDetail()
+    -- the scrolling list between the spec buttons and the selected build's panel
+    pane.list = CreateFrame("Frame", nil, pane)
+    pane.list:SetPoint("TOPLEFT", 0, TOP); pane.list:SetPoint("TOPRIGHT", 0, TOP)
+    pane.list:SetPoint("BOTTOM", detail, "TOP", 0, 2)
+    pane.list:SetClipsChildren(true)
+    pane.list:EnableMouseWheel(true)
+    pane.list:SetScript("OnMouseWheel", function(_, delta) offset = offset - delta * ROW * 3 TK.safe(W.refresh)() end)
+    pane.list:SetScript("OnSizeChanged", function() TK.safe(W.refresh)() end)
+    pane.newGroup = CreateFrame("Frame", nil, pane.list)
     pane.newGroup:SetSize(180, 20)
     local ng = pane.newGroup:CreateFontString(nil, "OVERLAY", "TalentKeeperFontSmall")
     ng:SetPoint("LEFT")
     ng:SetText("+ New group (drop a build here)")
     ng:SetTextColor(0.55, 0.55, 0.55)
-    local save = UI.button(pane, "Save current", 98, function()
-        local specID = B.specID()
-        if not specID then return end
-        UI.textWindow({ title = "Save current talents", singleLine = true, okText = "Save",
-            text = ("%s %d"):format(B.specName(specID), #B.list(specID) + 1),
-            onOK = function(name) B.saveCurrent(name) end })
-    end)
+    local save = UI.button(pane, "Save current", 98, function() UI.buildDialog(false) end)
     save:SetPoint("BOTTOMLEFT", 8, 8)
-    local import = UI.button(pane, "Import", 98, function() TK.commands.import() end)
+    local import = UI.button(pane, "Import", 98, function() UI.buildDialog(true) end)
     import:SetPoint("BOTTOMRIGHT", -8, 8)
     specButtons()
     pane:Hide()

@@ -9,86 +9,52 @@ disagree), **Open** (needs an answer before build).
 
 ---
 
-## Product model (player, 2026-10-17)
+## Back to basics (player, 2026-10-18)
 
-How players label builds: a few per spec, named for what they're for, not
-for their talent details. Most players settle on a handful (one raid build
-for a spec; single target and AoE per hero tree; a couple for M+), then move
-a class talent or two for a fight's or dungeon's utility. Others keep a
-build per boss and per dungeon; that stays possible, but the addon points
-out the overlap.
+The goal: a competent, easy to manage build manager that knows dungeons,
+delves, raids and bosses. The end state is a player with every place tagged
+who never has to open the talent window: the prompt puts them in the right
+spec and build wherever they go.
 
-- **Scope: the class you're logged in as.** Its specs only; builds for
-  other classes stay saved and show when you log into that class. The pane
-  shows the current spec; other specs of the class come in through offers
-  and history.
-- **Builds are few, situations are many.** A situation is a dungeon, raid,
-  boss or delve (content type too). A build is tagged with the situations
-  it's for; one situation can point at builds in more than one spec.
-- **Swaps instead of separate builds.** The small per-fight / per-dungeon
-  changes hang off a build as its swaps for that situation ("SH AoE, Murder
-  Row: + Curse of Exhaustion"). Same data as today's variants (changes from
-  a main build, carried through when the main build changes), shown as the
-  swaps rather than as a second build.
-- **Keep the set small.** Saving or importing a build with the same talents
-  as one you have: offer to tag that build for this situation instead.
-  Within a couple of talents: offer to save it as a swap. For a collection
-  brought over from another tool: propose the clusters ("these 9 are SH AoE
-  with small swaps; these 6 are identical") and merge only on confirm.
-- **What you said and what you played.** Log the spec and build active at
-  each key start and boss pull (passive). On zone-in / before a boss, offer
-  the tagged builds and what you played there last, across the class's
-  specs.
-- **Blizzard limits (what shapes this):** no talent changes in combat, in a
-  boss encounter or in a running key; each change is a 5 s cast; in
-  instances unit names / IDs are secret, while the instance, encounter
-  start / end and your own spec / build are readable; builds only arrive as
-  pasted strings. Storing, comparing, drawing on or beside the talent
-  window and applying out of combat are all open.
+The whole addon:
+1. **Builds.** Save current, import a string, rename, group, resave, delete.
+   Same talents as a saved build: point at that build instead of saving.
+2. **Situations.** This season's dungeons, delves and raid bosses, plus
+   fallbacks (Raid, Mythic+, Delves). One build per situation; the build
+   decides the spec.
+3. **The prompt.** On zone-in, or with a boss up next: on the right build,
+   nothing; on another, one button that switches spec and build; nothing
+   set, "use current here" or choose one. Tagging mostly happens here.
+4. **Apply.** In place, as today (5 s cast is the floor).
+5. **Season view** in the pane: every dungeon and boss with its build, empty
+   ones highlighted; click one to set it.
+
+Raid "next boss": in instances names are secret, so the next boss is the
+first unkilled one in journal order (from the lockout), re-guessed on
+zone-in and after each kill, changeable in the prompt. A wipe keeps the
+same boss.
+
+**Cut (2026-10-18):** tidy up, fill up and build sources, main builds and
+variants / swaps, near-match planning, gear sets. A dungeon's tweak is its
+own build tagged for that dungeon.
 
 ## Next session: start here
 
-**Parked 2026-10-18 ~01:15 ET (not released; last release v0.2.0-alpha1).**
-In testing on Affliction: Fill up (from a registered build source) then Tidy
-up across the old builds ("Migrated") and the filled-in ones; the
-DevChecklist round "fill up + tidy up (Affliction)" is set. Read the saved
-plan (`tidy[specID]`: input, places, plan) and the log after the player's
-reload, tune the rules from it, then continue with the revisit list below.
-First Fill up + Tidy up run (Affliction, 19 source builds -> 9 distinct ->
-5 core, 4 swaps), fixes to make next: (1) raid and M+ builds must never be
-one family (content is a hard split, like the hero tree); the overall raid
-build landed as a swap of the M+ core 10 nodes away. (2) The overall build of
-a family (tagged Mythic+ / Raid) should be its core; the core was one
-dungeon's build 2 nodes from the overall one. (3) A build used for both raid
-bosses and dungeons (same talents) needs a sensible name and group.
-Open: where build data comes from sustainably (an optional data addon, a
-public API from a large site, or our own data file generated from an open
-dataset whose terms allow it).
+**In testing (2026-10-18): the manager.** Side pane: click a build to
+preview it on the tree (marks stay while it's selected and redraw when your
+talents change), double-click to apply; the panel under the list has Apply,
+Tags, Group, Rename, Copy, Resave, Delete (click twice). Tags and groups are
+one flat menu each, no submenus. Save current / Import open one dialog: the
+string (import), name and group. Group headings: rename, ungroup, delete
+with its builds. The list scrolls. The quick menu (keybind, /tk) is a flat
+list of builds to apply. Old variant / gear / tidy data is cleared once.
 
-**Revisit (player, 2026-10-18), before more features:**
-1. **Import flow.** One import step that sets the build's name, its tags,
-   and the main build it belongs to (if any), instead of import, then
-   rename, then tag, then Variant of.
-2. **Build actions without nested right-click menus.** Menus inside menus
-   feel dated. Rethink how actions on a build are reached (in the pane
-   itself, on the selected build) rather than a context menu tree.
-3. **Click to preview.** Clicking a build previews it on the tree (hover is
-   hard to read); applying becomes an explicit action. Keep the green glow
-   for talents the build takes; find an equally clear look for talents it
-   drops.
-4. **Tidy up as the addon's job.** *(First version in testing, 2026-10-18:
-   Tidy up in the pane's header plans the whole spec on one screen; the
-   plan and its input are kept in saved data for tuning; /tk undo. Fill up:
-   build sources register with the addon and fill a spec with builds tagged
-   for their dungeons and bosses; your ungrouped builds move to "Migrated".
-   Where sustainable source data comes from is open (player, 2026-10-18).)* One clearly explained pass that a new
-   player can press and trust: group a spec's builds into a few core builds
-   (hero tree as a hard split, then talent distance), keep the closest real
-   build of each group as its core, turn the rest into swaps or merge
-   near-copies, read the original names for intent (raid, M+, AoE / ST,
-   dungeon and boss names, hero tree) to propose names and tags, show the
-   whole plan on one screen before changing anything, and keep an undo.
+Then, in order: the prompt for dungeons and delves, raid bosses, the season
+view.
 
+---
+
+## History (before the 2026-10-18 reset)
 
 **Parked 2026-10-16, ~23:40 ET (not released; last release
 v0.2.0-alpha1).** Applying is solid (in place, confirmed across three specs).

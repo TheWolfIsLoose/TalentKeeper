@@ -4,16 +4,16 @@
 
 **Keep your talent builds tidy.**
 
-TalentKeeper saves your talent builds without a sidepane bolted onto the talent window. It knows when two builds are really the same, lets you keep small per-dungeon variants of one main build, and offers the right build when you zone in.
+TalentKeeper keeps a few talent builds per spec and knows which one goes where. Tag a build with the dungeons, delves and raid bosses it's for, and TalentKeeper puts the right spec and build in front of you wherever you go, so the talent window becomes something you rarely need to open.
 
 *In development: the first alpha is coming.*
 
 ### Planned for 1.0
 
-- **No duplicates.** TalentKeeper compares builds by their talents, not their import strings, so it tells you when you already have a build, or how one differs from another.
-- **Main builds and variants.** Keep one main build and attach small variants for the dungeons or bosses that need different picks. Change the main build and every variant follows.
-- **The right build when you zone in.** Tag a build with a dungeon or raid and TalentKeeper offers to switch when you arrive, before the key starts.
-- **Right beside your talents.** A side pane on the talent window lists your builds: hover one to see on the tree what it would change, click to apply, right-click or drag to organize. A small menu and a keybind work too, and the talent window can be scaled down.
+- **The right build wherever you go.** Tag a build with a dungeon, delve, raid or boss; when you arrive TalentKeeper offers to switch spec and build (before the key starts in Mythic+). Places without a build ask once.
+- **Right beside your talents.** A side pane on the talent window lists your builds. Click one to preview it on the tree; apply, tag, group, rename, copy or delete it from the panel below the list. Double-click applies.
+- **No duplicates.** Builds are compared by their talents, not their import strings, so saving one you already have points you at it instead.
+- **Groups.** Save or import straight into a group; rename or delete a group from its heading.
 - **PvP talents too.** Saved with the build.
 - **Bring your builds over.** Imports your Talent Loadout Ex builds on first run.
 
