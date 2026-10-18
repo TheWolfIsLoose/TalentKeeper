@@ -22,7 +22,7 @@ local function Frame()
         if k == "SetScript" then return function(self, n, fn) self.scripts[n] = fn end end
         if k == "RegisterEvent" then return function(self, e) self.events[e] = true end end
         if k == "GetHeight" then return function() return 400 end end
-        if k == "GetFrameLevel" or k == "GetWidth" or k == "GetEffectiveScale" or k == "GetStringWidth" then return function() return 10 end end
+        if k == "GetFrameLevel" or k == "GetWidth" or k == "GetEffectiveScale" or k == "GetStringWidth" or k == "GetTextWidth" then return function() return 10 end end
         if k == "IsShown" or k == "IsVisible" then return function() return true end end
         if k:match("^Create") then return function() return Frame() end end
         return function() return Stub end
@@ -473,5 +473,25 @@ ok(TK.selected == nil, "click again clears the selection")
 TK.ui.buildDialog(true)
 TK.ui.buildDialog(false)
 section("side pane and dialog")
+
+-- prompt: tagged build on another build offers a switch; nothing set offers use current
+GetInstanceInfo = function() return "Dungeon A", "party", 23, nil, nil, nil, nil, 501 end
+local P = TK.prompt
+local pb = B.list(267)[1]
+pb.tags = { ["zone:501"] = "Dungeon A" }
+C_Traits.GenerateImportString = function() return "SPEC:267:0001" end
+P.check()
+ok(TK.db.log[#TK.db.log]:find("offering '" .. pb.name .. "'"), "prompt offers the tagged build: " .. TK.db.log[#TK.db.log])
+P.check()
+ok(TK.db.log[#TK.db.log]:find("offering"), "same place isn't asked twice")
+pb.tags = nil
+GetInstanceInfo = function() return "Dungeon B", "party", 23, nil, nil, nil, nil, 502 end
+P.check()
+ok(TK.db.log[#TK.db.log]:find("Dungeon B, nothing set"), "nothing set: asks once: " .. TK.db.log[#TK.db.log])
+GetInstanceInfo = function() return "Raid A", "raid", 16, nil, nil, nil, nil, 2700 end
+local n = #TK.db.log
+P.check()
+ok(#TK.db.log == n, "raids wait for boss awareness")
+section("prompt")
 
 print_("smoke: all passed")

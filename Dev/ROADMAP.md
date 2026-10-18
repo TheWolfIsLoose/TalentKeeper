@@ -49,8 +49,14 @@ string (import), name and group. Group headings: rename, ungroup, delete
 with its builds. The list scrolls. The quick menu (keybind, /tk) is a flat
 list of builds to apply. Old variant / gear / tidy data is cleared once.
 
-Then, in order: the prompt for dungeons and delves, raid bosses, the season
-view.
+**In testing (2026-10-18): the prompt.** On arriving in a dungeon, a delve or
+the open world (raids excluded for now): already on the tagged build, nothing;
+another build, a bar at the top with Switch (changes spec first if needed);
+nothing set, "Use <current build>" or Choose... (an untagged delve takes the
+shared Delves / open world tag). Asks once per place; hides when a key starts.
+Logged as "prompt: ...".
+
+Then: raid bosses, the season view.
 
 ---
 
