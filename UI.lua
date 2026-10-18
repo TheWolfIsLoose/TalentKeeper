@@ -280,7 +280,7 @@ end
 
 UI.seasonRaids, UI.seasonDungeons = seasonRaids, seasonDungeons
 
-local CONTENT = { { key = "raid", name = "Raid" }, { key = "mplus", name = "Mythic+" }, { key = "delve", name = "Delves" } }
+local CONTENT = { { key = "delve", name = "Delves" }, { key = "world", name = "Open world" } }
 
 -- Picker: the suite's flat list in a small panel (headings, 24px check rows, plain rows) ------
 -- UI.picker(owner, title, items) where items() returns, each time it draws:
@@ -327,7 +327,7 @@ end
 
 local function makePicker()
     pick = CreateFrame("Frame", "TalentKeeperPicker", UIParent)
-    pick.rows, pick.heads, pick.offset = {}, {}, 0
+    pick.rows, pick.heads, pick.bars, pick.offset = {}, {}, {}, 0
     pick:SetWidth(PW)
     pick:SetFrameStrata("DIALOG")
     pick:SetClampedToScreen(true)
@@ -368,50 +368,79 @@ local function makePicker()
     end)
 end
 
+-- Items split into columns at { column = true }; { bar = true } is a short divider.
+local PBAR = 9
+local function itemHeight(it) return it.heading and PHEAD or it.bar and PBAR or it.column and 0 or PROW end
+
 function UI.refreshPicker()
     if not pick or not pick:IsShown() then return end
     for _, r in ipairs(pick.rows) do r:Hide() end
     for _, h in ipairs(pick.heads) do h:Hide() end
-    local items = pick.items()
-    local total = 0
-    for _, it in ipairs(items) do total = total + (it.heading and PHEAD or PROW) end
-    local maxH = math.min(total, math.floor(UIParent:GetHeight() * 0.6))
-    pick:SetHeight(27 + maxH + 4)
-    local height = maxH
-    pick.offset = math.max(0, math.min(pick.offset, total - height))
-    local y, nr, nh = 0, 0, 0
-    for _, it in ipairs(items) do
-        local h = it.heading and PHEAD or PROW
-        local top = y - pick.offset
-        if top >= 0 and top + h <= height then
-            if it.heading then
-                nh = nh + 1
-                local fs = pickHead(nh)
-                fs:SetText(it.heading)
-                fs:ClearAllPoints()
-                fs:SetPoint("BOTTOMLEFT", pick.list, "TOPLEFT", 8, -(top + h - 3))
-                fs:Show()
-            else
-                nr = nr + 1
-                local r = pickRow(nr)
-                r.item = it
-                local check = it.checked ~= nil
-                r.box:SetShown(check)
-                if check then r.mark:SetShown(it.checked() and true or false) end
-                r.text:ClearAllPoints()
-                r.text:SetPoint("LEFT", check and 30 or 8, 0); r.text:SetPoint("RIGHT", -8, 0)
-                local label = type(it.label) == "function" and it.label() or it.label
-                r.text:SetText(label)
-                if it.disabled then r.text:SetTextColor(0.55, 0.55, 0.55) else r.text:SetTextColor(1, 1, 1) end
-                r:EnableMouse(not it.disabled)
-                r:ClearAllPoints()
-                r:SetPoint("TOPLEFT", 0, -top); r:SetPoint("TOPRIGHT", 0, -top)
-                r:Show()
-            end
-        end
-        y = y + h
+    for _, t in ipairs(pick.bars) do t:Hide() end
+    local cols = { {} }
+    for _, it in ipairs(pick.items()) do
+        if it.column then cols[#cols + 1] = {} else table.insert(cols[#cols], it) end
     end
-    local below = y - pick.offset > height
+    local total = 0
+    for _, col in ipairs(cols) do
+        local h = 0
+        for _, it in ipairs(col) do h = h + itemHeight(it) end
+        total = math.max(total, h)
+    end
+    pick:SetWidth(PW * #cols)
+    local height = math.min(total, math.floor(UIParent:GetHeight() * 0.6))
+    pick:SetHeight(27 + height + 4)
+    pick.offset = math.max(0, math.min(pick.offset, total - height))
+    local nr, nh, nb, below = 0, 0, 0, false
+    for c, col in ipairs(cols) do
+        local x, y = (c - 1) * PW, 0
+        for _, it in ipairs(col) do
+            local h = itemHeight(it)
+            local top = y - pick.offset
+            if top + h > height then below = true end
+            if top >= 0 and top + h <= height then
+                if it.heading then
+                    nh = nh + 1
+                    local fs = pickHead(nh)
+                    fs:SetText(it.heading)
+                    fs:ClearAllPoints()
+                    fs:SetPoint("BOTTOMLEFT", pick.list, "TOPLEFT", x + 8, -(top + h - 3))
+                    fs:Show()
+                elseif it.bar then
+                    nb = nb + 1
+                    local t = pick.bars[nb]
+                    if not t then
+                        t = pick.list:CreateTexture(nil, "ARTWORK")
+                        t:SetColorTexture(1, 1, 1, 0.12)
+                        t:SetSize(PW - 16, 1)
+                        t:SetTexelSnappingBias(0); t:SetSnapToPixelGrid(false)
+                        pick.bars[nb] = t
+                    end
+                    t:ClearAllPoints()
+                    t:SetPoint("TOPLEFT", x + 8, -(top + 4))
+                    t:Show()
+                else
+                    nr = nr + 1
+                    local r = pickRow(nr)
+                    r.item = it
+                    local check = it.checked ~= nil
+                    r.box:SetShown(check)
+                    if check then r.mark:SetShown(it.checked() and true or false) end
+                    r.text:ClearAllPoints()
+                    r.text:SetPoint("LEFT", check and 30 or 8, 0); r.text:SetPoint("RIGHT", -8, 0)
+                    local label = type(it.label) == "function" and it.label() or it.label
+                    r.text:SetText(label)
+                    if it.disabled then r.text:SetTextColor(0.55, 0.55, 0.55) else r.text:SetTextColor(1, 1, 1) end
+                    r:EnableMouse(not it.disabled)
+                    r:ClearAllPoints()
+                    r:SetWidth(PW)
+                    r:SetPoint("TOPLEFT", x, -top)
+                    r:Show()
+                end
+            end
+            y = y + h
+        end
+    end
     if below and not pick.more:IsShown() then pick.pulse.n = 0 pick.pulse:Play() end
     pick.more:SetShown(below)
 end
@@ -441,20 +470,19 @@ local function tagItem(b, s, label)
         onClick = function() B.toggleTag(b, s.key, s.name) end }
 end
 
--- One flat list: here, content, this season's dungeons, then each raid and its bosses.
+-- Two columns: Delves, open world and this season's dungeons; then each raid's bosses.
 function UI.tagItems(b)
     local items = {}
-    local here = B.here()
-    if here then items[#items + 1] = tagItem(b, here, here.name .. " |cff8c8c8c(here)|r") end
     for _, s in ipairs(CONTENT) do items[#items + 1] = tagItem(b, s) end
     local dungeons = seasonDungeons()
     if #dungeons > 0 then
+        items[#items + 1] = { bar = true }
         items[#items + 1] = { heading = "Mythic+ dungeons" }
         for _, s in ipairs(dungeons) do items[#items + 1] = tagItem(b, s) end
     end
+    items[#items + 1] = { column = true }
     for _, raid in ipairs(seasonRaids()) do
         items[#items + 1] = { heading = raid.name }
-        if raid.key then items[#items + 1] = tagItem(b, { key = raid.key, name = raid.name }, "Whole raid") end
         for _, s in ipairs(raid.bosses) do items[#items + 1] = tagItem(b, s) end
     end
     return items

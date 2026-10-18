@@ -248,7 +248,7 @@ function B.updateToCurrent(b)
 end
 
 -- Situations a build is for ----------------------------------------------------------
--- b.tags[key] = name. Keys: "raid", "mplus", "delve" (content), "zone:<instanceID>" (a
+-- b.tags[key] = name. Keys: "delve", "world" (open world), "zone:<instanceID>" (a
 -- dungeon, raid or delve), "boss:<encounterID>". One build per spec per situation; one
 -- situation can point at builds in several specs.
 -- A situation points at one build per spec: tagging a build takes the tag off the spec's others.
@@ -277,13 +277,12 @@ function B.tagNames(b)
     return out
 end
 
--- The instance you're in, as a situation (nil in the open world); content = its content tag.
-local MYTHIC, KEYSTONE, DELVE = 23, 8, 208
+-- Where you are, as a situation: the instance, or the open world; content = its content tag (delves).
+local DELVE = 208
 function B.here()
     local name, kind, difficulty, _, _, _, _, id = GetInstanceInfo()
-    if not id or kind == "none" or kind == nil then return nil end
-    local content = (difficulty == DELVE and "delve") or (kind == "raid" and "raid")
-        or (kind == "party" and (difficulty == MYTHIC or difficulty == KEYSTONE) and "mplus") or nil
+    if not id or kind == "none" or kind == nil then return { key = "world", name = "Open world" } end
+    local content = difficulty == DELVE and "delve" or nil
     return { key = "zone:" .. id, name = name, content = content, difficulty = difficulty }
 end
 

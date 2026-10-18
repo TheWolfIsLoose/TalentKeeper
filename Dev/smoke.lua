@@ -368,7 +368,9 @@ ok(not said("Pick a specialization"), "quick list opens")
 section("slash commands")
 
 local function labelsOf(items) local out = {} for _, it in ipairs(items) do
-    out[#out + 1] = it.heading and ("head:" .. it.heading) or ((it.checked and "check:" or "item:") .. (type(it.label) == "function" and it.label() or it.label)) end
+    if it.label or it.heading then
+        out[#out + 1] = it.heading and ("head:" .. it.heading) or ((it.checked and "check:" or "item:") .. (type(it.label) == "function" and it.label() or it.label))
+    end end
     return table.concat(out, ",") end
 local quick = TK.ui.quickItems(267)
 local flat = labelsOf(quick)
@@ -380,8 +382,11 @@ for _, it in ipairs(quick) do if it.label == "Solo" then it.onClick() end end
 B.apply = realApply
 ok(applied and applied.name == "Solo", "clicking a build in the quick list applies it")
 local tl = labelsOf(TK.ui.tagItems(B.list(267)[1]))
-ok(tl:find("check:Dungeon A |cff8c8c8c%(here%)|r") and tl:find("check:Mythic%+") and tl:find("head:Mythic%+ dungeons")
-    and tl:find("head:Raid A,check:Whole raid,check:Boss A"), "tag list: here, content, dungeons, raid bosses: " .. tl)
+ok(tl:find("^check:Delves,check:Open world,head:Mythic%+ dungeons,check:Dungeon A,head:Raid A,check:Boss A$"),
+    "tag list: delves, open world, dungeons, then raid bosses (no Raid / Mythic+ / whole raid): " .. tl)
+local cols = 0
+for _, it in ipairs(TK.ui.tagItems(B.list(267)[1])) do if it.column then cols = cols + 1 end end
+ok(cols == 1, "raids in a second column")
 ok(not tl:find("World"), "no world bosses in the tag list")
 section("menu")
 
@@ -408,18 +413,18 @@ B.toggleTag(tb, "zone:501", "Dungeon A")
 ok(tb.tags and tb.tags["zone:501"] == "Dungeon A", "tag from the offer: " .. tostring(tb.tags and next(tb.tags)))
 UnitClass = function() return "Warlock", "WARLOCK", 9 end
 GetNumSpecializationsForClassID = function() return 3 end
-GetInstanceInfo = function() return "Dungeon A", "party", 23, nil, nil, nil, nil, 501 end
+GetInstanceInfo = function() return "Delve A", "scenario", 208, nil, nil, nil, nil, 501 end
 local other = B.list(267)[2]
 B.toggleTag(tb, "zone:9", "D9")
 B.toggleTag(other, "zone:9", "D9")
 ok(other.tags["zone:9"] and not (tb.tags and tb.tags["zone:9"]) and said("D9 moved from"), "a tag moves: one build per spec per situation")
 other.tags = nil
-local mp = B.add(265, { name = "Aff M+", text = "SPEC:265:1111", tags = { mplus = "Mythic+" } })
+local mp = B.add(265, { name = "Aff delve", text = "SPEC:265:1111", tags = { delve = "Delves" } })
 local hits = B.forHere(B.here())
-ok(#hits == 1 and hits[1].b == tb, "zone-in: builds tagged for this instance win over content tags")
+ok(#hits == 1 and hits[1].b == tb, "zone-in: builds tagged for this place win over Delves")
 tb.tags = nil
 hits = B.forHere(B.here())
-ok(#hits == 1 and hits[1].b == mp and hits[1].specID == 265, "zone-in: else builds for its kind of content, any spec")
+ok(#hits == 1 and hits[1].b == mp and hits[1].specID == 265, "zone-in: else the Delves build, any spec")
 B.delete(265, mp)
 section("tags")
 

@@ -71,6 +71,15 @@ TK.on("ADDON_LOADED", function(name)
         end
         db.tidy, db.undo, db.plainBuilds = nil, nil, true
     end
+    -- The Raid and Mythic+ tags are gone (each dungeon and boss is tagged on its own).
+    if not db.noContentTags then
+        for _, list in pairs(db.builds) do
+            for _, b in ipairs(list) do
+                if b.tags then b.tags.raid, b.tags.mplus = nil, nil if not next(b.tags) then b.tags = nil end end
+            end
+        end
+        db.noContentTags = true
+    end
     local version = C_AddOns.GetAddOnMetadata(addonName, "Version")
     if TK.build then version = "dev " .. TK.build elseif version:find("@") then version = "dev" else version = "v" .. version end
     if db.lastVersion ~= version then TK.log("version: %s -> %s", tostring(db.lastVersion), version) end
