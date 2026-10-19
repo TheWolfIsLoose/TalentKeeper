@@ -72,6 +72,17 @@ unkilled boss in my lockout" picks the wrong boss: the subzone you're in
 (learned from pulls, with ready check as the reminder) is the better
 signal, the lockout only a fallback.
 
+**Raids: a ready-check strip, not pop-ups (player, 2026-10-19).** No zone-in
+prompt in raids. On a ready check, a small frame under Blizzard's ready
+check popup (or a saved spot when the popup isn't shown, e.g. you started
+the check): the boss TalentKeeper expects, then either "on <build>"
+(mint), "wrong build: on X, tagged Y" with Switch (amber), or "nothing
+tagged" with Use current. The boss is correctable right there (pick from
+this raid's living bosses); a correction teaches the room -> boss link.
+Movable (shift-drag, saved). Boss guess: rooms learned from pulls and
+corrections (subzone at ENCOUNTER_START), then the lockout, then journal
+order. Rooms crystallize per boss over time.
+
 **Parked 2026-10-18 ~13:00 ET (not released).** Next: raid bosses (next
 unkilled boss from the lockout on zone-in and after each kill, changeable in
 the prompt). Testing needs a full raid clear on a character, when the player
