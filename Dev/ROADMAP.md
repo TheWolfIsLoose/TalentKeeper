@@ -59,6 +59,19 @@ Logged as "prompt: ...".
 Confirmed 2026-10-18 (open world: chose and applied; Murder Row: offered the
 tagged build, Switch applied it, 0 differences).
 
+**Open world: no prompt (player, 2026-10-19);** delves still prompt. The tag
+is now just "Delves".
+
+**Heroic raid run logged (2026-10-18, joined a group at the last boss):**
+zone-in reads the subzone you arrive in ("The Tomb of Ula'tek"); ready
+checks and encounter start / end (name, encounter ID, wipe / kill) are
+readable; the subzone at the pull matches the boss's room; target /
+mouseover stay secret (every boss elite, level -1). The player's own
+lockout showed nothing killed, so for a group joined partway "first
+unkilled boss in my lockout" picks the wrong boss: the subzone you're in
+(learned from pulls, with ready check as the reminder) is the better
+signal, the lockout only a fallback.
+
 **Parked 2026-10-18 ~13:00 ET (not released).** Next: raid bosses (next
 unkilled boss from the lockout on zone-in and after each kill, changeable in
 the prompt). Testing needs a full raid clear on a character, when the player

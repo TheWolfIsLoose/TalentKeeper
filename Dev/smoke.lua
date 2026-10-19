@@ -382,7 +382,7 @@ for _, it in ipairs(quick) do if it.label == "Solo" then it.onClick() end end
 B.apply = realApply
 ok(applied and applied.name == "Solo", "clicking a build in the quick list applies it")
 local tl = labelsOf(TK.ui.tagItems(B.list(267)[1]))
-ok(tl:find("^check:Delves / open world,head:Mythic%+ dungeons,check:Dungeon A,head:Raid A,check:Boss A$"),
+ok(tl:find("^check:Delves,head:Mythic%+ dungeons,check:Dungeon A,head:Raid A,check:Boss A$"),
     "tag list: delves, open world, dungeons, then raid bosses (no Raid / Mythic+ / whole raid): " .. tl)
 local cols = 0
 for _, it in ipairs(TK.ui.tagItems(B.list(267)[1])) do if it.column then cols = cols + 1 end end
@@ -488,6 +488,10 @@ pb.tags = nil
 GetInstanceInfo = function() return "Dungeon B", "party", 23, nil, nil, nil, nil, 502 end
 P.check()
 ok(TK.db.log[#TK.db.log]:find("Dungeon B, nothing set"), "nothing set: asks once: " .. TK.db.log[#TK.db.log])
+GetInstanceInfo = function() return "Dornogal", "none", 0, nil, nil, nil, nil, 2552 end
+local n0 = #TK.db.log
+P.check()
+ok(#TK.db.log == n0, "open world: no prompt")
 GetInstanceInfo = function() return "Raid A", "raid", 16, nil, nil, nil, nil, 2700 end
 local n = #TK.db.log
 P.check()

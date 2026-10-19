@@ -280,7 +280,7 @@ end
 
 UI.seasonRaids, UI.seasonDungeons = seasonRaids, seasonDungeons
 
-local CONTENT = { { key = "delve", name = "Delves / open world" } }
+local CONTENT = { { key = "delve", name = "Delves" } }
 
 -- Picker: the suite's flat list in a small panel (headings, 24px check rows, plain rows) ------
 -- UI.picker(owner, title, items) where items() returns, each time it draws:
@@ -491,7 +491,7 @@ local function tagItem(b, s, label)
         onClick = function() B.toggleTag(b, s.key, s.name) end }
 end
 
--- Two columns: Delves / open world and this season's dungeons; then each raid's bosses.
+-- Two columns: Delves and this season's dungeons; then each raid's bosses.
 function UI.tagItems(b)
     local items = {}
     for _, s in ipairs(CONTENT) do items[#items + 1] = tagItem(b, s) end

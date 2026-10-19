@@ -1,4 +1,4 @@
--- TalentKeeper prompt: on arriving in a dungeon, a delve or the open world, offer the build
+-- TalentKeeper prompt: on arriving in a dungeon or a delve, offer the build
 -- tagged for it (changing spec first if it's another spec's build). Nothing set: offer to use
 -- your current build there, or choose one. Raids wait for boss awareness.
 local _, TK = ...
@@ -115,7 +115,11 @@ end
 function P.check()
     local here = B.here()
     local kind = select(2, GetInstanceInfo())
-    if not here or kind == "raid" or kind == "pvp" or kind == "arena" then return P.hide() end
+    -- open world: no prompt (delves still offer the Delves build)
+    if not here or kind == "none" or kind == nil or kind == "raid" or kind == "pvp" or kind == "arena" then
+        shownFor = nil
+        return P.hide()
+    end
     if here.key == shownFor then return end -- same place: don't ask again
     shownFor = here.key
     local hits = B.forHere(here)
@@ -130,8 +134,8 @@ function P.check()
         return show(("%s: |cff98ff98%s|r%s"):format(here.name, hit.b.name, spec),
             { "Switch", function() switch(hit.b, hit.specID) end })
     end
-    -- an untagged delve takes the shared Delves / open world tag
-    if here.content == "delve" then here = { key = "delve", name = "Delves / open world" } end
+    -- an untagged delve takes the shared Delves tag
+    if here.content == "delve" then here = { key = "delve", name = "Delves" } end
     local specID = B.specID()
     local active = specID and TK.db.active[specID]
     local cur

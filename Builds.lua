@@ -281,7 +281,7 @@ end
 local DELVE = 208
 function B.here()
     local name, kind, difficulty, _, _, _, _, id = GetInstanceInfo()
-    if not id or kind == "none" or kind == nil then return { key = "delve", name = "Delves / open world" } end -- one tag for both
+    if not id or kind == "none" or kind == nil then return { key = "delve", name = "Delves" } end -- the open world shares the Delves build
     local content = difficulty == DELVE and "delve" or nil
     return { key = "zone:" .. id, name = name, content = content, difficulty = difficulty }
 end
