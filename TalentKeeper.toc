@@ -19,6 +19,3 @@ UI.lua
 Window.lua
 Prompt.lua
 
-#@debug@
-Dev\Spike.lua
-#@end-debug@

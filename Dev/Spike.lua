@@ -227,7 +227,8 @@ local function zone()
     if (itype == "party" or itype == "raid") and diffID ~= 0 then
         local msg = itype == "raid" and "TalentKeeper spike is logging. Target or mouse over each boss before the pull."
             or "TalentKeeper spike is logging. Nothing to do: ready check and key start log on their own."
-        RaidNotice_AddMessage(RaidWarningFrame, msg, ChatTypeInfo["RAID_WARNING"])
+        -- never RaidNotice_AddMessage: addon text there taints Blizzard's raid warning frame
+        TK.chat(msg)
         P(msg)
     end
 end
