@@ -82,6 +82,11 @@ this raid's living bosses); a correction teaches the room -> boss link.
 Movable (shift-drag, saved). Boss guess: rooms learned from pulls and
 corrections (subzone at ENCOUNTER_START), then the lockout, then journal
 order. Rooms crystallize per boss over time.
+**In testing (2026-10-19, passive):** `ReadyCheck.lua`. Shows on every
+ready check in a dungeon, delve or raid (Mythic+ included: the last chance
+before the key locks talents). Rooms are kept in `rooms[instanceID][subzone]
+= encounterID`; a hand pick lasts until the next kill. Logged as
+"readycheck: ...".
 
 **Parked 2026-10-18 ~13:00 ET (not released).** Next: raid bosses (next
 unkilled boss from the lockout on zone-in and after each kill, changeable in

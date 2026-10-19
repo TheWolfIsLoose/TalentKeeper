@@ -18,4 +18,5 @@ Compare.lua
 UI.lua
 Window.lua
 Prompt.lua
+ReadyCheck.lua
 

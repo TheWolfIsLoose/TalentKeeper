@@ -498,4 +498,26 @@ P.check()
 ok(#TK.db.log == n, "raids wait for boss awareness")
 section("prompt")
 
+-- ready check: dungeon tag, raid boss by room / lockout / pick
+local RC = TK.readycheck
+GetInstanceInfo = function() return "Dungeon A", "party", 23, nil, nil, nil, nil, 501 end
+local rb = B.list(267)[1]
+rb.tags = { ["zone:501"] = "Dungeon A" }
+C_Traits.GenerateImportString = function() return "SPEC:267:0001" end
+RC.show()
+ok(TK.db.log[#TK.db.log]:find("readycheck: Dungeon A, tagged '" .. rb.name .. "'"), "ready check in a dungeon: wrong build named: " .. TK.db.log[#TK.db.log])
+rb.tags = nil
+GetInstanceInfo = function() return "Raid A", "raid", 15, nil, nil, nil, nil, 2700 end
+C_RaidLocks = { IsEncounterComplete = function() return false end }
+GetSubZoneText = function() return "Boss Room" end
+local boss, how = RC.expectedBoss()
+ok(boss and boss.name == "Boss A" and how == "lockout", "raid: first boss alive in the lockout: " .. tostring(how))
+fire("ENCOUNTER_START", 3001, "Boss A", 15, 20)
+ok(TK.db.rooms[2700]["Boss Room"] == 3001, "a pull teaches the room")
+boss, how = RC.expectedBoss()
+ok(how == "room", "raid: the room wins once learned")
+RC.show()
+ok(TK.db.log[#TK.db.log]:find("readycheck: Boss A %(room%), nothing tagged"), "raid ready check: " .. TK.db.log[#TK.db.log])
+section("ready check")
+
 print_("smoke: all passed")

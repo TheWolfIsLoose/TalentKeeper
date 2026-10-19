@@ -83,6 +83,7 @@ local function switch(b, specID)
     pendingSwitch = { b = b, specID = specID }
     C_SpecializationInfo.SetSpecialization(i)
 end
+P.switch, P.onBuild = switch, onBuild
 
 TK.on("ACTIVE_PLAYER_SPECIALIZATION_CHANGED", function()
     local p = pendingSwitch
@@ -91,7 +92,8 @@ TK.on("ACTIVE_PLAYER_SPECIALIZATION_CHANGED", function()
     C_Timer.After(1, TK.safe(function() B.apply(p.b) end)) -- let the new spec's tree settle
 end)
 
-local function chooseFor(here, owner)
+-- Pick one of this spec's builds for a situation: tags it there and switches to it.
+local function chooseFor(here, owner, after)
     local specID = B.specID()
     UI.picker(owner, "Use for " .. here.name, function()
         local items = {}
@@ -104,6 +106,7 @@ local function chooseFor(here, owner)
                     TK.log("prompt: chose '%s' for %s", b.name, here.name)
                     P.hide()
                     if not onBuild(b, specID) then switch(b, specID) end
+                    if after then after() end
                 end }
             end
         end
@@ -111,6 +114,7 @@ local function chooseFor(here, owner)
         return items
     end)
 end
+P.chooseFor = chooseFor
 
 function P.check()
     local here = B.here()
