@@ -90,6 +90,7 @@ TK.on("ADDON_LOADED", function(name)
     end
     local version = C_AddOns.GetAddOnMetadata(addonName, "Version")
     if TK.build then version = "dev " .. TK.build elseif version:find("@") then version = "dev" else version = "v" .. version end
+    TK.version = version
     if db.lastVersion ~= version then TK.log("version: %s -> %s", tostring(db.lastVersion), version) end
     db.lastVersion = version
     TK.chat(version .. " loaded. Type |cff98ff98/tk|r to open your builds.")

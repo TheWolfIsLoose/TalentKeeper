@@ -365,7 +365,8 @@ function W.refresh()
     for _, h in ipairs(heads) do h:Hide() end
     local specID = B.specID()
     local active = specID and TK.db.active[specID]
-    pane.title:SetText(specID and (B.specName(specID) .. " builds") or "TalentKeeper")
+    local v = TK.version or ""
+    pane.version:SetText(((v:find("^dev") or v:find("%-alpha") or v:find("%-beta")) and "|cffffb84d" or "|cff8c8c8c") .. v .. "|r")
     W.refreshSpecs()
     -- lay out every line, then show the ones inside the list's window
     local lines, y = {}, 0
@@ -539,8 +540,13 @@ EventUtil.ContinueOnAddOnLoaded("Blizzard_PlayerSpells", TK.safe(function()
     mark:SetSize(16, 16)
     mark:SetPoint("LEFT", pane, "TOPLEFT", 8, -13)
     mark:SetTexture("Interface\\AddOns\\TalentKeeper\\icon.png")
-    pane.title = pane:CreateFontString(nil, "OVERLAY", "TalentKeeperFont")
-    pane.title:SetPoint("LEFT", mark, "RIGHT", 6, 0)
+    -- name and version, as the suite's other headers: mint first half, version in Small,
+    -- amber while it's a dev, alpha or beta build
+    local title = pane:CreateFontString(nil, "OVERLAY", "TalentKeeperFont")
+    title:SetPoint("LEFT", mark, "RIGHT", 6, 0)
+    title:SetText("|cff98ff98Talent|rKeeper")
+    pane.version = pane:CreateFontString(nil, "OVERLAY", "TalentKeeperFontSmall")
+    pane.version:SetPoint("BOTTOMLEFT", title, "BOTTOMRIGHT", 6, 1)
     local rule = pane:CreateTexture(nil, "OVERLAY")
     rule:SetColorTexture(0, 0, 0, 1)
     rule:SetHeight(1)
