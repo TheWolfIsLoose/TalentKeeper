@@ -1,6 +1,6 @@
 ## Interface: 120105
 ## Title: TalentKeeper
-## Notes: Keep your talent builds tidy: no duplicates, small per-dungeon variants of a main build, and the right build offered when you zone in.
+## Notes: Keep your talent builds tidy, and the right one wherever you go.
 ## Author: Jakerator
 ## Version: @project-version@
 ## IconTexture: Interface\AddOns\TalentKeeper\icon.png

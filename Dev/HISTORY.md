@@ -4,6 +4,21 @@ Full notes for every release, newest first. Dev-only (the `Dev/` folder
 never ships); the player-facing summary for the release being cut lives in
 CHANGELOG.md. Add each release's detailed notes here when you cut it.
 
+## v0.3.0 (2026-10-20)
+
+First stable release (CurseForge lists a project only once it has one).
+Everything in v0.3.0-beta1, plus:
+- Save / Import: a For field (the tag list, kept as a draft until you
+  press Save / Import). Same talents as a saved build: that build takes the
+  tags, moved off the spec's other builds, and chat says what it was tagged
+  for.
+- Pane rows shimmer once (mint sweep, 2 s) when a build is saved, matched,
+  tagged or moved to a group; the list scrolls to it.
+- Pane header: TalentKeeper (mint "Talent") and the version, amber for
+  dev / alpha / beta builds, instead of "<spec> builds".
+- README, CurseForge copy and TOC notes rewritten to what the addon does
+  now.
+
 ## v0.3.0-beta1 (2026-10-20)
 
 First public beta. Reset to basics (2026-10-18): a plain build manager that

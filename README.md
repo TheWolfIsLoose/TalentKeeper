@@ -5,42 +5,50 @@
 <h1 align="center">TalentKeeper</h1>
 
 <p align="center">
-  Keep your talent builds tidy.<br>
+  Keep your talent builds tidy, and the right one wherever you go.<br>
   <a href="https://www.curseforge.com/wow/addons/talentkeeper">CurseForge</a>
   ·
   <a href="https://github.com/TheWolfIsLoose/TalentKeeper/releases">Releases</a>
 </p>
 
-> **In development.** Nothing to install yet; the plan is in
-> [Dev/ROADMAP.md](Dev/ROADMAP.md).
-
 TalentKeeper keeps a few talent builds per spec and knows which one goes
 where. Tag a build with the dungeons, delves and raid bosses it's for, and
-TalentKeeper puts the right spec and build in front of you wherever you go,
-so the talent window becomes something you rarely need to open.
+TalentKeeper offers the right spec and build when you get there, so the
+talent window becomes something you rarely need to open.
 
-## Features (planned for 1.0)
+## Features
 
-- **The right build wherever you go.** Tag a build with a dungeon, delve,
-  raid or boss; when you arrive TalentKeeper offers to switch spec and build
-  (before the key starts in Mythic+). Places without a build ask once.
 - **Right beside your talents.** A side pane on the talent window lists your
-  builds. Click one to preview it on the tree; apply, tag, group, rename,
-  copy or delete it from the panel below the list. Double-click applies.
+  builds, in groups. Click one to preview it on the tree; double-click to
+  apply. Apply, Tags, Group, Rename, Copy, Resave and Delete sit under the
+  list, and spec buttons change spec without leaving the window.
+- **Tag builds for where you use them.** This season's Mythic+ dungeons,
+  delves (one shared Delves tag) and each raid boss. One build per spec for
+  each place, so TalentKeeper always knows what to offer.
+- **The right build when you arrive.** Entering one of this season's
+  dungeons or a delve offers the build tagged for it, changing spec first if
+  needed. A place with nothing tagged asks once what to use there. Nothing
+  changes your talents without a click.
+- **Ready check reminder.** On a ready check, a small strip says whether
+  you're on the build tagged for what's next, with Switch or Choose. In
+  raids it names the boss it expects, learned from where you've pulled
+  before, and you can correct it. Shift-drag to move it.
 - **No duplicates.** Builds are compared by their talents, not their import
-  strings, so saving one you already have points you at it instead.
-- **Groups.** Save or import straight into a group; rename or delete a
-  group from its heading.
-- **PvP talents too.** Saved with the build.
-- **Bring your builds over.** Imports your Talent Loadout Ex builds on
-  first run.
+  strings. Saving or importing one you already have points you at it, and
+  gives it any tags you picked.
+- **PvP talents too.** Saved and applied with the build.
+- **Bring your builds over.** On first run, imports the builds you saved in
+  Talent Loadout Ex.
 
 ## Commands
 
 | Command | What it does |
 |---|---|
-| `/tk` | Quick menu: click a build to apply it |
-| `/tk save`, `/tk import` | Save your current talents, or import a string |
+| `/tk` | Your builds for this spec: click one to apply it (also on a key binding) |
+| `/tk save [name]` | Save your current talents as a build |
+| `/tk import` | Paste a talent string to save it |
+| `/tk log [clear]` | Open the log to copy into a bug report, or clear it |
+| `/tk debug` | Record detailed steps into the log until `/reload` |
 
 ## Install
 
@@ -50,8 +58,8 @@ the output of `/tk log`.
 
 ## Credits
 
-By Jakerator. Inspired by Talent Loadout Ex (Morizo) and Talent Loadout
-Manager (Numy).
+By Jakerator. Uses LibStub and LibTalentTree-1.0. Font: Barlow Semi
+Condensed (SIL Open Font License).
 
 ## License
 
