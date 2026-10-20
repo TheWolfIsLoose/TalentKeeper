@@ -36,19 +36,26 @@ function B.uniqueName(list, name, except)
     end
 end
 
--- Adds a build unless the same string is already saved for that spec.
--- Returns the build, or nil plus the existing build it matched.
+-- Adds a build unless the same talents are already saved for that spec. The new build's
+-- tags (b.tags) are set on whichever build ends up holding the talents, taking them off the
+-- spec's other builds. Returns the build, or nil plus the existing build it matched.
 function B.add(specID, b)
     b.text = strtrim(b.text)
     local list = B.list(specID)
+    local tags = b.tags
+    b.tags = nil
+    local into
     for _, other in ipairs(list) do
-        if strtrim(other.text) == b.text then return nil, other end
+        if strtrim(other.text) == b.text then into = other break end
     end
-    local same = TK.compare.same(list, b.text)  -- same talents, different string
-    if same then return nil, same end
-    b.name = B.uniqueName(list, b.name)
-    b.added = b.added or time()
-    list[#list + 1] = b
+    into = into or TK.compare.same(list, b.text)  -- same talents, different string
+    if not into then
+        b.name = B.uniqueName(list, b.name)
+        b.added = b.added or time()
+        list[#list + 1] = b
+    end
+    for key, name in pairs(tags or {}) do B.setTag(into or b, key, name, true) end
+    if into then return nil, into end
     return b
 end
 
@@ -125,7 +132,7 @@ local function cantSave()
     if B.unspent() then TK.chat(UNSPENT) return true end
 end
 
-function B.saveCurrent(name, group)
+function B.saveCurrent(name, group, tags)
     local specID = B.specID()
     if cantSave() then return end
     local text = currentString()
@@ -133,9 +140,9 @@ function B.saveCurrent(name, group)
     local list = B.list(specID)
     local b, same = B.add(specID, {
         name = name ~= "" and name or ("%s %d"):format(B.specName(specID), #list + 1),
-        text = text, pvp = currentPvp(), group = group,
+        text = text, pvp = currentPvp(), group = group, tags = tags,
     })
-    if not b then return B.same(same) end
+    if not b then return B.same(same, tags) end
     TK.db.active[specID] = b.name
     TK.log("saved '%s' (%s)", b.name, B.specName(specID))
     TK.chat(("Saved |cffffffff%s|r.%s"):format(b.name, TK.compare.nearNote(list, b)))
@@ -143,15 +150,15 @@ function B.saveCurrent(name, group)
     TK.changed()
 end
 
-function B.importString(text, name, group)
+function B.importString(text, name, group, tags)
     local spec, err = B.stringSpec(text)
     if not spec then return TK.chat("|cffff8888" .. err .. "|r") end
     local list = B.list(spec)
     local b, same = B.add(spec, {
         name = name and name ~= "" and name or ("Imported %d"):format(#list + 1),
-        text = strtrim(text), group = group,
+        text = strtrim(text), group = group, tags = tags,
     })
-    if not b then return B.same(same) end
+    if not b then return B.same(same, tags) end
     TK.log("imported '%s' (%s)", b.name, B.specName(spec))
     TK.chat(("Saved |cffffffff%s|r for %s.%s"):format(b.name, B.specName(spec), TK.compare.nearNote(list, b)))
     TK.selected = b
@@ -252,9 +259,10 @@ end
 -- dungeon, raid or delve), "boss:<encounterID>". One build per spec per situation; one
 -- situation can point at builds in several specs.
 -- A situation points at one build per spec: tagging a build takes the tag off the spec's others.
-function B.toggleTag(b, key, name)
+function B.setTag(b, key, name, on)
     b.tags = b.tags or {}
-    if not b.tags[key] then
+    if on and b.tags[key] then if not next(b.tags) then b.tags = nil end return end -- already there
+    if on then
         for _, x in ipairs(B.list(B.findSpec(b))) do
             if x ~= b and x.tags and x.tags[key] then
                 x.tags[key] = nil
@@ -264,11 +272,13 @@ function B.toggleTag(b, key, name)
             end
         end
     end
-    b.tags[key] = not b.tags[key] and name or nil
-    TK.log("'%s' %s %s", b.name, b.tags[key] and "tagged for" or "untagged", name)
+    b.tags[key] = on and name or nil
+    TK.log("'%s' %s %s", b.name, on and "tagged for" or "untagged", name)
     if not next(b.tags) then b.tags = nil end
     TK.changed()
 end
+
+function B.toggleTag(b, key, name) B.setTag(b, key, name, not (b.tags and b.tags[key])) end
 
 function B.tagNames(b)
     local out = {}
@@ -305,9 +315,14 @@ function B.forHere(here)
     return #exact > 0 and exact or content
 end
 
--- Saving or importing talents you already have as a build: point at that build instead.
-function B.same(same)
-    TK.chat(("Same talents as |cffffffff%s|r, so nothing new to save. It's selected in the list."):format(same.name))
+-- Saving or importing talents you already have as a build: point at that build instead
+-- (B.add already gave it the tags the new one was for).
+function B.same(same, tags)
+    local names = {}
+    for _, name in pairs(tags or {}) do names[#names + 1] = name end
+    table.sort(names)
+    local tagged = #names > 0 and (" Tagged it for %s."):format(table.concat(names, ", ")) or ""
+    TK.chat(("Same talents as |cffffffff%s|r, so nothing new to save.%s It's selected in the list."):format(same.name, tagged))
     TK.selected = same
     TK.changed()
 end

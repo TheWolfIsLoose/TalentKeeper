@@ -426,6 +426,13 @@ tb.tags = nil
 hits = B.forHere(B.here())
 ok(#hits == 1 and hits[1].b == mp and hits[1].specID == 265, "zone-in: else the Delves build, any spec")
 B.delete(265, mp)
+other.tags = { ["boss:7"] = "Boss Z" }
+ok(B.add(267, { name = "dup", text = tb.text, tags = { ["boss:7"] = "Boss Z", ["zone:8"] = "D8" } }) == nil, "a duplicate with tags isn't saved")
+ok(tb.tags["boss:7"] and tb.tags["zone:8"] and not other.tags, "a duplicate's tags land on the saved build, moved off others")
+tb.tags = { ["zone:8"] = "D8" }
+B.importString(tb.text, "dup2", nil, { ["zone:8"] = "D8" })
+ok(tb.tags["zone:8"] and said("Tagged it for D8"), "importing a duplicate keeps a tag it already has and says so")
+tb.tags = nil
 section("tags")
 
 -- groups: save into a group, rename it, delete it with its builds

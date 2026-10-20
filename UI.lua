@@ -135,7 +135,8 @@ function UI.textWindow(opts)
 end
 
 -- Save / import dialog -----------------------------------------------------------------
--- One step: the talent string (import only), the build's name and its group.
+-- One step: the talent string (import only), the build's name, its group and what it's for.
+-- If the talents are already saved, that build gets the "for" tags instead (B.add).
 local dlg
 local function editBox(parent, multi)
     local box = CreateFrame("Frame", nil, parent)
@@ -199,15 +200,39 @@ local function makeDialog()
         end)
     end)
     dlg.pick:SetPoint("LEFT", dlg.group, "RIGHT", 6, 0)
+    -- what it's for: a draft of tags, set on the build only when you press Import / Save
+    dlg.forBox = CreateFrame("Frame", nil, dlg)
+    dlg.forBox:SetHeight(24)
+    fill(dlg.forBox, "BACKGROUND", 1, 1, 1, 0.08)
+    ring(dlg.forBox, 0.4)
+    dlg.forBox:SetPoint("TOPLEFT", dlg.group, "BOTTOMLEFT", 0, -22)
+    dlg.forBox:SetPoint("TOPRIGHT", dlg.group, "BOTTOMRIGHT", 0, -22)
+    dlg.forText = dlg.forBox:CreateFontString(nil, "OVERLAY", "TalentKeeperFontSmall")
+    dlg.forText:SetPoint("LEFT", 6, 0); dlg.forText:SetPoint("RIGHT", -6, 0)
+    dlg.forText:SetJustifyH("LEFT"); dlg.forText:SetWordWrap(false)
+    caption(dlg, "For (blank for nothing yet)", dlg.forBox)
+    local function showFor() dlg.forText:SetText(UI.tagSummary(dlg.draft) or "") end
+    dlg.showFor = showFor
+    local function draftToggle(_, key, name)
+        local t = dlg.draft.tags or {}
+        t[key] = not t[key] and name or nil
+        dlg.draft.tags = next(t) and t or nil
+        showFor()
+    end
+    dlg.forPick = button(dlg, "...", 24, function(self)
+        UI.picker(self, "For", function() return UI.tagItems(dlg.draft, draftToggle) end)
+    end)
+    dlg.forPick:SetPoint("LEFT", dlg.forBox, "RIGHT", 6, 0)
     dlg.text.edit.next, dlg.name.edit.next, dlg.group.edit.next = dlg.name.edit, dlg.group.edit, nil
     dlg.cancel = button(dlg, "Cancel", 80, function() dlg:Hide() end)
     dlg.cancel:SetPoint("BOTTOMRIGHT", -12, 12)
     dlg.ok = button(dlg, "Save", 80, function()
         local text, name, group = dlg.text.edit:GetText(), strtrim(dlg.name.edit:GetText()), strtrim(dlg.group.edit:GetText())
         group = group ~= "" and group or nil
+        local tags = dlg.draft.tags
         dlg:Hide()
         TK.lastGroup = group
-        if dlg.import then B.importString(text, name, group) else B.saveCurrent(name, group) end
+        if dlg.import then B.importString(text, name, group, tags) else B.saveCurrent(name, group, tags) end
     end)
     dlg.ok:SetPoint("RIGHT", dlg.cancel, "LEFT", -8, 0)
     for _, box in ipairs({ dlg.name, dlg.group }) do
@@ -228,7 +253,9 @@ function UI.buildDialog(import)
     dlg.name:ClearAllPoints()
     local top = import and -148 or -54
     dlg.name:SetPoint("TOPLEFT", 12, top); dlg.name:SetPoint("TOPRIGHT", -12, top)
-    dlg:SetHeight(-top + 24 + 22 + 24 + 56)
+    dlg:SetHeight(-top + 24 + 22 + 24 + 22 + 24 + 56)
+    dlg.draft = {}
+    dlg.showFor()
     dlg.text.edit:SetText("")
     dlg.name.edit:SetText(import and "" or ("%s %d"):format(B.specName(specID), #B.list(specID) + 1))
     local sel = TK.selected
@@ -486,25 +513,27 @@ function UI.picker(owner, title, items)
 end
 
 -- Tags ----------------------------------------------------------------------------------
-local function tagItem(b, s, label)
-    return { label = label or s.name, multi = true, checked = function() return b.tags and b.tags[s.key] ~= nil end,
-        onClick = function() B.toggleTag(b, s.key, s.name) end }
+local function tagItem(b, s, toggle)
+    return { label = s.name, multi = true, checked = function() return b.tags and b.tags[s.key] ~= nil end,
+        onClick = function() toggle(b, s.key, s.name) end }
 end
 
 -- Two columns: Delves and this season's dungeons; then each raid's bosses.
-function UI.tagItems(b)
+-- toggle(b, key, name) defaults to B.toggleTag (the import dialog passes its own for a draft).
+function UI.tagItems(b, toggle)
+    toggle = toggle or B.toggleTag
     local items = {}
-    for _, s in ipairs(CONTENT) do items[#items + 1] = tagItem(b, s) end
+    for _, s in ipairs(CONTENT) do items[#items + 1] = tagItem(b, s, toggle) end
     local dungeons = seasonDungeons()
     if #dungeons > 0 then
         items[#items + 1] = { bar = true }
         items[#items + 1] = { heading = "Mythic+ dungeons" }
-        for _, s in ipairs(dungeons) do items[#items + 1] = tagItem(b, s) end
+        for _, s in ipairs(dungeons) do items[#items + 1] = tagItem(b, s, toggle) end
     end
     items[#items + 1] = { column = true }
     for _, raid in ipairs(seasonRaids()) do
         items[#items + 1] = { heading = raid.name }
-        for _, s in ipairs(raid.bosses) do items[#items + 1] = tagItem(b, s) end
+        for _, s in ipairs(raid.bosses) do items[#items + 1] = tagItem(b, s, toggle) end
     end
     return items
 end
