@@ -40,6 +40,8 @@ own build tagged for that dungeon.
 
 ## Next session: start here
 
+**v0.3.0-beta1 published 2026-10-20** (public beta from `dev`; notes in `Dev/HISTORY.md`).
+
 **In testing (2026-10-18): the manager.** Side pane: click a build to
 preview it on the tree (marks stay while it's selected and redraw when your
 talents change), double-click to apply; the panel under the list has Apply,

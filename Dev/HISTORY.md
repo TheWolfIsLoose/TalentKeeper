@@ -4,6 +4,42 @@ Full notes for every release, newest first. Dev-only (the `Dev/` folder
 never ships); the player-facing summary for the release being cut lives in
 CHANGELOG.md. Add each release's detailed notes here when you cut it.
 
+## v0.3.0-beta1 (2026-10-20)
+
+First public beta. Reset to basics (2026-10-18): a plain build manager that
+knows this season's dungeons, delves and raid bosses.
+- Side pane on the talent window (no separate management window; size grip
+  for the window). Click a build to preview it on the tree in the window's
+  own art (green glow added, red border and dim dropped, choice-node pick,
+  rank number; marks redraw when talents change), double-click to apply.
+  Panel under the list: Apply, Tags, Group, Rename, Copy, Resave, Delete
+  (click twice). The list scrolls.
+- Save current / Import: one dialog for string, name and group. Same
+  talents as a saved build offers to tag that build instead. Group headings:
+  rename, ungroup, delete with its builds.
+- Tags, groups and the quick build list (keybind, /tk) use the suite's own
+  flat picker instead of Blizzard's menu. Tag list in two columns: Delves,
+  this season's dungeons, then each raid's bosses (read from the journal,
+  selecting each raid first). No world bosses, no Raid / Mythic+ or
+  whole-raid tags. One build per spec per situation.
+- Spec buttons under the pane's header change spec in place.
+- Zone-in prompt (`Prompt.lua`): in this season's dungeons and delves only
+  (no open world, no old or timewalking dungeons, no raids): on the tagged
+  build, nothing; another, Switch (changes spec first if needed); nothing
+  set, "Use current" or Choose. Asks once per place; hides when a key
+  starts. Confirmed in game 2026-10-18.
+- Ready-check strip (`ReadyCheck.lua`): under Blizzard's ready check popup
+  (or a saved spot), in a dungeon, delve or raid: on the tagged build (mint),
+  wrong build with Switch (amber), or nothing tagged with Choose. Raids name
+  the expected boss: rooms learned at pulls (subzone at ENCOUNTER_START,
+  raids only), then the lockout, then journal order; correctable by hand,
+  which teaches the room. Shift-drag to move. Confirmed in Mythic+ only so
+  far (DON, Kings' Rest); the raid side is untested.
+- Spike unloaded; it no longer writes to the raid warning frame (tainted
+  Blizzard's raid warnings).
+- Cut: tidy up, fill up and build sources, main builds / variants / swaps,
+  near-match planning, gear sets (old data cleared once).
+
 ## v0.2.0-alpha1 (2026-10-16)
 
 v0.2 part 1, compare by talents (`Compare.lua`):
