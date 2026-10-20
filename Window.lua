@@ -132,6 +132,7 @@ end
 -- talent window). Groups as headings; the list scrolls; the selected build's panel sits below.
 local pane, rows, heads = nil, {}, {}
 local ROW, HEAD, TOP = 24, 22, -58
+local SHIMMER_W = 90
 local offset = 0
 local detail -- the selected build's panel
 
@@ -157,6 +158,35 @@ local function row(i)
     r.text:SetPoint("RIGHT", r.status, "LEFT", -6, 0)
     r.text:SetJustifyH("LEFT")
     r.text:SetWordWrap(false)
+    -- Shimmer: one soft mint band sweeps across the row (once, two seconds), clipped to it.
+    local clip = CreateFrame("Frame", nil, r)
+    clip:SetAllPoints()
+    clip:SetClipsChildren(true)
+    local band = CreateFrame("Frame", nil, clip)
+    band:SetSize(SHIMMER_W, ROW)
+    band:SetPoint("RIGHT", clip, "LEFT")
+    for half = 1, 2 do
+        local t = band:CreateTexture(nil, "ARTWORK")
+        t:SetColorTexture(1, 1, 1, 1)
+        t:SetSize(SHIMMER_W / 2, ROW)
+        t:SetPoint(half == 1 and "LEFT" or "RIGHT")
+        local none, peak = CreateColor(0.596, 1, 0.596, 0), CreateColor(0.596, 1, 0.596, 0.22)
+        t:SetGradient("HORIZONTAL", half == 1 and none or peak, half == 1 and peak or none)
+    end
+    band:Hide()
+    local sweep = band:CreateAnimationGroup()
+    sweep.move = sweep:CreateAnimation("Translation")
+    sweep.move:SetDuration(2)
+    sweep.move:SetSmoothing("IN_OUT")
+    sweep:SetScript("OnPlay", function() band:Show() end)
+    sweep:SetScript("OnFinished", function() band:Hide() end)
+    sweep:SetScript("OnStop", function() band:Hide() end)
+    r.Shimmer = function()
+        sweep:Stop()
+        sweep.move:SetOffset(r:GetWidth() + SHIMMER_W, 0)
+        sweep:Play()
+    end
+    r.StopShimmer = function() sweep:Stop() end
     r:RegisterForDrag("LeftButton")
     r:SetScript("OnClick", TK.safe(function(self)
         if self.dragged then self.dragged = nil return end
@@ -351,6 +381,12 @@ function W.refresh()
         end
     end
     local height = pane.list:GetHeight()
+    for _, line in ipairs(lines) do -- scroll a build that just changed into view
+        if line.build and TK.flashing[line.build] then
+            offset = math.min(math.max(offset, line.y + ROW - height), line.y)
+            break
+        end
+    end
     offset = math.max(0, math.min(offset, y + 28 - height))
     local nr, nh, n = 0, 0, 0
     local function visible(ly, h) return ly - offset >= 0 and ly - offset + h <= height end
@@ -367,7 +403,9 @@ function W.refresh()
         elseif line.build and visible(line.y, ROW) then
             nr = nr + 1
             local b, r = line.build, row(nr)
+            if r.b ~= b then r.StopShimmer() end -- the frame now shows another build
             r.b = b
+            if TK.flashing[b] then r.Shimmer() end
             r.text:SetText(b.name)
             r.status:SetText(b.outdated and "Outdated" or UI.tagSummary(b) or "")
             if b.outdated then r.status:SetTextColor(1, 0.722, 0.302) else r.status:SetTextColor(0.55, 0.55, 0.55) end
@@ -381,6 +419,7 @@ function W.refresh()
             r:Show()
         end
     end
+    wipe(TK.flashing) -- drawn or not, a change shimmers only right after it happens
     pane.newGroup:ClearAllPoints()
     pane.newGroup:SetPoint("TOPLEFT", 8, -(y - offset + 6))
     pane.newGroup:SetShown(n > 0 and visible(y + 6, 20))

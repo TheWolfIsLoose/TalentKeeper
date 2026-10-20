@@ -7,6 +7,11 @@ TK.commands = {}  -- /tk <sub> handlers, filled by other files
 -- Saved builds changed: lets an open window redraw.
 function TK.changed() if TK.onChange then TK.onChange() end end
 
+-- Something happened to a build (saved, matched, tagged, moved): its pane row shimmers once
+-- the next time the pane draws it.
+TK.flashing = {}
+function TK.flash(b) TK.flashing[b] = true end
+
 function TK.chat(msg) print("|cff98ff98TalentKeeper|r: " .. msg) end
 
 -- Log -----------------------------------------------------------------------

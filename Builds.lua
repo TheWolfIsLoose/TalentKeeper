@@ -55,6 +55,7 @@ function B.add(specID, b)
         list[#list + 1] = b
     end
     for key, name in pairs(tags or {}) do B.setTag(into or b, key, name, true) end
+    TK.flash(into or b)
     if into then return nil, into end
     return b
 end
@@ -177,6 +178,7 @@ end
 function B.setGroup(b, group)
     group = group and strtrim(group) or nil
     b.group = group ~= "" and group or nil
+    TK.flash(b)
     TK.log("'%s' moved to %s", b.name, b.group or "no group")
     TK.changed()
 end
@@ -273,6 +275,7 @@ function B.setTag(b, key, name, on)
         end
     end
     b.tags[key] = on and name or nil
+    if on then TK.flash(b) end
     TK.log("'%s' %s %s", b.name, on and "tagged for" or "untagged", name)
     if not next(b.tags) then b.tags = nil end
     TK.changed()
