@@ -53,7 +53,8 @@ end
 
 -- Remember which boss belongs to the room you're in (a pull, or a correction).
 local function learnRoom(enc, why)
-    local name, _, _, _, _, _, _, instID = GetInstanceInfo()
+    local name, kind, _, _, _, _, _, instID = GetInstanceInfo()
+    if kind ~= "raid" then return end -- dungeons have one build for the whole run
     local here = room(name)
     if not here or not enc then return end
     TK.db.rooms[instID] = TK.db.rooms[instID] or {}
@@ -127,9 +128,7 @@ local function situation()
         return { key = boss.key, name = boss.name, pick = true, how = how }
     end
     local here = B.here()
-    if kind == "party" then return here end
-    if here and here.content == "delve" then return here end
-    return nil
+    return P.taggable(here) and here or nil
 end
 
 function R.show()

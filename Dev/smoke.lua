@@ -485,9 +485,15 @@ ok(TK.db.log[#TK.db.log]:find("offering '" .. pb.name .. "'"), "prompt offers th
 P.check()
 ok(TK.db.log[#TK.db.log]:find("offering"), "same place isn't asked twice")
 pb.tags = nil
+C_ChallengeMode.GetMapTable = function() return { 1, 2 } end
+C_ChallengeMode.GetMapUIInfo = function(id) if id == 2 then return "Dungeon B", 2, 0, 0, 0, 502 end return "Dungeon A", 1, 0, 0, 0, 501 end
 GetInstanceInfo = function() return "Dungeon B", "party", 23, nil, nil, nil, nil, 502 end
 P.check()
 ok(TK.db.log[#TK.db.log]:find("Dungeon B, nothing set"), "nothing set: asks once: " .. TK.db.log[#TK.db.log])
+GetInstanceInfo = function() return "Old Dungeon", "party", 1, nil, nil, nil, nil, 999 end
+local n9 = #TK.db.log
+P.check()
+ok(#TK.db.log == n9, "old / timewalking dungeons: no prompt")
 GetInstanceInfo = function() return "Dornogal", "none", 0, nil, nil, nil, nil, 2552 end
 local n0 = #TK.db.log
 P.check()
