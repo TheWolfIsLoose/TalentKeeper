@@ -88,6 +88,13 @@ before the key locks talents). Rooms are kept in `rooms[instanceID][subzone]
 = encounterID`; a hand pick lasts until the next kill. Logged as
 "readycheck: ...".
 
+**Parked 2026-10-20 ~01:40 ET (not released; build 89f5fc7 installed).**
+Ready check confirmed in Mythic+ (DON: nothing tagged -> chose a build ->
+"on"; Kings' Rest: "on"). Prompt and ready check now only for this season's
+dungeons and delves; rooms learned in raids only. Next: the strip in a raid
+(boss guess, change, learned room), shift-drag, and the solo manager
+checklist round (set, not yet run).
+
 **Parked 2026-10-18 ~13:00 ET (not released).** Next: raid bosses (next
 unkilled boss from the lockout on zone-in and after each kill, changeable in
 the prompt). Testing needs a full raid clear on a character, when the player
