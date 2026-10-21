@@ -131,6 +131,7 @@ local function situation()
     return P.taggable(here) and here or nil
 end
 
+local hooked -- ReadyCheckFrame's OnHide hooked once
 function R.show()
     local here = situation()
     if not here then return R.hide() end
@@ -165,12 +166,21 @@ function R.show()
     strip:SetWidth(math.ceil(math.max(200, w)))
     place()
     strip:Show()
+    -- answering the ready check (or it timing out) closes Blizzard's popup: the strip goes with it
+    if ReadyCheckFrame and not hooked then
+        hooked = true
+        ReadyCheckFrame:HookScript("OnHide", function() R.hide("answered") end)
+    end
     TK.log("readycheck: %s%s, %s", here.name, here.how and (" (" .. here.how .. ")") or "",
         hit and (P.onBuild(hit.b, hit.specID) and ("on '" .. hit.b.name .. "'") or ("tagged '" .. hit.b.name .. "'")) or "nothing tagged")
 end
 
 function R.refresh() if strip and strip:IsShown() then R.show() end end
-function R.hide() if strip then strip:Hide() end end
+function R.hide(why)
+    if not strip or not strip:IsShown() then return end
+    strip:Hide()
+    if why then TK.log("readycheck: strip closed (%s)", why) end
+end
 
 -- Correct the boss: this raid's bosses still alive this lockout; the choice teaches the room.
 function R.pickBoss(owner)
@@ -194,7 +204,7 @@ function R.pickBoss(owner)
 end
 
 TK.on("READY_CHECK", function() C_Timer.After(0.1, TK.safe(R.show)) end) -- after Blizzard's popup shows
-TK.on("READY_CHECK_FINISHED", function() C_Timer.After(3, TK.safe(R.hide)) end)
+TK.on("READY_CHECK_FINISHED", function() R.hide("finished") end) -- everyone answered or it timed out (also for whoever started it, who gets no popup)
 TK.on("ENCOUNTER_START", function(enc) learnRoom(enc, "pull") end)
 TK.on("ENCOUNTER_END", function(_, _, _, _, success) if success == 1 then manual = nil end end)
 TK.on("ADDON_LOADED", function(name) if name == "TalentKeeper" then TK.db.rooms = TK.db.rooms or {} end end)
