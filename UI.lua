@@ -355,7 +355,7 @@ end
 local function makePicker()
     pick = CreateFrame("Frame", "TalentKeeperPicker", UIParent)
     pick.rows, pick.heads, pick.bars, pick.offset = {}, {}, {}, 0
-    pick:SetFrameStrata("DIALOG")
+    pick:SetFrameStrata("FULLSCREEN_DIALOG") -- above whatever opened it (the save / import dialog sits in DIALOG)
     pick:SetClampedToScreen(true)
     pick:EnableMouse(true)
     fill(pick, "BACKGROUND", 0.06, 0.06, 0.06, 0.98)
