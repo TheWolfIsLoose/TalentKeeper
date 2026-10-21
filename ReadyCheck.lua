@@ -132,19 +132,18 @@ local function situation()
 end
 
 local hooked -- ReadyCheckFrame's OnHide hooked once
--- Once per boss (or dungeon / delve): after that the player has made their call, so wipes don't
--- bring it back. Forgotten after a kill, or after a few hours (a new raid night).
-local seen -- { key, inst, at }
-local FORGET = 4 * 3600
+-- Once per boss (or dungeon / delve): after that the player has made their call, so wipes and
+-- reloads don't bring it back. Saved per instance and place; forgotten after 16 hours.
+local FORGET = 16 * 3600
 function R.show(check)
     local here = situation()
     if not here then return R.hide() end
     if check then
-        local inst = select(8, GetInstanceInfo())
-        if seen and seen.key == here.key and seen.inst == inst and time() - seen.at < FORGET then
-            return TK.log("readycheck: %s, already shown", here.name)
-        end
-        seen = { key = here.key, inst = inst, at = time() }
+        local seen, now = TK.db.readySeen, time()
+        for k, at in pairs(seen) do if now - at >= FORGET then seen[k] = nil end end
+        local id = select(8, GetInstanceInfo()) .. ":" .. here.key
+        if seen[id] then return TK.log("readycheck: %s, already shown", here.name) end
+        seen[id] = now
     end
     if not strip then makeStrip() end
     local hits = B.forHere(here)
@@ -217,5 +216,5 @@ end
 TK.on("READY_CHECK", function() C_Timer.After(0.1, TK.safe(function() R.show(true) end)) end) -- after Blizzard's popup shows
 TK.on("READY_CHECK_FINISHED", function() R.hide("finished") end) -- everyone answered or it timed out (also for whoever started it, who gets no popup)
 TK.on("ENCOUNTER_START", function(enc) learnRoom(enc, "pull") end)
-TK.on("ENCOUNTER_END", function(_, _, _, _, success) if success == 1 then manual, seen = nil, nil end end)
-TK.on("ADDON_LOADED", function(name) if name == "TalentKeeper" then TK.db.rooms = TK.db.rooms or {} end end)
+TK.on("ENCOUNTER_END", function(_, _, _, _, success) if success == 1 then manual = nil end end)
+TK.on("ADDON_LOADED", function(name) if name == "TalentKeeper" then TK.db.rooms = TK.db.rooms or {} TK.db.readySeen = TK.db.readySeen or {} end end)
