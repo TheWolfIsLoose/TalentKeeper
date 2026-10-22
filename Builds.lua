@@ -332,6 +332,17 @@ function B.forHere(here)
     return #exact > 0 and exact or content
 end
 
+-- The saved build whose talents are the ones committed in the tree now (nil: not a saved build).
+-- ponytail: diffs every build of the spec on each call; cache on the talent string if lists get long
+function B.onNow(specID)
+    local cur = currentString()
+    if not cur or cur == "" then return end
+    for _, b in ipairs(B.list(specID)) do
+        local d = TK.compare.diff(cur, b.text)
+        if d and #d == 0 then return b end
+    end
+end
+
 -- Saving or importing talents you already have as a build: point at that build instead
 -- (B.add already gave it the tags the new one was for).
 function B.same(same, tags)

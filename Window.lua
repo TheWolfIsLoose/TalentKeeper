@@ -136,16 +136,19 @@ end
 
 -- The side pane of builds -----------------------------------------------------------------
 -- Docked to the window's right edge, at our own scale (parented to UIParent, shown with the
--- talent window). Every control in one block at the top: your spec big, and beside it the other
--- specs, Apply / Tags... / More... and Save current / Import; the selected build under it; then the
--- Builds / Tag Mgmt tabs and the list, which scrolls.
+-- talent window). Every control in one block at the top: a strip of spec tiles (always in the
+-- class's spec order, so each sits in the same spot; the strip's width is shared out, so there's no
+-- gap for three specs or crowding for four), then Apply / Tags... / More... and Save current /
+-- Import across the full width; under it what's in the tree now and the build you're previewing;
+-- then the Builds / Tag Mgmt tabs and the list, which scrolls.
 local pane, rows, heads = nil, {}, {}
 local PANE_W = 220
-local DECK_Y, BIG, SMALL, GAP = -34, 68, 20, 4 -- the control block: the big icon spans its three rows
-local COL_X = 8 + BIG + 8                         -- the rows beside it
-local COL_W = PANE_W - 8 - COL_X
-local DETAIL_Y = DECK_Y - BIG - 8                 -- the selected build
-local TABS = DETAIL_Y - 54                        -- the Builds / Tag Mgmt tabs
+local DECK_Y, TILE_H, GAP = -34, 40, 4 -- the spec strip
+local COL_X, COL_W = 8, PANE_W - 16
+local ROW1 = DECK_Y - TILE_H - 6         -- Apply / Tags... / More...
+local ROW2 = ROW1 - 24                   -- Save current / Import
+local DETAIL_Y = ROW2 - 20 - 10          -- in the tree now / previewing
+local TABS = DETAIL_Y - 52               -- the Builds / Tag Mgmt tabs
 local ROW, HEAD, TOP = 24, 22, TABS - 24
 local SHIMMER_W = 90
 local offset = 0
@@ -331,27 +334,32 @@ end
 -- The selected build under the control block: its name and what it is. Its buttons (Apply,
 -- Tags..., More...) are always there, grayed until a build is picked.
 local armedBuild
-local function refreshDetail(specID)
+local lastNow -- the build in the tree at the last refresh: a change shimmers its row
+local function refreshDetail(specID, now)
     local b = TK.selected
     if b and B.findSpec(b) ~= specID then b, TK.selected = nil, nil end
     for _, bt in ipairs(detail.buttons) do bt:SetEnabled(b ~= nil) end
+    -- what's committed in the tree: a saved build, or talents you haven't saved
+    if now then
+        detail.name:SetText("|cff8c8c8cNow:|r " .. now.name)
+        local hero, tags = C.heroName(now.text), UI.tagSummary(now)
+        detail.nowInfo:SetText((hero and (hero .. " · ") or "") .. (tags and ("Tags: " .. tags) or "|cff8c8c8cNo tags yet|r"))
+    else
+        detail.name:SetText("|cff8c8c8cNow:|r winging it")
+        detail.nowInfo:SetText("|cff8c8c8cThese talents aren't a saved build. Save current keeps them.|r")
+    end
     if not b then
-        detail.name:SetText("|cff8c8c8cNo build selected|r")
-        detail.info:SetText("Click a build to see it on the tree.")
+        detail.info:SetText("|cff8c8c8cClick a build to preview it on the tree.|r")
         W.hide()
         return
     end
-    detail.name:SetText(b.name)
-    local d, hidden = W.show(b)
-    local parts = {}
-    local hero = C.heroName(b.text)
-    if hero then parts[#parts + 1] = hero end
-    if not d then parts[#parts + 1] = "|cffff8888can't read it|r"
-    elseif #d == 0 then parts[#parts + 1] = "|cff98ff98your talents now|r"
-    else parts[#parts + 1] = ("%d change%s marked"):format(#d, #d == 1 and "" or "s") end
-    if b.outdated then parts[#parts + 1] = "|cffffb84doutdated|r" end
-    local tags = UI.tagSummary(b)
-    detail.info:SetText(table.concat(parts, " · ") .. "\n" .. (tags and ("Tags: " .. tags) or "|cff8c8c8cNo tags yet|r"))
+    local d = W.show(b)
+    local what
+    if not d then what = "|cffff8888can't read it|r"
+    elseif #d == 0 then what = "what you have now"
+    else what = ("%d change%s marked"):format(#d, #d == 1 and "" or "s") end
+    if b.outdated then what = what .. " · |cffffb84doutdated|r" end
+    detail.info:SetText(("|cff98ff98Preview:|r %s · %s"):format(b.name, what))
     detail.apply:SetEnabled(d ~= nil and #d > 0)
 end
 
@@ -399,13 +407,13 @@ local function hoverTip(bt, title, body)
 end
 
 local function makeDetail()
-    -- the control block's rows beside the big spec icon: (other specs), the build's actions, the list's
+    -- the control rows under the spec strip: the build's actions, then the list's
     local function on(fn) return function(self) local b = TK.selected if b then fn(b, self) end end end
     local third = math.floor((COL_W - 2 * GAP) / 3)
     detail = CreateFrame("Frame", nil, pane)
     detail.apply = UI.button(pane, "Apply", third, on(function(b) B.apply(b) end))
-    detail.apply:SetPoint("TOPLEFT", COL_X, DECK_Y - (SMALL + GAP))
-    tip(detail.apply, "Apply", "Changes your talents to this build (same as double-clicking it). Grayed when it's already your talents.")
+    detail.apply:SetPoint("TOPLEFT", COL_X, ROW1)
+    tip(detail.apply, "Apply", "Changes your talents to the build you're previewing (same as double-clicking it).")
     local tagsBtn = UI.button(pane, "Tags...", third, on(function(b, self) UI.tagMenu(self, b) end))
     tagsBtn:SetPoint("LEFT", detail.apply, "RIGHT", GAP, 0)
     tip(tagsBtn, "Tags", "The dungeons, delves and bosses this build is for.")
@@ -416,28 +424,31 @@ local function makeDetail()
     tip(more, "More", "Group, rename, copy the talent string, update to your talents, delete.")
     local half = math.floor((COL_W - GAP) / 2)
     local save = UI.button(pane, "Save current", half, function() UI.buildDialog(false) end)
-    save:SetPoint("TOPLEFT", COL_X, DECK_Y - 2 * (SMALL + GAP))
+    save:SetPoint("TOPLEFT", COL_X, ROW2)
     hoverTip(save, "Save current", "Save your talents now as a new build.")
     local import = UI.button(pane, "Import", COL_W - half - GAP, function() UI.buildDialog(true) end)
     import:SetPoint("LEFT", save, "RIGHT", GAP, 0)
     hoverTip(import, "Import", "Paste a talent string; it shows on the tree before you save it.")
     detail.buttons = { detail.apply, tagsBtn, more }
-    -- the selected build, under the block
+    -- under the block: what's in the tree now, then the build you're previewing
     detail:SetPoint("TOPLEFT", 0, DETAIL_Y); detail:SetPoint("TOPRIGHT", 0, DETAIL_Y)
-    detail:SetHeight(50)
+    detail:SetHeight(48)
     local rule = detail:CreateTexture(nil, "OVERLAY")
     rule:SetColorTexture(0, 0, 0, 1)
     rule:SetHeight(1)
     rule:SetPoint("BOTTOMLEFT"); rule:SetPoint("BOTTOMRIGHT")
-    detail.name = detail:CreateFontString(nil, "OVERLAY", "TalentKeeperFont")
-    detail.name:SetPoint("TOPLEFT", 8, 0); detail.name:SetPoint("TOPRIGHT", -8, 0)
-    detail.name:SetJustifyH("LEFT")
-    detail.name:SetWordWrap(false)
-    detail.info = detail:CreateFontString(nil, "OVERLAY", "TalentKeeperFontSmall")
-    detail.info:SetPoint("TOPLEFT", 8, -16); detail.info:SetPoint("TOPRIGHT", -8, -16)
-    detail.info:SetJustifyH("LEFT")
-    detail.info:SetTextColor(0.74, 0.74, 0.74)
-    detail.info:SetSpacing(2)
+    local function line(font, y)
+        local fs = detail:CreateFontString(nil, "OVERLAY", font)
+        fs:SetPoint("TOPLEFT", 8, y); fs:SetPoint("TOPRIGHT", -8, y)
+        fs:SetJustifyH("LEFT")
+        fs:SetWordWrap(false)
+        fs:SetTextColor(0.74, 0.74, 0.74)
+        return fs
+    end
+    detail.name = line("TalentKeeperFont", 0)
+    detail.name:SetTextColor(1, 1, 1)
+    detail.nowInfo = line("TalentKeeperFontSmall", -16)
+    detail.info = line("TalentKeeperFontSmall", -30)
 end
 
 function W.refresh()
@@ -447,7 +458,7 @@ function W.refresh()
     for _, r in ipairs(rows) do r:Hide() end
     for _, h in ipairs(heads) do h:Hide() end
     local specID = B.specID()
-    local active = specID and TK.db.active[specID]
+    local now = specID and B.onNow(specID)
     local v = TK.version or ""
     pane.version:SetText(((v:find("^dev") or v:find("%-alpha") or v:find("%-beta")) and "|cffffb84d" or "|cff8c8c8c") .. v .. "|r")
     -- lay out every line, then show the ones inside the list's window
@@ -494,7 +505,8 @@ function W.refresh()
             if b.outdated then r.status:SetTextColor(1, 0.722, 0.302) else r.status:SetTextColor(0.55, 0.55, 0.55) end
             r.stripe:SetShown(n % 2 == 0)
             r.sel:SetShown(b == TK.selected)
-            local isOn = b.name == active
+            local isOn = b == now
+            if isOn and lastNow ~= nil and lastNow ~= now then r.Shimmer() end -- it just went in the tree
             r.text:SetTextColor(isOn and 0.596 or 1, 1, isOn and 0.596 or 1)
             r.bar:SetShown(isOn)
             r:ClearAllPoints()
@@ -514,7 +526,9 @@ function W.refresh()
         h:SetPoint("TOPLEFT", 0, 0); h:SetPoint("TOPRIGHT", 0, 0)
         h:Show()
     end
-    refreshDetail(specID)
+    refreshDetail(specID, now)
+    if lastNow ~= nil and lastNow ~= (now or false) then UIFrameFadeIn(detail.name, 0.4, 0, 1) end
+    lastNow = now or false
     if W.override then W.show(W.override) end -- a string being imported shows on the tree instead
 end
 
@@ -535,9 +549,9 @@ TK.on("ACTIVE_PLAYER_SPECIALIZATION_CHANGED", function() TK.selected = nil offse
 -- your talents changed (an apply landed, a click in the tree): redraw the preview
 TK.on("TRAIT_CONFIG_UPDATED", function() TK.safe(W.refresh)() end)
 
--- Spec icons: yours big at the left of the control block, the others small in its top row; click
--- a small one to change spec without leaving the talents. It fills like a cast bar while the
--- change casts. (No swap animation: the game hangs for a moment as the spec lands.)
+-- Spec tiles: one strip across the top, in the class's spec order (each spec always in the same
+-- spot), the width shared out so three or four fill it alike; yours lit with the mint ring, the
+-- others gray. Click one to change spec; it fills like a cast bar while the change casts.
 local specs = {}
 
 local function stopCast(b)
@@ -547,34 +561,30 @@ end
 
 function W.refreshSpecs()
     local cur = GetSpecialization and GetSpecialization()
-    local k = 0
     for i, b in ipairs(specs) do
         local on = i == cur
         b.icon:SetDesaturated(not on)
-        b.icon:SetAlpha(on and 1 or 0.7)
+        b.icon:SetAlpha(on and 1 or 0.6)
         b.ring(on and 0.596 or 0.4)
-        stopCast(b)
-        b:ClearAllPoints()
-        if on then
-            b.size = BIG
-            b:SetPoint("TOPLEFT", 8, DECK_Y)
-        else
-            b.size = SMALL
-            b:SetPoint("TOPLEFT", COL_X + k * (SMALL + GAP), DECK_Y)
-            k = k + 1
-        end
-        b:SetSize(b.size, b.size)
+        if on then stopCast(b) end
     end
 end
 
 local function specButtons()
-    for i = 1, GetNumSpecializations() or 0 do
+    local n = GetNumSpecializations() or 0
+    local w = math.floor((COL_W - GAP * (n - 1)) / math.max(n, 1))
+    -- crop the square icon to the tile's shape (top and bottom trimmed), inside the usual border trim
+    local keep = 0.84 * TILE_H / w
+    local top = 0.5 - keep / 2
+    for i = 1, n do
         local specID, name, _, icon = GetSpecializationInfo(i)
         local b = CreateFrame("Button", nil, pane)
+        b:SetSize(i == n and (COL_W - (n - 1) * (w + GAP)) or w, TILE_H) -- the last takes any rounding
+        b:SetPoint("TOPLEFT", COL_X + (i - 1) * (w + GAP), DECK_Y)
         b.icon = b:CreateTexture(nil, "ARTWORK")
         b.icon:SetPoint("TOPLEFT", 1, -1); b.icon:SetPoint("BOTTOMRIGHT", -1, 1)
         b.icon:SetTexture(icon)
-        b.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+        b.icon:SetTexCoord(0.08, 0.92, top, top + keep)
         b.fill = b:CreateTexture(nil, "OVERLAY")
         b.fill:SetColorTexture(0.596, 1, 0.596, 0.35)
         b.fill:SetPoint("BOTTOMLEFT", 1, 1); b.fill:SetPoint("BOTTOMRIGHT", -1, 1)
@@ -593,7 +603,7 @@ local function specButtons()
                 if startMs and endMs and endMs > startMs then
                     seen = true
                     local p = math.min(1, (GetTime() * 1000 - startMs) / (endMs - startMs))
-                    me.fill:SetHeight(math.max(1, (me.size - 2) * p))
+                    me.fill:SetHeight(math.max(1, (TILE_H - 2) * p))
                     me.fill:Show()
                 elseif seen or GetTime() - t0 > 1.5 then
                     stopCast(me)

@@ -6,7 +6,7 @@
 Builds now go in through the game's own loadout system: they land whole, every time, without a hitch.
 
 - New: Apply, double-click, the quick list and the prompts all change your talents the same way, through the game's own loadout system.
-- New: the side pane is redone with every control in one block at the top: your spec big, with your other specs (click one to change spec; it fills while the change casts), Apply / Tags... / More... and Save current / Import beside it; the selected build under it. Forms (Import, Rename, New group) open in the pane instead of windows.
+- New: the side pane is redone with every control in one block at the top: your specs as a strip of tiles (click one to change spec; it fills while the change casts), Apply / Tags... / More..., Save current / Import. Under it: the build that's in your talents now (it shimmers when that changes) and the one you're previewing. Forms (Import, Rename, New group) open in the pane instead of windows.
 - New: Tag Mgmt tab: every Mythic+ dungeon, delve and raid boss this season, which of your specs has a build there, and the gaps. Click a place to pick a build for any of your specs, without changing spec.
 - New: Bring your builds in: the first time you open talents, TalentKeeper offers to copy the builds you have in Talent Loadout Ex, Talent Loadout Manager and your game loadouts (any you already have are skipped; nothing is removed anywhere). Also in Options.
 - New: your builds go into the SimulationCraft addon's /simc text as saved loadouts, so sim sites can pick them; other specs' too when SimulationCraft's Offspec Talent Loadouts box is ticked (Options: Add to /simc).
