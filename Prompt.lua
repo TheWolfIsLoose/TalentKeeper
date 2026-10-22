@@ -125,6 +125,39 @@ function P.taggable(here)
     return false
 end
 
+-- What to offer for a place: mine (this spec's build tagged there), other ({ b, specID }: another
+-- spec's), cur (a saved build of this spec your talents match now).
+function P.plan(here)
+    local spec = B.specID()
+    local mine, other
+    for _, h in ipairs(B.forHere(here)) do
+        if h.specID == spec then mine = mine or h.b else other = other or h end
+    end
+    local cur
+    for _, b in ipairs(spec and B.list(spec) or {}) do if onBuild(b, spec) then cur = b break end end
+    return mine, other, cur
+end
+
+-- Asking to tag a place happens once per play session (see TalentKeeper.lua); being on the wrong
+-- tagged build is said every time.
+local function id(here) return (select(8, GetInstanceInfo()) or 0) .. ":" .. here.key end
+function P.asked(here) return TK.db.asked[id(here)] ~= nil end
+function P.markAsked(here) TK.db.asked[id(here)] = time() end
+
+-- The two buttons when this spec has nothing tagged here: tag what you're on (or choose a build),
+-- and the other spec's tagged build if there is one (else Choose... beside Use).
+function P.tagButtons(here, cur, other, after)
+    local tag = cur and { "Use " .. cur.name, function()
+        B.setTag(cur, here.key, here.name, true)
+        TK.log("tagged '%s' for %s", cur.name, here.name)
+        if after then after() end
+    end } or { "Choose...", function(bt) chooseFor(here, bt, after) end }
+    if other then
+        return tag, { B.specName(other.specID), function() switch(other.b, other.specID) if after then after() end end }
+    end
+    return tag, cur and { "Choose...", function(bt) chooseFor(here, bt, after) end } or nil
+end
+
 function P.check()
     local here = B.here()
     local kind = select(2, GetInstanceInfo())
@@ -136,41 +169,36 @@ function P.check()
     if not P.taggable(here) then return P.hide() end
     if here.key == shownFor then return end -- same place: don't ask again
     shownFor = here.key
-    local hits = B.forHere(here)
-    local hit = hits[1]
-    if hit then
-        -- in a delve, the build you last applied counting as your Delves build is enough (a talent
-        -- moved since doesn't bring the prompt back)
-        local cur = here.content == "delve" and B.list(B.specID())
-        for _, b in ipairs(cur or {}) do
+    local delve = here.content == "delve"
+    if delve and TK.db.noDelvePrompt then return P.hide() end
+    if delve then
+        here = { key = "delve", name = "Delves", content = "delve" } -- delves share one tag
+        -- the build you last applied counting as your Delves build is enough
+        for _, b in ipairs(B.list(B.specID())) do
             if b.name == TK.db.active[B.specID()] and b.tags and b.tags.delve then
                 TK.log("prompt: %s, on your Delves build '%s'", here.name, b.name)
                 return P.hide()
             end
         end
-        if onBuild(hit.b, hit.specID) then
-            TK.log("prompt: %s, already on '%s'", here.name, hit.b.name)
+    end
+    local mine, other, cur = P.plan(here)
+    local name = delve and select(1, GetInstanceInfo()) or here.name
+    if mine then
+        if onBuild(mine, B.specID()) then
+            TK.log("prompt: %s, already on '%s'", name, mine.name)
             return P.hide()
         end
-        local spec = hit.specID ~= B.specID() and (" (" .. B.specName(hit.specID) .. ")") or ""
-        TK.log("prompt: %s, offering '%s'%s", here.name, hit.b.name, spec)
-        return show(("%s: |cff98ff98%s|r%s"):format(here.name, hit.b.name, spec),
-            { "Switch", function() switch(hit.b, hit.specID) end })
+        TK.log("prompt: %s, offering '%s'", name, mine.name)
+        return show(("%s: |cff98ff98%s|r"):format(name, mine.name), { "Switch", function() switch(mine, B.specID()) end })
     end
-    -- an untagged delve takes the shared Delves tag
-    if here.content == "delve" then here = { key = "delve", name = "Delves" } end
-    local specID = B.specID()
-    local active = specID and TK.db.active[specID]
-    local cur
-    for _, b in ipairs(specID and B.list(specID) or {}) do if b.name == active and onBuild(b, specID) then cur = b end end
-    TK.log("prompt: %s, nothing set (current: %s)", here.name, cur and cur.name or "unsaved")
-    show(("Nothing set for %s."):format(here.name),
-        cur and { "Use " .. cur.name, function()
-            B.toggleTag(cur, here.key, here.name)
-            TK.log("prompt: used '%s' for %s", cur.name, here.name)
-            P.hide()
-        end } or nil,
-        { "Choose...", function(bt) chooseFor(here, bt) end })
+    if P.asked(here) then return TK.log("prompt: %s, already asked this session", name) end
+    P.markAsked(here)
+    local text = other
+        and ("Nothing for %s here. %s: |cff98ff98%s|r"):format(B.specName(B.specID()), B.specName(other.specID), other.b.name)
+        or ("Nothing set for %s."):format(here.name)
+    TK.log("prompt: %s, nothing for this spec (current: %s%s)", name, cur and cur.name or "unsaved",
+        other and (", " .. B.specName(other.specID) .. " has '" .. other.b.name .. "'") or "")
+    show(text, P.tagButtons(here, cur, other, P.hide))
 end
 
 local function soon() C_Timer.After(2, TK.safe(P.check)) end -- instance info settles after loading

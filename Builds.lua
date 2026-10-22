@@ -589,7 +589,8 @@ local function inPlace(b, e, specID, slot)
         return true
     end
     local ok = C_ClassTalents.CommitConfig(slot)
-    TK.log("apply '%s' (%s): in place%s, hero tree %s, commit %s", b.name, B.specName(specID), rebuilt and " (rebuilt)" or "", heroChanged and "changed" or "kept", tostring(ok))
+    TK.log("apply '%s' (%s): in place%s, hero tree %s, commit %s (%d ms to set up)", b.name, B.specName(specID), rebuilt and " (rebuilt)" or "",
+        heroChanged and "changed" or "kept", tostring(ok), lastApply and (debugprofilestop() - lastApply.t0) or -1)
     if not ok then C_Traits.RollbackConfig(cfg) return false end
     finish(b, specID)
     return true

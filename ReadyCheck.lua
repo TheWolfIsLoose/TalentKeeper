@@ -39,9 +39,8 @@ function R.expectedBoss()
     local bosses = raidBosses(name)
     if #bosses == 0 then return nil end
     if manual and manual.inst == instID then return manual.boss, "picked" end
-    local rooms = TK.db.rooms[instID] or {}
     local here = room(name)
-    local enc = here and rooms[here]
+    local enc = here and ((TK.db.rooms[instID] or {})[here] or (R.KNOWN[instID] or {})[here])
     if enc then
         for _, b in ipairs(bosses) do if b.key == "boss:" .. enc then return b, "room" end end
     end
@@ -50,6 +49,22 @@ function R.expectedBoss()
     end
     return bosses[1], "first"
 end
+
+-- Rooms that ship with TalentKeeper: [instanceID][subzone] = encounterID, learned in play
+-- (English subzone names). Your own pulls and corrections fill in the rest and win over these.
+R.KNOWN = {
+    [3004] = { -- The Venomous Abyss
+        ["The Soulcoil Well"] = 3470,        -- Nek'zali the Soulcoiler
+        ["The Venomducts"] = 3445,           -- Entombed Sentinels
+        ["Mor'zahi's Tomb"] = 3497,          -- The Lost Explorers
+        ["Altar of the Six Winds"] = 3420,   -- Sszorak
+        ["The Coiled Altar"] = 3429,         -- The Coiled Altar
+        ["The Tomb of Ula'tek"] = 3492,      -- Ula'tek
+    },
+    [3095] = { -- The Unbinding of Kith'ix
+        ["Kith'ix's Prison"] = 3513,         -- Kith'ix
+    },
+}
 
 -- Remember which boss belongs to the room you're in (a pull, or a correction).
 local function learnRoom(enc, why)
@@ -117,6 +132,8 @@ local function makeStrip()
     strip.status:SetPoint("TOPLEFT", mark, "BOTTOMLEFT", 0, -6)
     strip.btn = UI.button(strip, "", 70, function() end)
     strip.btn:SetPoint("RIGHT", -8, 0)
+    strip.btn2 = UI.button(strip, "", 70, function() end)
+    strip.btn2:SetPoint("RIGHT", strip.btn, "LEFT", -4, 0)
 end
 
 -- The situation for this ready check: { key, name, pick? }, or nil where there's nothing to say.
@@ -132,47 +149,50 @@ local function situation()
 end
 
 local hooked -- ReadyCheckFrame's OnHide hooked once
--- Once per boss (or dungeon / delve): after that the player has made their call, so wipes and
--- reloads don't bring it back. Saved per instance and place; forgotten after 16 hours.
-local FORGET = 16 * 3600
+-- On the build this spec has tagged here: say so. On another of this spec's builds: name the tagged
+-- one, with Switch (every ready check: a wipe is when people forget). Nothing tagged for this spec:
+-- ask once per play session to tag what you're on, with the other spec's tagged build beside it.
 function R.show(check)
     local here = situation()
     if not here then return R.hide() end
-    if check then
-        local seen, now = TK.db.readySeen, time()
-        for k, at in pairs(seen) do if now - at >= FORGET then seen[k] = nil end end
-        local id = select(8, GetInstanceInfo()) .. ":" .. here.key
-        if seen[id] then return TK.log("readycheck: %s, already shown", here.name) end
-        seen[id] = now
+    if here.content == "delve" then
+        if TK.db.noDelvePrompt then return R.hide() end
+        here = { key = "delve", name = "Delves", content = "delve" }
+    end
+    local mine, other, cur = P.plan(here)
+    local spec = B.specID()
+    local status, one, two, what
+    if mine and P.onBuild(mine, spec) then
+        status, what = "|cff98ff98On " .. mine.name .. "|r", "on '" .. mine.name .. "'"
+    elseif mine then
+        status, what = "|cffffb84dNot on|r " .. mine.name .. ", tagged here", "tagged '" .. mine.name .. "'"
+        one = { "Switch", function() P.switch(mine, spec) R.hide() end }
+    else
+        if check and P.asked(here) then return TK.log("readycheck: %s, already asked this session", here.name) end
+        if check then P.markAsked(here) end
+        status = other and ("|cff8c8c8cNothing for %s here.|r %s: %s"):format(B.specName(spec), B.specName(other.specID), other.b.name)
+            or "|cff8c8c8cNothing tagged here|r"
+        what = "nothing for this spec" .. (other and (", " .. B.specName(other.specID) .. " has '" .. other.b.name .. "'") or "")
+        one, two = P.tagButtons(here, cur, other, R.refresh)
     end
     if not strip then makeStrip() end
-    local hits = B.forHere(here)
-    if here.content == "delve" and #hits == 0 then here = { key = "delve", name = "Delves" } end
-    local hit = hits[1]
     strip.what.text:SetText(here.name .. (here.pick and " |cff8c8c8c(change)|r" or ""))
     strip.what:SetWidth(strip.what.text:GetStringWidth())
     strip.what.pick = here.pick
     strip.what:SetScript("OnClick", here.pick and TK.safe(function(self) R.pickBoss(self) end) or nil)
-    local status, button
-    if hit and P.onBuild(hit.b, hit.specID) then
-        status = "|cff98ff98On " .. hit.b.name .. "|r"
-    elseif hit then
-        local spec = hit.specID ~= B.specID() and (" (" .. B.specName(hit.specID) .. ")") or ""
-        status = "|cffffb84dWrong build:|r " .. hit.b.name .. spec .. " is tagged here"
-        button = { "Switch", function() P.switch(hit.b, hit.specID) R.hide() end }
-    else
-        status = "|cff8c8c8cNothing tagged here|r"
-        button = { "Choose...", function(bt) P.chooseFor(here, bt, R.refresh) end }
-    end
     strip.status:SetText(status)
-    strip.btn:SetShown(button ~= nil)
-    if button then
-        strip.btn:SetText(button[1])
-        strip.btn:SetWidth(math.max(64, strip.btn:GetTextWidth() + 20))
-        strip.btn:SetScript("OnClick", TK.safe(function() button[2](strip.btn) end))
+    local bw = 0
+    for _, pair in ipairs({ { strip.btn, one }, { strip.btn2, two } }) do
+        local bt, spec2 = pair[1], pair[2]
+        bt:SetShown(spec2 ~= nil)
+        if spec2 then
+            bt:SetText(spec2[1])
+            bt:SetWidth(math.max(64, bt:GetTextWidth() + 20))
+            bt:SetScript("OnClick", TK.safe(function() spec2[2](bt) end))
+            bw = bw + bt:GetWidth() + 8
+        end
     end
-    local w = 8 + 16 + 6 + math.max(strip.what.text:GetStringWidth(), strip.status:GetStringWidth()) + 16
-        + (button and strip.btn:GetWidth() + 8 or 0)
+    local w = 8 + 16 + 6 + math.max(strip.what.text:GetStringWidth(), strip.status:GetStringWidth()) + 16 + bw
     strip:SetWidth(math.ceil(math.max(200, w)))
     place()
     strip:Show()
@@ -181,8 +201,7 @@ function R.show(check)
         hooked = true
         ReadyCheckFrame:HookScript("OnHide", function() R.hide("answered") end)
     end
-    TK.log("readycheck: %s%s, %s", here.name, here.how and (" (" .. here.how .. ")") or "",
-        hit and (P.onBuild(hit.b, hit.specID) and ("on '" .. hit.b.name .. "'") or ("tagged '" .. hit.b.name .. "'")) or "nothing tagged")
+    TK.log("readycheck: %s%s, %s", here.name, here.how and (" (" .. here.how .. ")") or "", what)
 end
 
 function R.refresh() if strip and strip:IsShown() then R.show() end end
@@ -217,4 +236,4 @@ TK.on("READY_CHECK", function() C_Timer.After(0.1, TK.safe(function() R.show(tru
 TK.on("READY_CHECK_FINISHED", function() R.hide("finished") end) -- everyone answered or it timed out (also for whoever started it, who gets no popup)
 TK.on("ENCOUNTER_START", function(enc) learnRoom(enc, "pull") end)
 TK.on("ENCOUNTER_END", function(_, _, _, _, success) if success == 1 then manual = nil end end)
-TK.on("ADDON_LOADED", function(name) if name == "TalentKeeper" then TK.db.rooms = TK.db.rooms or {} TK.db.readySeen = TK.db.readySeen or {} end end)
+TK.on("ADDON_LOADED", function(name) if name == "TalentKeeper" then TK.db.rooms = TK.db.rooms or {} end end)

@@ -55,6 +55,8 @@ function TK.on(event, fn)
     table.insert(handlers[event], TK.safe(fn))
 end
 
+TK.on("PLAYER_LOGOUT", function() if TK.db then TK.db.lastSeen = time() end end) -- reloads too
+
 TK.on("ADDON_LOADED", function(name)
     if name ~= addonName then return end
     TalentKeeperDB = TalentKeeperDB or {}
@@ -63,6 +65,14 @@ TK.on("ADDON_LOADED", function(name)
     db.active = db.active or {}     -- [specID] = name of the build last applied
     db.imported = db.imported or {} -- one-time imports already done
     db.log = db.log or {}
+    -- Places TalentKeeper already asked about (ready check strip, zone-in prompt) this play
+    -- session: [instanceID:situation] = time. A new session starts after 2 h away (a night's
+    -- sleep, not a break between keys); nothing is kept past 16 h either way.
+    db.asked = db.asked or {}
+    db.readySeen = nil -- the asked list before sessions
+    local now = time()
+    if now - (db.lastSeen or 0) > 2 * 3600 then wipe(db.asked) end
+    for k, at in pairs(db.asked) do if now - at > 16 * 3600 then db.asked[k] = nil end end
     TK.db = db
     -- 2c48aa6 marked builds Outdated for talents a patch made free; clear those marks once.
     if db.freeNodeFix ~= 2 then -- 2: also marks left by checking a build after another was applied

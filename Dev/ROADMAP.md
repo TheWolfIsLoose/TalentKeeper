@@ -54,14 +54,25 @@ Done on `dev` (2026-10-21):
   cancelled it and how long swaps take in the log.
 
 To do:
-- **Delves: opt in or out of the delve prompt** (option, later).
-- **Recommendations across specs.** End state: about one tagged build per
-  spec per place. The strip and prompt say which spec a build is for (names
-  don't always say), and offer: stay on what you have, pick another of this
-  spec's builds for this place, or change to the other spec's build.
-- **One prompt per place, then quiet.** Answering ready (or passing on the
-  first prompt) keeps it from coming back until the time-out (16 h) ends,
-  as the ready check strip already does per boss.
+- **This season view** (player, 2026-10-21): every dungeon, delve and raid
+  boss with the build tagged for it per spec, gaps highlighted; tag from
+  there. The fast path for someone arriving with a pile of builds from
+  another addon: bring them in, then tag them all in one place instead of
+  build by build.
+
+Done on `dev` (2026-10-21, later):
+- Ready check strip and zone-in prompt are about tagging, not nagging
+  (player, 2026-10-21): on this spec's tagged build, the strip just says so;
+  on another of this spec's builds, it names the tagged one with Switch
+  (every ready check); nothing tagged for this spec, it asks once per play
+  session to tag what you're on (Use <build> / Choose...), with the other
+  spec's tagged build as a button beside it. Grace: on an Affliction build
+  tagged for a boss, nothing about Demonology.
+- Play session = gaps under 2 h (a night's sleep starts a new one); asks
+  are forgotten after 16 h regardless.
+- Option: Ask in delves (prompt and strip).
+- Raid rooms ship with the addon (Venomous Abyss 6 of 8, Kith'ix); Vashnik
+  and The Twin Fangs to add once their rooms are known.
 - **GUI pass: one footprint.** Everything TalentKeeper does at the talent
   window lives in the side pane. Save / Import, Rename, New group and any
   other form stop opening their own window: the pane morphs (swaps its view,
