@@ -62,28 +62,63 @@ end
 
 UI.fill, UI.ring, UI.button = fill, ring, button
 
+-- One footprint: a form opens as a view over the side pane (Window.lua sets UI.pane) while the
+-- talent window is open, else on its own mid-screen (/tk import, the log). f.bg and f.setEdge are
+-- its fill and edge. Returns true when it's in the pane.
+function UI.dock(f, alone)
+    local pane = UI.pane
+    local inPane = not alone and pane and pane:IsShown() or false
+    f.inPane = inPane
+    f:ClearAllPoints()
+    if inPane then
+        f:SetParent(pane)
+        f:SetFrameStrata(pane:GetFrameStrata())
+        f:SetFrameLevel(pane:GetFrameLevel() + 30)
+        f:SetPoint("TOPLEFT", pane, "TOPLEFT", 1, -27); f:SetPoint("BOTTOMRIGHT", pane, "BOTTOMRIGHT", -1, 1)
+        if not f.paneHooked then -- closes with the talent window
+            f.paneHooked = true
+            pane:HookScript("OnHide", function() if f.inPane then f:Hide() end end)
+        end
+    else
+        f:SetParent(UIParent)
+        f:SetFrameStrata("DIALOG")
+        f:SetPoint("CENTER")
+    end
+    local g = inPane and 0.06 or 0.031
+    f.bg:SetColorTexture(g, g, g, inPane and 1 or 0.97)
+    f.setEdge(inPane and 0.06 or 0)
+    return inPane
+end
+
+-- Drag to move, only when it's on its own.
+local function movable(f)
+    f:SetMovable(true); f:EnableMouse(true); f:RegisterForDrag("LeftButton")
+    f:SetScript("OnDragStart", function(self) if not self.inPane then self:StartMoving() end end)
+    f:SetScript("OnDragStop", f.StopMovingOrSizing)
+    f:SetClampedToScreen(true)
+end
+
 -- Text window --------------------------------------------------------------------
--- UI.textWindow{ title, text, okText?, onOK?(text), readOnly?, singleLine? }
+-- UI.textWindow{ title, text, okText?, onOK?(text), readOnly?, singleLine?, alone? }
+-- In the side pane while the talent window is open; alone = always its own window (the log).
 local win
 local function makeWindow()
     win = CreateFrame("Frame", "TalentKeeperTextWindow", UIParent)
     win:SetSize(460, 260)
-    win:SetPoint("CENTER")
-    win:SetFrameStrata("DIALOG")
-    win:SetMovable(true); win:EnableMouse(true); win:RegisterForDrag("LeftButton")
-    win:SetScript("OnDragStart", win.StartMoving)
-    win:SetScript("OnDragStop", win.StopMovingOrSizing)
-    win:SetClampedToScreen(true)
-    fill(win, "BACKGROUND", 0.031, 0.031, 0.031, 0.97)
-    ring(win, 0)
+    movable(win)
+    win.bg = fill(win, "BACKGROUND", 0.031, 0.031, 0.031, 0.97)
+    win.setEdge = ring(win, 0)
     tinsert(UISpecialFrames, win:GetName()) -- Escape closes it
 
     win.title = win:CreateFontString(nil, "OVERLAY", "TalentKeeperFontLarge")
     win.title:SetPoint("TOPLEFT", 12, -10)
+    win.title:SetPoint("RIGHT", -12, 0)
+    win.title:SetJustifyH("LEFT")
+    win.title:SetWordWrap(false) -- a long build name ends in "..." in the pane
 
     win.box = CreateFrame("Frame", nil, win)
     win.box:SetPoint("TOPLEFT", 12, -36)
-    win.box:SetPoint("BOTTOMRIGHT", -12, 44)
+    win.box:SetPoint("TOPRIGHT", -12, -36)
     fill(win.box, "BACKGROUND", 1, 1, 1, 0.08)
     win.setRing = ring(win.box, 0.4)
 
@@ -109,7 +144,7 @@ local function makeWindow()
     win.box:SetScript("OnMouseDown", function() win.edit:SetFocus() end)
 
     win.close = button(win, "Close", 80, function() win:Hide() end)
-    win.close:SetPoint("BOTTOMRIGHT", -12, 12)
+    win.close:SetPoint("TOPRIGHT", win.box, "BOTTOMRIGHT", 0, -10)
     win.ok = button(win, "Save", 80, function()
         local text = win.edit:GetText()
         win:Hide()
@@ -124,7 +159,12 @@ function UI.textWindow(opts)
     win.title:SetText(opts.title)
     win.onOK, win.readOnly, win.single, win.fixedText = opts.onOK, opts.readOnly, opts.singleLine, opts.text or ""
     win.edit:SetMultiLine(not opts.singleLine)
-    win:SetHeight(opts.singleLine and 120 or 260)
+    local inPane = UI.dock(win, opts.alone)
+    local boxH = opts.singleLine and 24 or inPane and 140 or 180
+    win.box:SetHeight(boxH)
+    win:SetWidth(460)
+    win:SetHeight(36 + boxH + 10 + 24 + 12)
+    win.close:SetText(inPane and "Cancel" or "Close")
     win.ok:SetText(opts.okText or "Save")
     win.ok:SetShown(opts.onOK ~= nil)
     win.edit:SetText(opts.text or "")
@@ -168,14 +208,9 @@ end
 local function makeDialog()
     dlg = CreateFrame("Frame", "TalentKeeperBuildDialog", UIParent)
     dlg:SetWidth(380)
-    dlg:SetPoint("CENTER")
-    dlg:SetFrameStrata("DIALOG")
-    dlg:SetMovable(true); dlg:EnableMouse(true); dlg:RegisterForDrag("LeftButton")
-    dlg:SetScript("OnDragStart", dlg.StartMoving)
-    dlg:SetScript("OnDragStop", dlg.StopMovingOrSizing)
-    dlg:SetClampedToScreen(true)
-    fill(dlg, "BACKGROUND", 0.031, 0.031, 0.031, 0.97)
-    ring(dlg, 0)
+    movable(dlg)
+    dlg.bg = fill(dlg, "BACKGROUND", 0.031, 0.031, 0.031, 0.97)
+    dlg.setEdge = ring(dlg, 0)
     tinsert(UISpecialFrames, dlg:GetName())
     dlg.title = dlg:CreateFontString(nil, "OVERLAY", "TalentKeeperFontLarge")
     dlg.title:SetPoint("TOPLEFT", 12, -10)
@@ -225,7 +260,7 @@ local function makeDialog()
     dlg.forPick:SetPoint("LEFT", dlg.forBox, "RIGHT", 6, 0)
     dlg.text.edit.next, dlg.name.edit.next, dlg.group.edit.next = dlg.name.edit, dlg.group.edit, nil
     dlg.cancel = button(dlg, "Cancel", 80, function() dlg:Hide() end)
-    dlg.cancel:SetPoint("BOTTOMRIGHT", -12, 12)
+    dlg.cancel:SetPoint("TOPRIGHT", dlg.forPick, "BOTTOMRIGHT", 0, -16)
     dlg.ok = button(dlg, "Save", 80, function()
         local text, name, group = dlg.text.edit:GetText(), strtrim(dlg.name.edit:GetText()), strtrim(dlg.group.edit:GetText())
         group = group ~= "" and group or nil
@@ -245,6 +280,8 @@ local function makeDialog()
     -- Import: the pasted string shows on the tree before it's saved; the note says what you see
     dlg.note = dlg:CreateFontString(nil, "OVERLAY", "TalentKeeperFontSmall")
     dlg.note:SetPoint("TOPLEFT", dlg.text, "BOTTOMLEFT", 0, -3)
+    dlg.note:SetPoint("RIGHT", dlg.text, "RIGHT")
+    dlg.note:SetJustifyH("LEFT")
     dlg.note:SetTextColor(0.55, 0.55, 0.55)
     dlg.text.edit:SetScript("OnTextChanged", TK.safe(function(self)
         if not dlg.import then return end
@@ -273,13 +310,14 @@ function UI.buildDialog(import)
     if not specID then return TK.chat("Pick a specialization first.") end
     if not dlg then makeDialog() end
     dlg.import = import
+    UI.dock(dlg)
     dlg.title:SetText(import and "Import a build" or "Save your current talents")
     dlg.text:SetShown(import)
     dlg.textCap:SetShown(import)
     dlg.name:ClearAllPoints()
     local top = import and -160 or -54 -- room for the preview note under the string
     dlg.name:SetPoint("TOPLEFT", 12, top); dlg.name:SetPoint("TOPRIGHT", -12, top)
-    dlg:SetHeight(-top + 24 + 22 + 24 + 22 + 24 + 56)
+    dlg:SetHeight(-top + 24 + 22 + 24 + 22 + 24 + 16 + 24 + 12)
     dlg.draft = {}
     dlg.showFor()
     dlg.text.edit:SetText("")

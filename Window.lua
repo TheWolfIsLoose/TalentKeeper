@@ -124,6 +124,11 @@ function W.show(b)
         n = n + 1
         local m = mark(n)
         place(m, emblem, nil)
+        -- the build's hero tree over the game's own name for the current one (the eye button is below)
+        local current = tf.HeroTalentsContainer.HeroSpecLabel
+        m.label:ClearAllPoints()
+        if current then m.label:SetPoint("BOTTOM", current, "TOP", 0, 4) else m.label:SetPoint("BOTTOM", m, "TOP", 0, 26) end
+        m.label:SetTextColor(0.1, 1, 0.1) -- green: the tree this build takes
         m.label:SetText(C.heroName(b.text) or "")
     end
     return d, hidden
@@ -1195,6 +1200,7 @@ EventUtil.ContinueOnAddOnLoaded("Blizzard_PlayerSpells", TK.safe(function()
     pane:SetPoint("TOPLEFT", PlayerSpellsFrame, "TOPRIGHT", 1, 0)
     pane:SetPoint("BOTTOMLEFT", PlayerSpellsFrame, "BOTTOMRIGHT", 1, 0)
     pane:SetFrameStrata(PlayerSpellsFrame:GetFrameStrata())
+    UI.pane = pane
     pane:EnableMouse(true)
     UI.fill(pane, "BACKGROUND", 0.06, 0.06, 0.06, 1)
     UI.ring(pane, 0)

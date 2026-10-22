@@ -73,14 +73,21 @@ Done on `dev` (2026-10-21, later):
 - Option: Ask in delves (prompt and strip).
 - Raid rooms ship with the addon (Venomous Abyss 6 of 8, Kith'ix); Vashnik
   and The Twin Fangs to add once their rooms are known.
-- **GUI pass: one footprint.** Everything TalentKeeper does at the talent
+- Done 2026-10-22 (GUI pass): Save current / Import, Rename, New group,
+  Rename group and Copy string open as a view over the side pane (the pane
+  swaps, Cancel / Escape brings the list back; closes with the talent
+  window). Away from the talent window (/tk import) they stay a small window;
+  the log stays its own window. The hero tree name on a swap preview sits
+  above the game's own hero tree name, clear of the eye button. Not done: the
+  slide / grow animation (add if the swap feels abrupt).
+- ~~**GUI pass: one footprint.** Everything TalentKeeper does at the talent
   window lives in the side pane. Save / Import, Rename, New group and any
   other form stop opening their own window: the pane morphs (swaps its view,
   grows or slides to fit, with a short quiet animation) and comes back when
   done. The Import preview then sits beside the tree instead of on top of
-  it. Only the log stays a separate window.
-- **GUI pass:** the hero tree name under the emblem (on a hero tree swap
-  preview) runs into the game's eye button below it; find it a clear spot.
+  it. Only the log stays a separate window.~~
+- ~~**GUI pass:** the hero tree name under the emblem (on a hero tree swap
+  preview) runs into the game's eye button below it; find it a clear spot.~~
 
 ## Parked 2026-10-22 ~01:20 ET (build 52a5cfe installed, not released)
 

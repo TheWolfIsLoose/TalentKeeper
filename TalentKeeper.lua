@@ -125,7 +125,7 @@ TK.commands.log = function(arg)
         wipe(TK.db.log)
         return TK.chat("Log cleared.")
     end
-    TK.ui.textWindow({ title = "TalentKeeper log", text = table.concat(TK.db.log, "\n"), readOnly = true })
+    TK.ui.textWindow({ title = "TalentKeeper log", text = table.concat(TK.db.log, "\n"), readOnly = true, alone = true })
 end
 
 TK.commands.debug = function()
