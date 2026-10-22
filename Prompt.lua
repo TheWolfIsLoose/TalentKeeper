@@ -71,7 +71,7 @@ function P.hide() if bar then bar:Hide() end end
 
 -- Switch to b: change spec first if needed, then apply once the spec change lands.
 local function switch(b, specID)
-    if InCombatLockdown() then return TK.chat("|cffff8888Can't change talents in combat.|r") end
+    if InCombatLockdown() then return TK.chat("|cffff6666Can't change talents in combat.|r") end
     P.hide()
     if specID == B.specID() then
         TK.log("prompt: switch to '%s'", b.name)
@@ -114,7 +114,6 @@ local function chooseFor(here, owner, after)
         return items
     end)
 end
-P.chooseFor = chooseFor
 
 -- Only places the tag list offers: delves and this season's dungeons (old and timewalking
 -- dungeons, follower dungeons of past content and the like get nothing).
@@ -189,12 +188,12 @@ function P.check()
             return P.hide()
         end
         TK.log("prompt: %s, offering '%s'", name, mine.name)
-        return show(("%s: |cff98ff98%s|r"):format(name, mine.name), { "Switch", function() switch(mine, B.specID()) end })
+        return show(("%s: |cffffffff%s|r"):format(name, mine.name), { "Switch", function() switch(mine, B.specID()) end })
     end
     if P.asked(here) then return TK.log("prompt: %s, already asked this session", name) end
     P.markAsked(here)
     local text = other
-        and ("Nothing for %s here. %s: |cff98ff98%s|r"):format(B.specName(B.specID()), B.specName(other.specID), other.b.name)
+        and ("Nothing for %s here. %s: |cffffffff%s|r"):format(B.specName(B.specID()), B.specName(other.specID), other.b.name)
         or ("Nothing set for %s."):format(here.name)
     TK.log("prompt: %s, nothing for this spec (current: %s%s)", name, cur and cur.name or "unsaved",
         other and (", " .. B.specName(other.specID) .. " has '" .. other.b.name .. "'") or "")

@@ -8,8 +8,10 @@ Releases are cut by CI from the `## vX.Y.Z` heading in
 (short, player-facing bullets). Detailed notes for every version go in
 [HISTORY.md](HISTORY.md). Planned work lives in [ROADMAP.md](ROADMAP.md).
 
-- Work lands on `dev` and is tested internally (player syncs
-  `Dev\update.bat dev`, plays, `/reload`; Claude reads the log).
+- Work lands on `dev` and the player tests it first-hand (Claude installs the
+  changed files straight into the game, the player plays and `/reload`s,
+  Claude reads the log). Testers get alpha / beta builds once the player is
+  comfortable with them testing; they pull those from Git.
 - Push to `dev` with a new `-alphaN` / `-betaN` version heading to publish a
   prerelease (CurseForge Alpha/Beta). Before 1.0 the versions are
   `v0.x.y-alphaN`.

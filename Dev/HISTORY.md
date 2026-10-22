@@ -4,6 +4,10 @@ Full notes for every release, newest first. Dev-only (the `Dev/` folder
 never ships); the player-facing summary for the release being cut lives in
 CHANGELOG.md. Add each release's detailed notes here when you cut it.
 
+## v0.5.0 (2026-10-22)
+
+Suite style pass (`Dev/SUITE-STYLE.md`): mint replaced by white everywhere (selection wash, live build text and edge bar, tabs, spec ring, checkbox squares, slider thumb, cast fill, shimmer at peak 0.15, focus rings); yellow `FFD84A` / red `FF6666`; two-tone name; the game-texture gear became the drawn three-bar Settings & Activity icon (a toggle, white while open); white icon. One `UI.header` for the pane and the bring-in window (`UI.versionText`), `UI.footBand` for its footer. Tags: Miscellaneous heading over Delves (an Open world place was tried and dropped: no reliable moment to check the spec there). Removed the unused import preview (`W.preview`) and `Compare.sameAsEarlier`. Roadmap: PvP under Miscellaneous, not scheduled.
+
 ## v0.4.0 (2026-10-22)
 
 Applying moved to the game's own load (player, 2026-10-21): the in-place,

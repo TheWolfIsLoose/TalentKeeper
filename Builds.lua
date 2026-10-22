@@ -126,8 +126,8 @@ function B.unspent()
     end
     return false
 end
-local UNSAVED = "|cffffb84dYour talent window has changes that aren't applied yet.|r Apply or undo them first."
-local UNSPENT = "|cffffb84dYou have talent points left to spend.|r Spend them and apply first."
+local UNSAVED = "|cffffd84aYour talent window has changes that aren't applied yet.|r Apply or undo them first."
+local UNSPENT = "|cffffd84aYou have talent points left to spend.|r Spend them and apply first."
 local function cantSave()
     if B.unsaved() then TK.chat(UNSAVED) return true end
     if B.unspent() then TK.chat(UNSPENT) return true end
@@ -137,7 +137,7 @@ function B.saveCurrent(name, group, tags)
     local specID = B.specID()
     if cantSave() then return end
     local text = currentString()
-    if not text or text == "" then return TK.chat("|cffff8888Couldn't read your talents.|r Open the talent window once and try again.") end
+    if not text or text == "" then return TK.chat("|cffff6666Couldn't read your talents.|r Open the talent window once and try again.") end
     local list = B.list(specID)
     local b, same = B.add(specID, {
         name = name ~= "" and name or ("%s %d"):format(B.specName(specID), #list + 1),
@@ -153,7 +153,7 @@ end
 
 function B.importString(text, name, group, tags)
     local spec, err = B.stringSpec(text)
-    if not spec then return TK.chat("|cffff8888" .. err .. "|r") end
+    if not spec then return TK.chat("|cffff6666" .. err .. "|r") end
     local list = B.list(spec)
     local b, same = B.add(spec, {
         name = name and name ~= "" and name or ("Imported %d"):format(#list + 1),
@@ -260,9 +260,9 @@ end
 function B.updateToCurrent(b)
     local specID = B.specID()
     if cantSave() then return end
-    if B.findSpec(b) ~= specID then return TK.chat("|cffff8888That build is for another spec.|r") end
+    if B.findSpec(b) ~= specID then return TK.chat("|cffff6666That build is for another spec.|r") end
     local text = currentString()
-    if not text then return TK.chat("|cffff8888Couldn't read your talents.|r") end
+    if not text then return TK.chat("|cffff6666Couldn't read your talents.|r") end
     b.text, b.pvp, b.outdated = text, currentPvp(), nil
     TK.db.active[specID] = b.name
     TK.log("updated '%s' to current talents", b.name)
@@ -404,7 +404,7 @@ local function verify(b)
     b.outdated = #d > 0 and #d or nil
     TK.changed()
     if #d > 0 then
-        TK.chat(("|cffffb84dApplied %s, but %d of its talents didn't come out as saved|r (%s). Fix them, then More... > Update to my talents.")
+        TK.chat(("|cffffd84aApplied %s, but %d of its talents didn't come out as saved|r (%s). Fix them, then More... > Update to my talents.")
             :format(b.name, #d, table.concat(TK.compare.describe(d, 3), ", ")))
     end
 end
@@ -429,7 +429,7 @@ TK.on("CONFIG_COMMIT_FAILED", function(configID)
         if d and #d == 0 then return TK.log("apply '%s': landed anyway", a.b.name) end
         TK.db.active[B.specID()] = a.prev
         TK.changed()
-        TK.chat(("|cffff8888%s wasn't applied:|r the game cancelled the talent change%s. Click it again to retry.")
+        TK.chat(("|cffff6666%s wasn't applied:|r the game cancelled the talent change%s. Click it again to retry.")
             :format(a.b.name, a.why and (" (" .. a.why .. ")") or ""))
     end))
 end)
@@ -481,7 +481,7 @@ local function load(id, p)
             end))
         end
         TK.db.active[specID], B.muteUntil = p.prev, 0
-        return TK.chat(("|cffff8888Couldn't apply %s.|r %s"):format(p.b.name, changeError or "Try again in a moment."))
+        return TK.chat(("|cffff6666Couldn't apply %s.|r %s"):format(p.b.name, changeError or "Try again in a moment."))
     end
     C_ClassTalents.UpdateLastSelectedSavedConfigID(specID, id)
     finish(p.b, specID)
@@ -491,7 +491,7 @@ end
 -- Apply b through the game's own load: TalentKeeper's loadout is replaced with the build, then
 -- loaded. One thing every time: the Apply button, double-click, the quick list and the prompts.
 function B.apply(b)
-    if InCombatLockdown() then return TK.chat("|cffff8888Can't change talents in combat.|r") end
+    if InCombatLockdown() then return TK.chat("|cffff6666Can't change talents in combat.|r") end
     -- a second apply mid-cast would cut the first one off
     if lastApply and not lastApply.timed and B.muteUntil and GetTime() < B.muteUntil then
         return TK.chat(("Still applying |cffffffff%s|r."):format(lastApply.b.name))
@@ -504,10 +504,10 @@ function B.apply(b)
     local okCheck, canChange, _, changeError = pcall(C_ClassTalents.CanChangeTalents)
     if okCheck and canChange == false then
         TK.log("apply '%s': refused, can't change talents (%s)", b.name, tostring(changeError))
-        return TK.chat("|cffff8888Can't change talents right now.|r " .. (changeError or ""))
+        return TK.chat("|cffff6666Can't change talents right now.|r " .. (changeError or ""))
     end
     local e, err = entries(b.text)
-    if not e then return TK.chat("|cffff8888" .. err .. "|r") end
+    if not e then return TK.chat("|cffff6666" .. err .. "|r") end
     local specID = B.specID()
     local d = TK.compare.diff(currentString(), b.text)
     if d and #d == 0 then
@@ -527,7 +527,7 @@ function B.apply(b)
     if not ok then
         pending, B.muteUntil = nil, 0
         TK.db.active[specID] = prev
-        TK.chat(("|cffff8888Couldn't apply %s.|r %s"):format(b.name, importErr or ""))
+        TK.chat(("|cffff6666Couldn't apply %s.|r %s"):format(b.name, importErr or ""))
     end
 end
 

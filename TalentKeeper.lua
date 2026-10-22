@@ -12,7 +12,7 @@ function TK.changed() if TK.onChange then TK.onChange() end end
 TK.flashing = {}
 function TK.flash(b) TK.flashing[b] = true end
 
-function TK.chat(msg) print("|cff98ff98TalentKeeper|r: " .. msg) end
+function TK.chat(msg) print("|cffffffffTalent|r|cffb3b3b3Keeper|r: " .. msg) end
 
 -- Log -----------------------------------------------------------------------
 -- One line per entry in TalentKeeperDB.log, newest last. /tk log shows it for copying
@@ -103,7 +103,7 @@ TK.on("ADDON_LOADED", function(name)
     TK.version = version
     if db.lastVersion ~= version then TK.log("version: %s -> %s", tostring(db.lastVersion), version) end
     db.lastVersion = version
-    TK.chat(version .. " loaded. Type |cff98ff98/tk|r to open your builds.")
+    TK.chat(version .. " loaded. Type |cffffffff/tk|r to open your builds.")
 end)
 
 -- Slash commands -------------------------------------------------------------
@@ -131,7 +131,7 @@ end
 TK.commands.debug = function()
     TK.debugOn = not TK.debugOn
     if TK.debugOn then
-        TK.chat("Detailed recording |cff98ff98on|r until you /reload. Repeat the problem, then type |cff98ff98/tk log|r.")
+        TK.chat("Detailed recording on until you /reload. Repeat the problem, then type |cffffffff/tk log|r.")
     else
         TK.chat("Detailed recording |cff8c8c8coff|r.")
     end

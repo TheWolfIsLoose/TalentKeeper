@@ -111,6 +111,36 @@ function UI.footBand(f, h)
     return band
 end
 
+-- The version as the suite shows it: yellow while it's a dev, alpha or beta build, else muted.
+function UI.versionText()
+    local v = TK.version or ""
+    return ((v:find("^dev") or v:find("%-alpha") or v:find("%-beta")) and "|cffffd84a" or "|cff8c8c8c") .. v .. "|r"
+end
+
+-- The header: a 26px faint band over a black rule, with the icon, the two-tone name and the
+-- version (head.version) on the left, as the suite's other headers.
+function UI.header(f)
+    local head = CreateFrame("Frame", nil, f)
+    head:SetPoint("TOPLEFT"); head:SetPoint("TOPRIGHT")
+    head:SetHeight(26)
+    fill(head, "BACKGROUND", 1, 1, 1, 0.035)
+    local rule = head:CreateTexture(nil, "OVERLAY")
+    rule:SetColorTexture(0, 0, 0, 1)
+    rule:SetHeight(1)
+    rule:SetPoint("BOTTOMLEFT"); rule:SetPoint("BOTTOMRIGHT")
+    local mark = head:CreateTexture(nil, "ARTWORK")
+    mark:SetSize(16, 16)
+    mark:SetPoint("LEFT", 8, 0)
+    mark:SetTexture("Interface\\AddOns\\TalentKeeper\\icon.png")
+    local name = head:CreateFontString(nil, "OVERLAY", "TalentKeeperFont")
+    name:SetPoint("LEFT", mark, "RIGHT", 6, 0)
+    name:SetText("|cffffffffTalent|r|cffb3b3b3Keeper|r")
+    head.version = head:CreateFontString(nil, "OVERLAY", "TalentKeeperFontSmall")
+    head.version:SetPoint("BOTTOMLEFT", name, "BOTTOMRIGHT", 6, 1)
+    head.version:SetText(UI.versionText())
+    return head
+end
+
 -- Drag to move, only when it's on its own.
 local function movable(f)
     f:SetMovable(true); f:EnableMouse(true); f:RegisterForDrag("LeftButton")
@@ -154,7 +184,7 @@ local function makeWindow()
     -- An edit box inside a scroll frame draws nothing until it has a size: track the scroll area.
     win.scroll:SetScript("OnSizeChanged", function(_, w, h) win.edit:SetWidth(w) win.edit:SetHeight(h) end)
     win.edit:SetScript("OnEscapePressed", function(self) self:ClearFocus(); win:Hide() end)
-    win.edit:SetScript("OnEditFocusGained", function() win.setRing(0.596) end)
+    win.edit:SetScript("OnEditFocusGained", function() win.setRing(1) end)
     win.edit:SetScript("OnEditFocusLost", function() win.setRing(0.4) end)
     win.edit:SetScript("OnEnterPressed", function(self)
         if win.single and win.ok:IsShown() then win.ok:Click() end
@@ -209,7 +239,7 @@ local function editBox(parent, multi)
     e:SetAutoFocus(false)
     e:SetMultiLine(multi or false)
     e:SetPoint("TOPLEFT", 6, -4); e:SetPoint("BOTTOMRIGHT", -6, 4)
-    e:SetScript("OnEditFocusGained", function() setRing(0.596) end)
+    e:SetScript("OnEditFocusGained", function() setRing(1) end)
     e:SetScript("OnEditFocusLost", function() setRing(0.4) end)
     e:SetScript("OnEscapePressed", function(self) self:ClearFocus() dlg:Hide() end)
     e:SetScript("OnTabPressed", function(self) if self.next then self.next:SetFocus() end end)
@@ -295,7 +325,6 @@ local function makeDialog()
     end
     dlg:SetScript("OnHide", function()
         dlg.text.edit:ClearFocus() dlg.name.edit:ClearFocus() dlg.group.edit:ClearFocus()
-        if dlg.import and TK.window then TK.window.preview(nil) end
     end)
     -- Import: the pasted string shows on the tree before it's saved; the note says what you see
     dlg.note = dlg:CreateFontString(nil, "OVERLAY", "TalentKeeperFontSmall")
@@ -317,7 +346,7 @@ local function makeDialog()
                 note = #d == 0 and "Same as your talents now." or ("%d changes marked on the tree."):format(#d)
             end
         elseif text ~= "" then
-            note = "|cffff8888That isn't a talent string.|r"
+            note = "|cffff6666That isn't a talent string.|r"
         end
         dlg.note:SetText(note)
         if TK.window then TK.window.preview(preview) end
@@ -392,7 +421,9 @@ end
 
 UI.seasonRaids, UI.seasonDungeons = seasonRaids, seasonDungeons
 
+-- Miscellaneous: places that aren't a dungeon or a raid boss. (PvP comes later.)
 local CONTENT = { { key = "delve", name = "Delves" } }
+UI.CONTENT = CONTENT
 
 -- Picker: the suite's flat list in a small panel (headings, 24px check rows, plain rows) ------
 -- UI.picker(owner, title, items) where items() returns, each time it draws:
@@ -412,7 +443,7 @@ local function pickRow(i)
     r.ring = ring(r.box, 0.4)
     r.mark = r.box:CreateTexture(nil, "ARTWORK")
     r.mark:SetPoint("TOPLEFT", 3, -3); r.mark:SetPoint("BOTTOMRIGHT", -3, 3)
-    r.mark:SetColorTexture(0.596, 1, 0.596, 1)
+    r.mark:SetColorTexture(1, 1, 1, 1)
     r.text = r:CreateFontString(nil, "OVERLAY", "TalentKeeperFontSmall")
     r.text:SetPoint("RIGHT", -8, 0)
     r.text:SetJustifyH("LEFT")
@@ -465,7 +496,7 @@ local function makePicker()
     pick.more = pick:CreateFontString(nil, "OVERLAY", "TalentKeeperFontSmall")
     pick.more:SetPoint("BOTTOM", 0, 3)
     pick.more:SetText("v  more below  v")
-    pick.more:SetTextColor(0.596, 1, 0.596)
+    pick.more:SetTextColor(1, 1, 1)
     pick.pulse = pick.more:CreateAnimationGroup()
     local a = pick.pulse:CreateAnimation("Alpha")
     a:SetFromAlpha(1); a:SetToAlpha(0.3); a:SetDuration(0.5)
@@ -603,11 +634,12 @@ local function tagItem(b, s, toggle)
         onClick = function() toggle(b, s.key, s.name) end }
 end
 
--- Two columns: Delves and this season's dungeons; then each raid's bosses.
+-- Two columns: Miscellaneous (Delves) and this season's dungeons; then each raid's bosses.
 -- toggle(b, key, name) defaults to B.toggleTag (the import dialog passes its own for a draft).
 function UI.tagItems(b, toggle)
     toggle = toggle or B.toggleTag
     local items = {}
+    items[#items + 1] = { heading = "Miscellaneous" }
     for _, s in ipairs(CONTENT) do items[#items + 1] = tagItem(b, s, toggle) end
     local dungeons = seasonDungeons()
     if #dungeons > 0 then

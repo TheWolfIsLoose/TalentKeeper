@@ -106,6 +106,26 @@ Done on `dev` (2026-10-21, later):
 - ~~**GUI pass:** the hero tree name under the emblem (on a hero tree swap
   preview) runs into the game's eye button below it; find it a clear spot.~~
 
+## Future: PvP (player, 2026-10-22, not scheduled)
+
+- **Open:** PvP situations under the tag list's Miscellaneous heading (with
+  Delves): likely arenas, rated battlegrounds and casual
+  battlegrounds as places, with the build carrying its PvP talents. Needs:
+  how instance info reports each (instance type `pvp` / `arena`), whether the
+  zone-in prompt and ready check strip make sense there (queue pops, no ready
+  check in arenas), and how PvP talent slots are saved and applied alongside
+  the tree.
+
+## Parked 2026-10-22 13:30 ET (v0.4.0 released, installed locally)
+
+v0.4.0 shipped (GitHub release + CurseForge). The player's game runs the
+release build. `dev` = v0.4.0 plus doc fixes (update.bat removed, Build.lua
+note). Untested in the wild: bringing builds in for real, Talent Loadout
+Manager conversion. Next effort is suite-level (style guide reconcile, then
+the palette; see the project's style guide review doc), in another
+conversation. After that: TalentKeeper's own follow-ups (the More... menu
+for friction, the Tag Config name, any v0.4.0 reports).
+
 ## Parked 2026-10-22 ~01:20 ET (build 52a5cfe installed, not released)
 
 v0.4.0 is written up on `dev` (CHANGELOG, HISTORY, README, CurseForge text).
@@ -334,8 +354,9 @@ CurseForge: project 1746823 (`talentkeeper`), GitHub webhook on this repo.
 
 Dev loop: GitHub is the record, not the install path. Commit and push to
 `dev`, then write the changed files straight into the installed addon
-folder (stamp `Build.lua` with the commit). `Dev/update.bat` is only a
-fallback full resync.
+folder (stamp `Build.lua` with the commit). No update script (removed
+2026-10-22): the player develops and tests first-hand; testers get alpha /
+beta builds pushed to Git when the player is comfortable.
 
 ---
 
@@ -660,8 +681,7 @@ time, then the retry worked).
 v0.2.0-alpha1 released 2026-10-16 (part 1).
 
 **Part 2a, in testing:** LibTalentTree-1.0 (unmodified) + LibStub committed
-under `libs/` (no `.pkgmeta` externals, so `update.bat` checkouts work
-too). Used for: another class's tree and names, nodes free for a spec,
+under `libs/` (no `.pkgmeta` externals, so plain Git checkouts work too). Used for: another class's tree and names, nodes free for a spec,
 diffs ordered spec / hero / class with "(hero)" / "(class)" tags, and the
 build's hero tree named at the top of its submenu.
 
