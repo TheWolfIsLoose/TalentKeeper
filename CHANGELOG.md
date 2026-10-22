@@ -1,16 +1,17 @@
 <!-- Holds only the release being cut, as short player-facing bullets under a
      `## vX.Y.Z` heading. Detailed notes go in Dev/HISTORY.md. -->
 
-## v0.3.0
+## v0.4.0
 
-First stable release: a plain build manager that knows this season's dungeons, delves and raid bosses.
+Builds now go in through the game's own loadout system: they land whole, every time, without a hitch.
 
-- New: a side pane on the talent window. Click a build to preview it on the tree, double-click to apply; Apply, Tags, Group, Rename, Copy, Resave and Delete sit under the list.
-- New: tag builds for this season's dungeons, delves and raid bosses.
-- New: arriving in one of this season's dungeons or a delve offers the build tagged for it (changing spec first if needed), or asks once what to use there.
-- New: on a ready check, a small strip says whether you're on the build tagged for what's next, with Switch or Choose. In raids it names the boss it expects, and you can correct it. Shift-drag to move it.
-- New: Save and Import have a For field. If you already have those talents, that build gets the tags instead of a copy being saved.
-- New: a build's row shimmers once when it's saved, tagged or moved, and scrolls into view.
-- The pane's header shows TalentKeeper and its version.
-- Save and Import ask for the name, group and what it's for in one step; groups can be renamed or deleted.
-- Removed: tidy up, fill up, variants and gear sets, to keep things simple.
+- New: Apply loads the build into the talent window as pending changes, so you see exactly what changes; Apply changes (ours or the game's) finishes it. Double-click a build, the quick list and the prompts apply straight away, the same way.
+- New: This season tab: every Mythic+ dungeon, delve and raid boss this season, which of your specs has a build there, and the gaps. Click a place to pick a build for it.
+- New: Import shows the pasted build on the tree before you save it.
+- New: Options (the gear in the pane's header): talent window size, and whether to ask in delves.
+- Changed: the ready check strip confirms you're on your build, offers Switch when you're on another one, and asks to tag a build only once per play session (with your other spec's build one click away). The dungeon and delve prompt follows the same rules.
+- Changed: talents a build drops glow red on the preview, like the ones it takes glow green; bigger spec buttons.
+- Changed: the raid's rooms are known out of the box for this season's raids, so the strip names the right boss from the first pull.
+- Fixed: the talent window kept its size but drifted off to one side; it now shrinks toward its middle and stays centered.
+- Fixed: a talent change the game cancelled (moving, combat) could still say it was applied; it now says why it wasn't.
+- Fixed: the version showed as "vv0.3.0"; the ready check strip now closes as soon as you answer.

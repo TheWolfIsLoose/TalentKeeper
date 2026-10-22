@@ -4,6 +4,43 @@ Full notes for every release, newest first. Dev-only (the `Dev/` folder
 never ships); the player-facing summary for the release being cut lives in
 CHANGELOG.md. Add each release's detailed notes here when you cut it.
 
+## v0.4.0 (2026-10-22)
+
+Applying moved to the game's own load (player, 2026-10-21): the in-place,
+talent-by-talent apply froze the game 0.3-1.4 s with the talent window open
+(every staged click redraws the tree) and had to resolve dependencies and
+point limits itself (a refund took Blight of Tongues along; rebuilds when
+changes deadlocked). Now TalentKeeper's loadout is replaced with the build
+and loaded by the game: Apply (window open) uses the talent window's own
+"pick this loadout without applying" so the build waits as pending changes
+and Apply changes commits it into TalentKeeper's loadout; it only counts as
+pending while the loadout menu is on TalentKeeper's loadout (picking Default
+Loadout would otherwise have let our button commit that). Double-click,
+quick list, prompts and the strip load and apply at once; a first load that
+errors is retried after 1.5 s and a cancel before the load went through is
+not reported as a failure. Cancelled changes (moving, combat, interrupted
+cast 384255) are reported honestly with the cause.
+- This season tab: every season dungeon, delve and raid boss, spec icons lit
+  where that spec has a build, this spec's gaps gray, count at the bottom;
+  click to pick this spec's build there.
+- Ready check strip / zone-in prompt (player, 2026-10-21): confirm the
+  tagged build; Switch when on another of this spec's builds (every check);
+  nothing for this spec: ask once per play session (Use <build> /
+  Choose...) with the other spec's tagged build as a button. Session = gaps
+  under 2 h; nothing kept past 16 h. Strip closes on answer / end of check.
+- Shipped rooms: Venomous Abyss (all 8; Pit of Fangs means the Twin Fangs
+  only once Vashnik and Sszorak are down: it's the hub), Kith'ix.
+- Options view in the pane (gear): talent window size slider (applied on
+  release, shrinks toward the middle, leaves the game's own fit scaling alone
+  at 100%), Ask in delves. No delve prompt when your last applied build is
+  the Delves one.
+- Import previews the string on the tree (note: changes, same, other spec,
+  not a string); Save / Import have a For field; a duplicate takes the tags.
+- Preview: dropped talents glow red; spec buttons fill the pane; pane header
+  shows TalentKeeper and its version; pickers draw above the dialog; rows
+  shimmer when a build is saved, tagged or moved.
+- Version shows once (packager versions already start with v).
+
 ## v0.3.0 (2026-10-20)
 
 First stable release (CurseForge lists a project only once it has one).
