@@ -277,7 +277,7 @@ function UI.buildDialog(import)
     dlg.text:SetShown(import)
     dlg.textCap:SetShown(import)
     dlg.name:ClearAllPoints()
-    local top = import and -148 or -54
+    local top = import and -160 or -54 -- room for the preview note under the string
     dlg.name:SetPoint("TOPLEFT", 12, top); dlg.name:SetPoint("TOPRIGHT", -12, top)
     dlg:SetHeight(-top + 24 + 22 + 24 + 22 + 24 + 56)
     dlg.draft = {}

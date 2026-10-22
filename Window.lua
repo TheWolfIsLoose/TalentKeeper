@@ -443,8 +443,8 @@ end
 
 -- Preview a talent string on the tree while it's being imported (nil: back to the selected build).
 function W.preview(text)
+    if text == (W.override and W.override.text) then return end -- nothing changed (typing junk, say)
     W.override = text and { text = text } or nil
-    TK.log("import preview %s", text and "shown" or "cleared")
     W.refresh()
     if not text and not TK.selected then W.hide() end
 end
@@ -525,10 +525,12 @@ local function recenter()
     centerAt(f, left * eff + f:GetWidth() * full / 2, top * eff - f:GetHeight() * full / 2)
 end
 
-local function applyScale()
+-- now = true from the slider (back to 100% included); on open only a set size is applied
+local function applyScale(now)
     local f = PlayerSpellsFrame
     if not f or InCombatLockdown() then return end
-    local want = TK.db.windowScale or 1
+    local want = TK.db.windowScale or (now == true and 1)
+    if not want then return end -- normal size: the game's own scale (it shrinks the window to fit small screens)
     if math.abs(f:GetScale() - want) < 0.001 then return recenter() end
     local x, y = f:GetCenter()
     local old = f:GetEffectiveScale()
@@ -589,7 +591,7 @@ local function makeOptions()
         if InCombatLockdown() then pending = nil return TK.chat("|cffff8888Can't resize the talent window in combat.|r") end
         TK.db.windowScale = math.abs(pending - 1) > 0.001 and pending or nil
         pending = nil
-        applyScale()
+        applyScale(true)
     end))
     s:SetScript("OnValueChanged", TK.safe(function(_, v, user)
         v = math.floor(v * 20 + 0.5) / 20
@@ -600,7 +602,7 @@ local function makeOptions()
         if InCombatLockdown() then return end
         TK.db.windowScale = nil
         s:SetValue(1)
-        applyScale()
+        applyScale(true)
     end)
     normal:SetPoint("TOPLEFT", s, "BOTTOMLEFT", 0, -10)
     opt.slider = s
@@ -685,7 +687,7 @@ EventUtil.ContinueOnAddOnLoaded("Blizzard_PlayerSpells", TK.safe(function()
     pane:Hide()
     tf:HookScript("OnShow", function() pane:Show() TK.safe(W.refresh)() end)
     tf:HookScript("OnHide", function() W.hide() UI.hidePicker() pane:Hide() end)
-    PlayerSpellsFrame:HookScript("OnShow", applyScale)
+    PlayerSpellsFrame:HookScript("OnShow", function() applyScale() end)
     hooksecurefunc("UpdateUIPanelPositions", function() TK.safe(recenter)() end) -- another panel moved it
     gear()
     applyScale()
