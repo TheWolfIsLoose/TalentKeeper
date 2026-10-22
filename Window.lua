@@ -843,7 +843,7 @@ local bring
 local function makeBring()
     bring = CreateFrame("Frame", nil, pane)
     bring:SetPoint("TOPLEFT", 1, -27); bring:SetPoint("BOTTOMRIGHT", -1, 1)
-    bring:SetFrameLevel(pane:GetFrameLevel() + 25)
+    bring:SetFrameStrata("DIALOG") -- above another talent addon's panel in the same spot (pickers stay above)
     bring:EnableMouse(true)
     UI.fill(bring, "BACKGROUND", 0.06, 0.06, 0.06, 1)
     bring.title = bring:CreateFontString(nil, "OVERLAY", "TalentKeeperFont")
@@ -920,7 +920,6 @@ function W.showBring(fromOptions)
     bring.done:ClearAllPoints()
     bring.done:SetPoint("TOPLEFT", prev, "BOTTOMLEFT", 0, -12)
     TK.log("bring in: offered (%d sources)%s", #sources, fromOptions and " from Options" or "")
-    pane:Raise() -- another talent addon's panel may sit in the same spot: this one on top while it asks
     bring:Show()
     return #sources
 end
