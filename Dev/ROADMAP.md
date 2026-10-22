@@ -63,6 +63,12 @@ To do:
 - **One prompt per place, then quiet.** Answering ready (or passing on the
   first prompt) keeps it from coming back until the time-out (16 h) ends,
   as the ready check strip already does per boss.
+- **GUI pass: one footprint.** Everything TalentKeeper does at the talent
+  window lives in the side pane. Save / Import, Rename, New group and any
+  other form stop opening their own window: the pane morphs (swaps its view,
+  grows or slides to fit, with a short quiet animation) and comes back when
+  done. The Import preview then sits beside the tree instead of on top of
+  it. Only the log stays a separate window.
 - **GUI pass:** the hero tree name under the emblem (on a hero tree swap
   preview) runs into the game's eye button below it; find it a clear spot.
 - **Try a build before saving it.** Import a string into a preview: the tree
