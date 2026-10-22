@@ -417,7 +417,8 @@ end
 TK.on("PLAYER_STARTED_MOVING", function() during("you moved") end)
 TK.on("PLAYER_REGEN_DISABLED", function() during("combat started") end)
 TK.on("UNIT_SPELLCAST_INTERRUPTED", function(unit, _, spellID)
-    if unit == "player" and lastApply and lastApply.committed and not lastApply.timed then
+    if unit == "player" and lastApply and lastApply.committed and not lastApply.timed and not lastApply.interrupted then
+        lastApply.interrupted = true -- the game sends it several times
         TK.log("apply '%s': your cast %s was interrupted", lastApply.b.name, tostring(spellID))
     end
 end)
@@ -565,7 +566,16 @@ local function inPlace(b, e, specID, slot)
     end
     local work = differing()
     local changed = #work
-    local left, rebuilt = settle(work), false
+    -- a refund can take talents that depend on it along: read the whole tree again and finish those
+    local function settleAll(list)
+        local left = settle(list)
+        if #left == 0 then
+            local again = differing()
+            if #again > 0 then left = settle(again) end
+        end
+        return left
+    end
+    local left, rebuilt = settleAll(work), false
     if #left > 0 then
         -- the changes can't be made one by one: clear the class and spec talents and buy them
         -- all again top to bottom (the hero tree keeps its own points)
@@ -573,7 +583,7 @@ local function inPlace(b, e, specID, slot)
         TK.log("apply '%s': %d talents wouldn't change one by one; rebuilding", b.name, #left)
         local cur = C_Traits.GetTreeCurrencyInfo(cfg, treeID, false) or {}
         for i = 1, 2 do if cur[i] then C_Traits.ResetTreeByCurrency(cfg, treeID, cur[i].traitCurrencyID) end end
-        left = settle(differing())
+        left = settleAll(differing())
     end
     TK.log("apply '%s': %d talents differed, %d passes, %d node reads", b.name, changed, passes, reads)
     local missing = #left
