@@ -435,6 +435,18 @@ end
 -- so the same loadout is loaded once more a second later before giving up.
 local function load(id, p)
     local specID = B.specID()
+    local tf = PlayerSpellsFrame and PlayerSpellsFrame.TalentsFrame
+    if p.staged and tf and tf:IsVisible() and tf.SetSelectedSavedConfigID then
+        -- the game's own "pick this loadout without applying it": the loadout menu shows
+        -- TalentKeeper and the build waits as pending changes for Apply Changes, which saves into
+        -- this loadout (Apply Changes saves into whatever the menu shows)
+        tf:SetSelectedSavedConfigID(id, false)
+        B.staged = { b = p.b, id = id, prev = p.prev }
+        B.muteUntil = 0
+        if lastApply then lastApply.timed = true end
+        TK.log("apply '%s': pending in the talent window (%d ms)", p.b.name, lastApply and (debugprofilestop() - lastApply.t0) or -1)
+        return TK.changed()
+    end
     local r, changeError = C_ClassTalents.LoadConfig(id, true)
     TK.log("apply '%s': LoadConfig %s %s%s", p.b.name, resultName[r] or tostring(r), changeError or "", p.retried and " (retry)" or "")
     if r == Enum.LoadConfigResult.Error then
@@ -458,166 +470,11 @@ local function load(id, p)
     finish(p.b, specID)
 end
 
--- In place: when TalentKeeper's loadout is the selected one, change only the talents that
--- differ on the live tree and commit once (no new loadout, no load). Matching talents are
--- left alone, so the hero tree is only touched when the build's hero talents differ.
-local TYPE = Enum.TraitNodeType
-local function isChoice(info) return info.type ~= TYPE.Single and info.type ~= TYPE.Tiered end
 
-local function inPlace(b, e, specID, slot)
-    local cfg = C_ClassTalents.GetActiveConfigID()
-    local treeID = C_ClassTalents.GetTraitTreeForSpec(specID)
-    if not cfg or not treeID then return false end
-    -- what the build wants per node (a multi-rank apex talent can come as several entries)
-    local want = {}
-    for _, x in ipairs(e) do
-        local w = want[x.nodeID]
-        if w then w.ranks = w.ranks + x.ranksPurchased
-        else want[x.nodeID] = { ranks = x.ranksPurchased, entry = x.selectionEntryID } end
-    end
-    -- the tree's visible nodes, top row first, left to right
-    local ids = {}
-    for _, id in ipairs(C_Traits.GetTreeNodes(treeID)) do
-        local info = C_Traits.GetNodeInfo(cfg, id)
-        if info and (info.isVisible or want[id]) then ids[#ids + 1] = { id = id, y = info.posY or 0, x = info.posX or 0, sel = info.type == TYPE.SubTreeSelection } end
-    end
-    table.sort(ids, function(a, c) if a.y ~= c.y then return a.y < c.y end return a.x < c.x end)
-    local function granted(info) return (info.activeRank or 0) > (info.ranksPurchased or 0) end
-    local function done(info)
-        if info.type == TYPE.SubTreeSelection then -- the hero tree choice
-            local w = want[info.ID]
-            return not w or (info.activeEntry and info.activeEntry.entryID == w.entry) or false
-        end
-        if granted(info) then return true end -- free for this spec: nothing to buy or refund
-        local w = want[info.ID]
-        if not w or w.ranks == 0 then return info.ranksPurchased == 0 end
-        if isChoice(info) then return info.activeEntry and info.activeEntry.entryID == w.entry or false end
-        return info.ranksPurchased == w.ranks
-    end
-    -- a different hero tree: clear the hero talents; otherwise they're diffed like the rest
-    local heroChanged = false
-    for _, n in ipairs(ids) do
-        if n.sel and want[n.id] and not done(C_Traits.GetNodeInfo(cfg, n.id)) then heroChanged = true end
-    end
-    if heroChanged then
-        for _, sub in ipairs(C_ClassTalents.GetHeroTalentSpecsForClassSpec() or {}) do
-            local s = C_Traits.GetSubTreeInfo(cfg, sub)
-            if s and s.traitCurrencyID then C_Traits.ResetTreeByCurrency(cfg, treeID, s.traitCurrencyID) end
-        end
-    end
-    -- Only the talents that differ can change, so after one read of the tree the passes touch just
-    -- those (in tree order: refunds bottom row first, purchases top row first). Reading every node
-    -- on every pass cost up to 1.4 s of frozen game before this.
-    local reads = 0
-    local function node(id) reads = reads + 1 return C_Traits.GetNodeInfo(cfg, id) end
-    local function differing()
-        local list = {}
-        for _, n in ipairs(ids) do if not done(node(n.id)) then list[#list + 1] = n.id end end
-        return list
-    end
-    local function refundPass(work)
-        local progress = false
-        for i = #work, 1, -1 do
-            local info = node(work[i])
-            local w = want[info.ID]
-            if info.ranksPurchased > 0 and not done(info) then
-                if not w or w.ranks == 0 then
-                    if isChoice(info) then progress = C_Traits.SetSelection(cfg, info.ID, nil) or progress
-                    else progress = C_Traits.RefundAllRanks(cfg, info.ID) or progress end
-                elseif not isChoice(info) and info.ranksPurchased > w.ranks then
-                    for _ = w.ranks + 1, info.ranksPurchased do progress = C_Traits.RefundRank(cfg, info.ID) or progress end
-                end
-            end
-        end
-        return progress
-    end
-    local function buyPass(work)
-        local progress = false
-        for _, id in ipairs(work) do
-            local info = node(id)
-            local w = want[id]
-            if w and w.ranks > 0 and not done(info) then
-                if isChoice(info) then
-                    progress = C_Traits.SetSelection(cfg, id, w.entry) or progress
-                else
-                    while info.ranksPurchased < w.ranks and C_Traits.PurchaseRank(cfg, id) do
-                        progress = true
-                        info = node(id)
-                    end
-                end
-            end
-        end
-        return progress
-    end
-    local passes = 0
-    local function settle(work)
-        for _ = 1, 30 do
-            passes = passes + 1
-            local progress = refundPass(work)
-            progress = buyPass(work) or progress
-            local still = {}
-            for _, id in ipairs(work) do if not done(node(id)) then still[#still + 1] = id end end
-            work = still
-            if #work == 0 or not progress then break end
-        end
-        local left = {}
-        for _, id in ipairs(work) do left[#left + 1] = node(id) end
-        return left
-    end
-    local work = differing()
-    local changed = #work
-    -- a refund can take talents that depend on it along: read the whole tree again and finish those
-    local function settleAll(list)
-        local left = settle(list)
-        if #left == 0 then
-            local again = differing()
-            if #again > 0 then left = settle(again) end
-        end
-        return left
-    end
-    local left, rebuilt = settleAll(work), false
-    if #left > 0 then
-        -- the changes can't be made one by one: clear the class and spec talents and buy them
-        -- all again top to bottom (the hero tree keeps its own points)
-        rebuilt = true
-        TK.log("apply '%s': %d talents wouldn't change one by one; rebuilding", b.name, #left)
-        local cur = C_Traits.GetTreeCurrencyInfo(cfg, treeID, false) or {}
-        for i = 1, 2 do if cur[i] then C_Traits.ResetTreeByCurrency(cfg, treeID, cur[i].traitCurrencyID) end end
-        left = settleAll(differing())
-    end
-    TK.log("apply '%s': %d talents differed, %d passes, %d node reads", b.name, changed, passes, reads)
-    local missing = #left
-    if missing > 0 then
-        local what = {}
-        for _, info in ipairs(left) do
-            local w = want[info.ID]
-            what[#what + 1] = ("%d has %d/%s want %s"):format(info.ID, info.ranksPurchased,
-                info.activeEntry and tostring(info.activeEntry.entryID) or "-", w and (w.ranks .. "/" .. tostring(w.entry)) or "none")
-        end
-        TK.log("apply '%s': in place left %s", b.name, table.concat(what, "; "))
-    end
-    if missing > 0 then
-        C_Traits.RollbackConfig(cfg)
-        TK.log("apply '%s': in place couldn't take %d talents; importing instead", b.name, missing)
-        return false
-    end
-    if not C_Traits.ConfigHasStagedChanges(cfg) then
-        TK.log("apply '%s': already your talents", b.name)
-        if lastApply then lastApply.timed = true end
-        finish(b, specID)
-        return true
-    end
-    local ok = C_ClassTalents.CommitConfig(slot)
-    TK.log("apply '%s' (%s): in place%s, hero tree %s, commit %s (%d ms to set up)", b.name, B.specName(specID), rebuilt and " (rebuilt)" or "",
-        heroChanged and "changed" or "kept", tostring(ok), lastApply and (debugprofilestop() - lastApply.t0) or -1)
-    if not ok then C_Traits.RollbackConfig(cfg) return false end
-    finish(b, specID)
-    return true
-end
-
-B.inPlace = inPlace -- for the offline tests
-
-function B.apply(b)
+-- Apply b through the game's own load: TalentKeeper's loadout is replaced with the build, then
+-- loaded. staged = true (the Apply button, talent window open): it waits as pending changes for
+-- Apply Changes. Otherwise (double-click, quick list, prompts) it's applied right away.
+function B.apply(b, staged)
     if InCombatLockdown() then return TK.chat("|cffff8888Can't change talents in combat.|r") end
     -- a second apply mid-cast would cut the first one off
     if lastApply and not lastApply.timed and B.muteUntil and GetTime() < B.muteUntil then
@@ -636,21 +493,20 @@ function B.apply(b)
     local e, err = entries(b.text)
     if not e then return TK.chat("|cffff8888" .. err .. "|r") end
     local specID = B.specID()
+    local d = TK.compare.diff(currentString(), b.text)
+    if d and #d == 0 then
+        TK.db.active[specID] = b.name
+        TK.log("apply '%s': already your talents", b.name)
+        return TK.changed()
+    end
     local prev = TK.db.active[specID]
-    TK.db.active[specID] = b.name
+    if not staged then TK.db.active[specID] = b.name end
+    B.staged = nil
     lastApply = { b = b, t0 = debugprofilestop(), prev = prev }
     B.muteUntil = GetTime() + 10
     local old = findSlot(specID)
-    if old and C_ClassTalents.GetLastSelectedSavedConfigID(specID) == old then
-        local ok, done = pcall(inPlace, b, e, specID, old)
-        if ok and done then return end
-        if not ok then
-            TK.log("apply '%s': in place failed: %s", b.name, tostring(done))
-            C_Traits.RollbackConfig(C_ClassTalents.GetActiveConfigID())
-        end
-    end
     if old then C_ClassTalents.DeleteConfig(old) end
-    pending = { b = b, prev = prev }
+    pending = { b = b, prev = prev, staged = staged }
     local ok, importErr = C_ClassTalents.ImportLoadout(C_ClassTalents.GetActiveConfigID(), e, SLOT, strtrim(b.text))
     TK.log("apply '%s' (%s): import %s %s", b.name, B.specName(specID), tostring(ok), importErr or "")
     if not ok then
@@ -659,6 +515,23 @@ function B.apply(b)
         TK.chat(("|cffff8888Couldn't apply %s.|r %s"):format(b.name, importErr or ""))
     end
 end
+
+-- A staged build: applied once the talent window's changes are committed and match it; forgotten
+-- when the pending changes go away otherwise (undone, or another loadout picked).
+TK.on("TRAIT_CONFIG_UPDATED", function(id)
+    local st = B.staged
+    if not st or id ~= C_ClassTalents.GetActiveConfigID() or B.unsaved() then return end
+    B.staged = nil
+    local d = TK.compare.diff(currentString(), st.b.text)
+    if d and #d == 0 then
+        TK.db.active[B.specID()] = st.b.name
+        setPvp(st.b)
+        TK.log("apply '%s': applied from the talent window", st.b.name)
+    else
+        TK.log("apply '%s': pending changes dropped", st.b.name)
+    end
+    TK.changed()
+end)
 
 -- How long an apply took, click to talents committed (logged for comparing methods).
 TK.on("TRAIT_CONFIG_UPDATED", function(id)

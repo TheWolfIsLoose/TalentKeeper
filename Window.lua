@@ -300,10 +300,13 @@ local function refreshDetail(specID)
     if not d then parts[#parts + 1] = "|cffff8888can't read it|r"
     elseif #d == 0 then parts[#parts + 1] = "|cff98ff98your talents now|r"
     else parts[#parts + 1] = ("%d change%s marked"):format(#d, #d == 1 and "" or "s") end
+    local staged = B.staged and B.staged.b == b and B.unsaved()
+    if staged then parts[#parts] = "|cff98ff98pending: Apply changes to finish|r" end
     if b.outdated then parts[#parts + 1] = "|cffffb84doutdated|r" end
     local tags = UI.tagSummary(b)
     detail.info:SetText(table.concat(parts, " · ") .. "\n" .. (tags and ("For: " .. tags) or "|cff8c8c8cNot tagged for anything|r"))
-    detail.apply:SetEnabled(d ~= nil and #d > 0)
+    detail.apply:SetText(staged and "|cff98ff98Apply changes|r" or "Apply")
+    detail.apply:SetEnabled(staged or (d ~= nil and #d > 0))
     detail.delete:SetText(armedBuild == b and "|cffff8888Sure?|r" or "Delete")
 end
 
@@ -326,7 +329,12 @@ local function makeDetail()
     detail.info:SetSpacing(2)
     local W3 = 64
     local function on(fn) return function(self) local b = TK.selected if b then fn(b, self) end end end
-    detail.apply = UI.button(detail, "Apply", 204, on(function(b) B.apply(b) end))
+    -- Apply: the build goes in as pending changes (the game's own load); then Apply changes
+    -- commits them, same as the talent window's button. Double-click a row applies right away.
+    detail.apply = UI.button(detail, "Apply", 204, on(function(b)
+        if B.staged and B.staged.b == b and B.unsaved() then return tf:ApplyConfig() end
+        B.apply(b, true)
+    end))
     detail.apply:SetPoint("TOPLEFT", 8, -54)
     local tags = UI.button(detail, "Tags", W3, on(function(b, self) UI.tagMenu(self, b) end))
     tags:SetPoint("TOPLEFT", 8, -82)

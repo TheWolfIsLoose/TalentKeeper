@@ -82,6 +82,19 @@ Done on `dev` (2026-10-21, later):
 - **GUI pass:** the hero tree name under the emblem (on a hero tree swap
   preview) runs into the game's eye button below it; find it a clear spot.
 
+## How applying works (player, 2026-10-21)
+
+Imports only save a build (with a preview on the tree). Applying always goes
+through the game's own load: TalentKeeper's loadout is replaced with the
+build, then loaded. **Apply** (talent window open) uses the game's "pick this
+loadout without applying": the loadout menu shows TalentKeeper and the
+build waits as pending changes; Apply changes (ours or the game's) commits it
+into TalentKeeper's loadout. **Double-click**, the quick list, prompts and the
+ready check strip are the quick apply: the same load, applied at once. The
+talent-by-talent in-place apply is gone: it froze the game 0.3-1.4 s with the
+window open (every staged click redraws the tree) and had to handle
+dependencies and point limits itself, which the game does in one call.
+
 ## Next session: start here
 
 **v0.3.0-beta1 published 2026-10-20** (public beta from `dev`; notes in `Dev/HISTORY.md`).
