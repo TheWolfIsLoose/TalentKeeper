@@ -860,6 +860,7 @@ function B.addToSimc(profile)
     body = body:gsub("\n# Offspec Loadout: " .. SLOT .. "\n# offspec_talents=[^\n]*", "")
     local n
     repeat body, n = body:gsub("\n### Offspec Loadouts: [^\n]*\n\n", "\n") until n == 0
+    body = body:gsub("\n\n\n+", "\n\n") -- no double blank line where they were
     -- after the last of SimulationCraft's talent lines (yours, saved loadouts, offspec loadouts)
     local insertAt
     for _, pat in ipairs({ "\ntalents=[^\n]*", "\n# talents=[^\n]*", "\n# offspec_talents=[^\n]*" }) do
