@@ -80,6 +80,14 @@ Done on `dev` (2026-10-21, later):
   the log stays its own window. The hero tree name on a swap preview sits
   above the game's own hero tree name, clear of the eye button. Not done: the
   slide / grow animation (add if the swap feels abrupt).
+- Done 2026-10-22 (pane polish, player's go on the mockup): spec icons sized
+  so four fit (Druids) with Save / Import stacked beside them; the selected
+  build's panel and a footer band (Apply, For..., More...) always there,
+  grayed with nothing picked; More... holds Group, Rename, Copy talent
+  string, Update to my talents (was Resave), Delete (two clicks). Buttons
+  20px in the Small font everywhere; forms in the pane put theirs in the
+  same footer band; the talent string box is one line. Player will try the
+  More... menu for friction.
 - ~~**GUI pass: one footprint.** Everything TalentKeeper does at the talent
   window lives in the side pane. Save / Import, Rename, New group and any
   other form stop opening their own window: the pane morphs (swaps its view,

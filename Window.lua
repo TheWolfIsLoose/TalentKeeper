@@ -138,10 +138,11 @@ end
 -- Docked to the window's right edge, at our own scale (parented to UIParent, shown with the
 -- talent window). Groups as headings; the list scrolls; the selected build's panel sits below.
 local pane, rows, heads = nil, {}, {}
--- spec buttons: one row across the pane, sized so four fit (the most any class has)
-local PANE_W, SPEC_GAP = 220, 6
-local SPEC = math.floor((PANE_W - 16 - 3 * SPEC_GAP) / 4)
-local TABS = -(32 + SPEC + 6) -- the Builds / This season tabs, under the spec buttons
+-- The toolbar under the header: spec icons from the left, sized so four fit (Druids) beside
+-- Save and Import stacked on the right.
+local PANE_W, SPEC_GAP, TOOL_W = 220, 4, 44
+local SPEC = math.floor((PANE_W - 16 - TOOL_W - 6 - 3 * SPEC_GAP) / 4)
+local TABS = -(32 + SPEC + 8) -- the Builds / This season tabs, under the toolbar
 local ROW, HEAD, TOP = 24, 22, TABS - 24
 local SHIMMER_W = 90
 local offset = 0
@@ -324,15 +325,17 @@ function W.drop()
     if target ~= nil and (target or nil) ~= b.group then B.setGroup(b, target or nil) end
 end
 
--- The selected build's panel -----------------------------------------------------------------
+-- The selected build's panel: its name and what it is, over the footer band (Apply, For...,
+-- More...), always there; grayed until a build is picked.
 local armedBuild
 local function refreshDetail(specID)
     local b = TK.selected
     if b and B.findSpec(b) ~= specID then b, TK.selected = nil, nil end
-    for _, bt in ipairs(detail.buttons) do bt:SetShown(b ~= nil) end
+    for _, bt in ipairs(detail.buttons) do bt:SetEnabled(b ~= nil) end
     if not b then
-        detail.name:SetText("")
-        detail.info:SetText("Click a build to preview it on the tree.")
+        detail.name:SetText("|cff8c8c8cNo build selected|r")
+        detail.info:SetText("Click a build to see it on the tree.")
+        detail.apply:SetText("Apply")
         W.hide()
         return
     end
@@ -351,13 +354,45 @@ local function refreshDetail(specID)
     detail.info:SetText(table.concat(parts, " · ") .. "\n" .. (tags and ("For: " .. tags) or "|cff8c8c8cNot tagged for anything|r"))
     detail.apply:SetText(staged and "|cff98ff98Apply changes|r" or "Apply")
     detail.apply:SetEnabled(staged or (d ~= nil and #d > 0))
-    detail.delete:SetText(armedBuild == b and "|cffff8888Sure?|r" or "Delete")
+end
+
+-- More...: the build's less frequent actions, in the suite's picker.
+local function moreItems(b, owner)
+    local specID = B.specID()
+    return {
+        { label = "Group...", onClick = function() UI.groupMenu(owner, specID, b) return "keep" end },
+        { label = "Rename...", onClick = function()
+            UI.textWindow({ title = "Rename build", text = b.name, singleLine = true, okText = "Rename",
+                onOK = function(name) B.rename(specID, b, name) end })
+        end },
+        { label = "Copy talent string", onClick = function()
+            UI.textWindow({ title = "Talent string: " .. b.name, text = b.text, readOnly = true })
+        end },
+        { label = "Update to my talents", onClick = function() B.updateToCurrent(b) end },
+        { label = function() return armedBuild == b and "|cffff8888Sure? Click again|r" or "|cffff8888Delete|r" end,
+          onClick = function()
+            if armedBuild == b then armedBuild = nil B.delete(specID, b) return end
+            armedBuild = b
+            C_Timer.After(3, function() if armedBuild == b then armedBuild = nil UI.refreshPicker() end end)
+            return "keep"
+        end },
+    }
+end
+
+local function tip(bt, title, body)
+    bt:HookScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_TOP")
+        GameTooltip:SetText(title)
+        GameTooltip:AddLine(TK.selected and body or "Pick a build first.", 0.74, 0.74, 0.74, true)
+        GameTooltip:Show()
+    end)
+    bt:HookScript("OnLeave", GameTooltip_Hide)
 end
 
 local function makeDetail()
     detail = CreateFrame("Frame", nil, pane)
-    detail:SetPoint("BOTTOMLEFT", 0, 36); detail:SetPoint("BOTTOMRIGHT", 0, 36)
-    detail:SetHeight(128)
+    detail:SetPoint("BOTTOMLEFT"); detail:SetPoint("BOTTOMRIGHT")
+    detail:SetHeight(36 + 50)
     local rule = detail:CreateTexture(nil, "OVERLAY")
     rule:SetColorTexture(0, 0, 0, 1)
     rule:SetHeight(1)
@@ -371,49 +406,26 @@ local function makeDetail()
     detail.info:SetJustifyH("LEFT")
     detail.info:SetTextColor(0.74, 0.74, 0.74)
     detail.info:SetSpacing(2)
-    local W3 = 64
+    local foot = UI.footBand(detail)
     local function on(fn) return function(self) local b = TK.selected if b then fn(b, self) end end end
     -- Apply: the build goes in as pending changes (the game's own load); then Apply changes
     -- commits them, same as the talent window's button. Double-click a row applies right away.
-    detail.apply = UI.button(detail, "Apply", 204, on(function(b)
+    local more = UI.button(foot, "More...", 52, on(function(b, self)
+        UI.picker(self, b.name, function() return moreItems(b, self) end)
+    end))
+    more:SetPoint("RIGHT", -8, 0)
+    tip(more, "More", "Group, rename, copy the talent string, update to your talents, delete.")
+    local forBtn = UI.button(foot, "For...", 52, on(function(b, self) UI.tagMenu(self, b) end))
+    forBtn:SetPoint("RIGHT", more, "LEFT", -4, 0)
+    tip(forBtn, "For", "The dungeons, delves and bosses this build is for.")
+    detail.apply = UI.button(foot, "Apply", 10, on(function(b)
         if B.isStaged(b) then return tf:ApplyConfig() end
         B.apply(b, true)
     end))
-    detail.apply:SetPoint("TOPLEFT", 8, -54)
-    local tags = UI.button(detail, "Tags", W3, on(function(b, self) UI.tagMenu(self, b) end))
-    tags:SetPoint("TOPLEFT", 8, -82)
-    local group = UI.button(detail, "Group", W3, on(function(b, self) UI.groupMenu(self, B.specID(), b) end))
-    group:SetPoint("LEFT", tags, "RIGHT", 6, 0)
-    local rename = UI.button(detail, "Rename", W3, on(function(b)
-        UI.textWindow({ title = "Rename build", text = b.name, singleLine = true, okText = "Rename",
-            onOK = function(name) B.rename(B.specID(), b, name) end })
-    end))
-    rename:SetPoint("LEFT", group, "RIGHT", 6, 0)
-    local copy = UI.button(detail, "Copy", W3, on(function(b)
-        UI.textWindow({ title = "Talent string: " .. b.name, text = b.text, readOnly = true })
-    end))
-    copy:SetPoint("TOPLEFT", 8, -108)
-    local update = UI.button(detail, "Resave", W3, on(function(b) B.updateToCurrent(b) end))
-    update:SetPoint("LEFT", copy, "RIGHT", 6, 0)
-    update:SetScript("OnEnter", function(self)
-        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-        GameTooltip:SetText("Resave")
-        GameTooltip:AddLine("Replace this build's talents with the ones you have now.", 0.74, 0.74, 0.74, true)
-        GameTooltip:Show()
-    end)
-    update:SetScript("OnLeave", GameTooltip_Hide)
-    detail.delete = UI.button(detail, "Delete", W3, on(function(b)
-        if armedBuild == b then
-            armedBuild = nil
-            B.delete(B.specID(), b)
-            return
-        end
-        armedBuild = b
-        C_Timer.After(3, function() if armedBuild == b then armedBuild = nil TK.safe(W.refresh)() end end)
-        W.refresh()
-    end))
-    detail.delete:SetPoint("LEFT", update, "RIGHT", 6, 0)
-    detail.buttons = { detail.apply, tags, group, rename, copy, update, detail.delete }
+    detail.apply:SetPoint("LEFT", 8, 0)
+    detail.apply:SetPoint("RIGHT", forBtn, "LEFT", -4, 0)
+    tip(detail.apply, "Apply", "Puts this build in as pending changes; then Apply changes finishes it. Double-click a build to do both.")
+    detail.buttons = { detail.apply, forBtn, more }
 end
 
 function W.refresh()
@@ -525,7 +537,7 @@ end
 
 local function specButtons()
     local n = GetNumSpecializations() or 0
-    local step = n > 1 and (PANE_W - 16 - SPEC) / (n - 1) or 0 -- spread across the width
+    local step = SPEC + SPEC_GAP
     for i = 1, n do
         local specID, name, _, icon = GetSpecializationInfo(i)
         local b = CreateFrame("Button", nil, pane)
@@ -1234,10 +1246,22 @@ EventUtil.ContinueOnAddOnLoaded("Blizzard_PlayerSpells", TK.safe(function()
     ng:SetPoint("LEFT")
     ng:SetText("+ New group (drop a build here)")
     ng:SetTextColor(0.55, 0.55, 0.55)
-    local save = UI.button(pane, "Save current", 98, function() UI.buildDialog(false) end)
-    save:SetPoint("BOTTOMLEFT", 8, 8)
-    local import = UI.button(pane, "Import", 98, function() UI.buildDialog(true) end)
-    import:SetPoint("BOTTOMRIGHT", -8, 8)
+    -- Save and Import stacked at the right of the spec icons, sharing an edge
+    local save = UI.button(pane, "Save", TOOL_W, function() UI.buildDialog(false) end)
+    save:SetHeight(math.floor(SPEC / 2) + 1)
+    save:SetPoint("TOPRIGHT", -8, -32)
+    local import = UI.button(pane, "Import", TOOL_W, function() UI.buildDialog(true) end)
+    import:SetHeight(math.floor(SPEC / 2) + 1)
+    import:SetPoint("TOPRIGHT", save, "BOTTOMRIGHT", 0, 1)
+    for bt, t in pairs({ [save] = { "Save", "Save your talents now as a new build." }, [import] = { "Import", "Paste a talent string; it shows on the tree before you save it." } }) do
+        bt:HookScript("OnEnter", function(self)
+            GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+            GameTooltip:SetText(t[1])
+            GameTooltip:AddLine(t[2], 0.74, 0.74, 0.74, true)
+            GameTooltip:Show()
+        end)
+        bt:HookScript("OnLeave", GameTooltip_Hide)
+    end
     specButtons()
     makeTabs()
     pane:Hide()

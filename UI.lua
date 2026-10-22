@@ -7,7 +7,7 @@ TK.ui = UI
 
 -- Fonts and colors (suite style guide) ---------------------------------------------
 local FONT = "Interface\\AddOns\\" .. addonName .. "\\Media\\BarlowSemiCondensed-Medium.ttf"
-local SIZES = { TalentKeeperFontSmall = 10, TalentKeeperFont = 12, TalentKeeperFontLarge = 16, TalentKeeperFontDisabled = 12 }
+local SIZES = { TalentKeeperFontSmall = 10, TalentKeeperFont = 12, TalentKeeperFontLarge = 16, TalentKeeperFontDisabled = 10 }
 local fonts = {}
 for name, size in pairs(SIZES) do fonts[name] = CreateFont(name) fonts[name]:SetFont(FONT, size, "") end
 local disabledFont = fonts.TalentKeeperFontDisabled
@@ -43,15 +43,16 @@ local function ring(frame, gray)
     return function(g) for _, t in ipairs(edges) do t:SetColorTexture(g, g, g, 1) end end
 end
 
--- Flat button: face at rest, gray ring, hover wash.
+-- Flat button: face at rest, gray ring, hover wash; 20px with the Small font, like PickupGroup's.
 local function button(parent, label, width, onClick)
     local bt = CreateFrame("Button", nil, parent)
-    bt:SetSize(width, 24)
+    bt:SetSize(width, 20)
     fill(bt, "BACKGROUND", 1, 1, 1, 0.07)
     local setRing = ring(bt, 0.4)
     local hover = fill(bt, "HIGHLIGHT", 0.851, 0.851, 0.851, 0.15)
     hover:SetBlendMode("BLEND")
-    bt:SetNormalFontObject(TalentKeeperFont)
+    bt:SetNormalFontObject(TalentKeeperFontSmall)
+    bt:SetMotionScriptsWhileDisabled(true) -- a grayed button still says why
     bt:SetDisabledFontObject(disabledFont)
     bt:SetText(label)
     bt:SetScript("OnEnter", function() setRing(0.7) end)
@@ -87,7 +88,27 @@ function UI.dock(f, alone)
     local g = inPane and 0.06 or 0.031
     f.bg:SetColorTexture(g, g, g, inPane and 1 or 0.97)
     f.setEdge(inPane and 0.06 or 0)
+    -- in the pane its buttons sit in the footer band, the same as the build list's
+    if f.lastButton then
+        if not rawget(f, "band") then f.band = UI.footBand(f) end
+        f.band:SetShown(inPane)
+        f.lastButton:ClearAllPoints()
+        if inPane then f.lastButton:SetPoint("BOTTOMRIGHT", -8, 8) else f.lastButton:SetPoint(unpack(f.alonePoint)) end
+    end
     return inPane
+end
+
+-- The footer band: 36px, a black rule over a faint band (the suite's footer).
+function UI.footBand(f)
+    local band = CreateFrame("Frame", nil, f)
+    band:SetPoint("BOTTOMLEFT"); band:SetPoint("BOTTOMRIGHT")
+    band:SetHeight(36)
+    fill(band, "BACKGROUND", 1, 1, 1, 0.035)
+    local rule = band:CreateTexture(nil, "OVERLAY")
+    rule:SetColorTexture(0, 0, 0, 1)
+    rule:SetHeight(1)
+    rule:SetPoint("TOPLEFT"); rule:SetPoint("TOPRIGHT")
+    return band
 end
 
 -- Drag to move, only when it's on its own.
@@ -144,13 +165,13 @@ local function makeWindow()
     win.box:SetScript("OnMouseDown", function() win.edit:SetFocus() end)
 
     win.close = button(win, "Close", 80, function() win:Hide() end)
-    win.close:SetPoint("TOPRIGHT", win.box, "BOTTOMRIGHT", 0, -10)
+    win.lastButton, win.alonePoint = win.close, { "TOPRIGHT", win.box, "BOTTOMRIGHT", 0, -10 }
     win.ok = button(win, "Save", 80, function()
         local text = win.edit:GetText()
         win:Hide()
         if win.onOK then win.onOK(text) end
     end)
-    win.ok:SetPoint("RIGHT", win.close, "LEFT", -8, 0)
+    win.ok:SetPoint("RIGHT", win.close, "LEFT", -4, 0)
     win:SetScript("OnHide", function() win.edit:ClearFocus() end)
 end
 
@@ -163,7 +184,7 @@ function UI.textWindow(opts)
     local boxH = opts.singleLine and 24 or inPane and 140 or 180
     win.box:SetHeight(boxH)
     win:SetWidth(460)
-    win:SetHeight(36 + boxH + 10 + 24 + 12)
+    win:SetHeight(36 + boxH + 10 + 20 + 12)
     win.close:SetText(inPane and "Cancel" or "Close")
     win.ok:SetText(opts.okText or "Save")
     win.ok:SetShown(opts.onOK ~= nil)
@@ -214,8 +235,7 @@ local function makeDialog()
     tinsert(UISpecialFrames, dlg:GetName())
     dlg.title = dlg:CreateFontString(nil, "OVERLAY", "TalentKeeperFontLarge")
     dlg.title:SetPoint("TOPLEFT", 12, -10)
-    dlg.text = editBox(dlg, true)
-    dlg.text:SetHeight(64)
+    dlg.text = editBox(dlg) -- one line, like the string: it scrolls inside the box
     dlg.text:SetPoint("TOPLEFT", 12, -54); dlg.text:SetPoint("TOPRIGHT", -12, -54)
     dlg.textCap = caption(dlg, "Talent string", dlg.text)
     dlg.name = editBox(dlg)
@@ -260,7 +280,7 @@ local function makeDialog()
     dlg.forPick:SetPoint("LEFT", dlg.forBox, "RIGHT", 6, 0)
     dlg.text.edit.next, dlg.name.edit.next, dlg.group.edit.next = dlg.name.edit, dlg.group.edit, nil
     dlg.cancel = button(dlg, "Cancel", 80, function() dlg:Hide() end)
-    dlg.cancel:SetPoint("TOPRIGHT", dlg.forPick, "BOTTOMRIGHT", 0, -16)
+    dlg.lastButton, dlg.alonePoint = dlg.cancel, { "TOPRIGHT", dlg.forPick, "BOTTOMRIGHT", 0, -16 }
     dlg.ok = button(dlg, "Save", 80, function()
         local text, name, group = dlg.text.edit:GetText(), strtrim(dlg.name.edit:GetText()), strtrim(dlg.group.edit:GetText())
         group = group ~= "" and group or nil
@@ -269,7 +289,7 @@ local function makeDialog()
         TK.lastGroup = group
         if dlg.import then B.importString(text, name, group, tags) else B.saveCurrent(name, group, tags) end
     end)
-    dlg.ok:SetPoint("RIGHT", dlg.cancel, "LEFT", -8, 0)
+    dlg.ok:SetPoint("RIGHT", dlg.cancel, "LEFT", -4, 0)
     for _, box in ipairs({ dlg.name, dlg.group }) do
         box.edit:SetScript("OnEnterPressed", function() dlg.ok:Click() end)
     end
@@ -315,9 +335,9 @@ function UI.buildDialog(import)
     dlg.text:SetShown(import)
     dlg.textCap:SetShown(import)
     dlg.name:ClearAllPoints()
-    local top = import and -160 or -54 -- room for the preview note under the string
+    local top = import and -114 or -54 -- room for the preview note under the string
     dlg.name:SetPoint("TOPLEFT", 12, top); dlg.name:SetPoint("TOPRIGHT", -12, top)
-    dlg:SetHeight(-top + 24 + 22 + 24 + 22 + 24 + 16 + 24 + 12)
+    dlg:SetHeight(-top + 24 + 22 + 24 + 22 + 24 + 16 + 20 + 12)
     dlg.draft = {}
     dlg.showFor()
     dlg.text.edit:SetText("")
