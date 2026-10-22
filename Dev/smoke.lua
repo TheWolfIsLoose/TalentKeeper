@@ -29,10 +29,11 @@ local function Frame()
     end })
 end
 setmetatable(_G, { __index = function(_, k)
-    if k:match("^TalentKeeper") or k == "TalentLoadoutEx" then return nil end
+    if k:match("^TalentKeeper") or k == "TalentLoadoutEx" or k == "TalentLoadoutManagerDB" then return nil end
     if k:match("^[A-Z]") or k:match("^C_") then return Stub end
 end })
 CreateFrame = function() local f = Frame(); frames[#frames + 1] = f; return f end
+hooksecurefunc = function() end
 UIParent = Frame()
 GetCursorPosition = function() return 100, 100 end
 CreateFont = function() return Frame() end
@@ -183,14 +184,23 @@ ok(said("TalentKeeper|r: dev loaded"), "load line")
 section("saved data and load line")
 
 fire("PLAYER_LOGIN")
+ok(#B.list(267) == 0, "nothing is brought in without asking")
+local srcs = B.sources()
+ok(#srcs == 1 and srcs[1].key == "tle" and #srcs[1].builds == 5, "Talent Loadout Ex found with its 5 builds")
+local added, skipped = B.bringIn(srcs)
 local destro = B.list(267)
-ok(#destro == 3, "3 Destruction builds imported (copy skipped), got " .. #destro)
-ok(destro[1].group == "Raid" and destro[2].group == "Raid" and destro[3].group == nil, "groups carried over")
+ok(added == 4 and skipped == 1 and #destro == 3, "4 brought in, the copy skipped, got " .. #destro)
+ok(destro[1].group == "Raid" and destro[2].group == "Raid" and destro[3].group == "From TLE", "its headings kept, the rest in From TLE")
 ok(destro[1].pvp and destro[1].pvp[1] == 157, "PvP talents carried over")
-ok(#B.list(265) == 1, "other spec imported")
-ok(said("Brought over 4 builds"), "import message")
-fire("PLAYER_LOGIN")
-ok(#B.list(267) == 3, "import runs once")
+ok(#B.list(265) == 1, "other spec brought in")
+ok(TK.db.imported.offered, "asked once")
+added, skipped = B.bringIn(B.sources())
+ok(added == 0 and skipped == 5, "again: all already here")
+TalentLoadoutEx.WARLOCK[3][4].text = "SPEC:267:0011"
+added = B.bringIn(B.sources())
+ok(added == 1 and B.list(267)[4].name == "Solo (TLE)", "same name, other talents: named after the source")
+B.delete(267, B.list(267)[4])
+destro[3].group = nil
 section("one-time import")
 
 local a = B.add(267, { name = "Solo", text = "SPEC:267:1111" })
@@ -403,7 +413,12 @@ C_ChallengeMode.GetMapTable = function() return { 1, 2 } end
 C_ChallengeMode.GetMapUIInfo = function(id) if id == 2 then return "Dungeon B", 2, 0, 0, 0, 502 end return "Dungeon A", 1, 0, 0, 0, 501 end
 GetInstanceInfo = function() return "Dungeon B", "party", 23, nil, nil, nil, nil, 502 end
 P.check()
-ok(TK.db.log[#TK.db.log]:find("Dungeon B, nothing set"), "nothing set: asks once: " .. TK.db.log[#TK.db.log])
+ok(TK.db.log[#TK.db.log]:find("Dungeon B, nothing for this spec"), "nothing set: asks: " .. TK.db.log[#TK.db.log])
+GetInstanceInfo = function() return "Dungeon A", "party", 23, nil, nil, nil, nil, 501 end
+P.check()
+GetInstanceInfo = function() return "Dungeon B", "party", 23, nil, nil, nil, nil, 502 end
+P.check()
+ok(TK.db.log[#TK.db.log]:find("already asked this session"), "back in the same place: not asked again this session")
 GetInstanceInfo = function() return "Old Dungeon", "party", 1, nil, nil, nil, nil, 999 end
 local n9 = #TK.db.log
 P.check()
@@ -437,7 +452,38 @@ ok(TK.db.rooms[2700]["Boss Room"] == 3001, "a pull teaches the room")
 boss, how = RC.expectedBoss()
 ok(how == "room", "raid: the room wins once learned")
 RC.show()
-ok(TK.db.log[#TK.db.log]:find("readycheck: Boss A %(room%), nothing tagged"), "raid ready check: " .. TK.db.log[#TK.db.log])
+ok(TK.db.log[#TK.db.log]:find("readycheck: Boss A %(room%), nothing for this spec"), "raid ready check: " .. TK.db.log[#TK.db.log])
+RC.show(true)
+RC.show(true)
+ok(TK.db.log[#TK.db.log]:find("already asked this session"), "ready check asks once per session")
+rb.tags = { ["boss:3001"] = "Boss A" }
+RC.show(true)
+ok(TK.db.log[#TK.db.log]:find("tagged '" .. rb.name .. "'"), "off the tagged build: said every ready check")
+rb.tags = nil
+-- the Twin Fangs' room is the raid's hub: only theirs once Vashnik and Sszorak are down
+RC.KNOWN[2700] = { ["Pit"] = 3001 }
+RC.AFTER[3001] = { 3005 }
+TK.db.rooms[2700] = nil
+GetSubZoneText = function() return "Pit" end
+boss, how = RC.expectedBoss()
+ok(how == "lockout", "hub room before its boss is up: the lockout decides, got " .. tostring(how))
+C_RaidLocks = { IsEncounterComplete = function(_, enc) return enc == 3005 end }
+boss, how = RC.expectedBoss()
+ok(boss and boss.key == "boss:3001" and how == "room", "hub room once the others are down: its boss")
+RC.AFTER[3001] = nil
 section("ready check")
+
+-- SimulationCraft: our builds go in after the talents lines, and the checksum is worked out again
+local function adler(str) local a, b = 1, 0 for i = 1, #str do a = (a + str:byte(i)) % 65521 b = (b + a) % 65521 end return b * 65536 + a end
+local body = "# header\ntalents=ABC\n# Saved Loadout: Mine\n# talents=DEF\n\n# gear\n\n"
+local prof = body .. ("# Checksum: %x"):format(adler(body))
+local out = B.addToSimc(prof)
+ok(out:find("# talents=DEF\n# Saved Loadout: TalentKeeper: ", 1, true), "builds after the saved loadouts")
+local newBody = out:gsub("# Checksum: %x+$", "")
+ok(out:find(("# Checksum: %x"):format(adler(newBody)), 1, true), "checksum matches the new text")
+TK.db.noSimc = true
+ok(B.addToSimc(prof) == prof, "option off: untouched")
+TK.db.noSimc = nil
+section("simc")
 
 print_("smoke: all passed")

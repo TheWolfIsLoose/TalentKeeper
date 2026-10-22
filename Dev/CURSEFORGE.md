@@ -7,7 +7,7 @@ TalentKeeper keeps a few talent builds per spec and knows which one goes where. 
 
 ### Features
 
-- **Right beside your talents.** A side pane on the talent window lists your builds, in groups. Click one to preview it on the tree: talents it takes glow green, talents it drops glow red. Tags, Group, Rename, Copy, Resave and Delete sit under the list, and spec buttons change spec without leaving the window.
+- **Right beside your talents.** A side pane on the talent window lists your builds, in groups you can drag them between. Click one to preview it on the tree: talents it takes glow green, talents it drops glow red. Tags, Group, Rename, Copy, Resave and Delete sit under the list, and spec buttons change spec without leaving the window.
 - **Lands whole, every time.** Apply puts the build into the talent window as pending changes through the game's own loadout system, so you see exactly what changes before Apply changes finishes it. Double-click a build (or use the quick list) to apply it straight away, the same way.
 - **Tag builds for where you use them.** This season's Mythic+ dungeons, delves (one shared Delves tag) and each raid boss. One build per spec for each place, so TalentKeeper always knows what to offer.
 - **This season at a glance.** A tab lists every dungeon, delve and raid boss this season with which of your specs has a build there. Pick a build for any spec from there, without changing spec, and fill the gaps in one place.
@@ -16,7 +16,8 @@ TalentKeeper keeps a few talent builds per spec and knows which one goes where. 
 - **No duplicates.** Builds are compared by their talents, not their import strings. Importing one you already have points you at it, and gives it any tags you picked. Import shows the build on the tree before you save it.
 - **PvP talents too.** Saved and applied with the build.
 - **Options.** Talent window size, and whether to ask in delves (the gear in the pane's header).
-- **Bring your builds over.** On first run, imports the builds you saved in Talent Loadout Ex.
+- **Bring your builds over.** The first time you open talents, TalentKeeper offers to copy your builds from Talent Loadout Ex, Talent Loadout Manager and your game loadouts. Ones it already has are skipped, and nothing is removed anywhere.
+- **Sim them.** Your builds go into the SimulationCraft addon's `/simc` text as saved loadouts, ready to pick on sim sites.
 
 ### Commands
 

@@ -620,20 +620,30 @@ if addFilter then
     end)
 end
 
--- One-time import from another talent addon's saved builds ------------------------------
--- Its saved data: [classFile][specIndex] = rows; a row with a string is a build, a row
--- without one is a group heading, and builds flagged isInGroup sit under the last heading.
-function B.importOther()
-    local src = _G.TalentLoadoutEx
-    if type(src) ~= "table" then return 0 end
-    local classIDs = {}
+-- Bringing builds in from elsewhere -----------------------------------------------------------
+-- Sources: Talent Loadout Ex (import strings), Talent Loadout Manager (talent lists: the string is
+-- written here, in the game's own format), and this character's own game loadouts. Each gives
+-- { specID, name, text, group }. Rules (player, 2026-10-22): same talents as a build you have:
+-- skipped (yours stays); same name, other talents: "<name> (TLE)"; each source lands in its own
+-- group unless it had headings of its own; game loadouts are copied, never deleted.
+local LTT = LibStub and LibStub("LibTalentTree-1.0", true)
+local HEADER_VERSION, HEADER_SPEC = 8, 16
+
+local function classIDs()
+    local out = {}
     for i = 1, GetNumClasses() do
         local _, file, id = GetClassInfo(i)
-        if file then classIDs[file] = id end
+        if file then out[file] = id end
     end
-    local added = 0
+    return out
+end
+
+local function fromTLE()
+    local src, out = _G.TalentLoadoutEx, {}
+    if type(src) ~= "table" then return out end
+    local ids = classIDs()
     for classFile, specs in pairs(src) do
-        local classID = classIDs[classFile]
+        local classID = ids[classFile]
         if classID and type(specs) == "table" then
             for specIndex, rows in pairs(specs) do
                 local specID = type(specIndex) == "number" and GetSpecializationInfoForClassID(classID, specIndex)
@@ -642,9 +652,8 @@ function B.importOther()
                     for _, row in ipairs(rows) do
                         if type(row) == "table" and type(row.text) == "string" and row.text ~= "" then
                             local pvp = (row.pvp1 or row.pvp2 or row.pvp3) and { row.pvp1, row.pvp2, row.pvp3 } or nil
-                            if B.add(specID, { name = row.name, text = row.text, pvp = pvp, group = row.isInGroup and heading or nil }) then
-                                added = added + 1
-                            end
+                            out[#out + 1] = { specID = specID, name = row.name, text = row.text, pvp = pvp,
+                                group = row.isInGroup and heading or "From TLE" }
                         elseif type(row) == "table" and row.name then
                             heading = row.name
                         end
@@ -653,16 +662,208 @@ function B.importOther()
             end
         end
     end
-    TK.log("imported %d builds from Talent Loadout Ex", added)
-    return added
+    return out
 end
 
-TK.on("PLAYER_LOGIN", function()
-    if TK.db.imported.other or type(_G.TalentLoadoutEx) ~= "table" then return end
-    TK.db.imported.other = true
-    local n = B.importOther()
-    if n > 0 then TK.chat(("Brought over %d builds from Talent Loadout Ex."):format(n)) end
-end)
+-- A talent list ("nodeID_entryID_spellID_rank" lines) as an import string for specID, written
+-- the way the game writes its own (header with a zero tree hash, which the game accepts, then
+-- every node of the class tree in the game's order). nil when the tree data isn't there.
+function B.listToString(classID, specID, list)
+    local treeID = LTT and LTT:GetClassTreeID(classID)
+    local nodes = treeID and C_Traits.GetTreeNodes(treeID)
+    if not nodes or #nodes == 0 then return nil end
+    local picked = {}
+    for line in tostring(list):gmatch("[^\n]+") do
+        local node, entry, _, rank = line:match("^(%d+)_(%d+)_(%d+)_(%d+)$")
+        if node then picked[tonumber(node)] = { entry = tonumber(entry), rank = tonumber(rank) } end
+    end
+    local out = ExportUtil.MakeExportDataStream()
+    out:AddValue(HEADER_VERSION, C_Traits.GetLoadoutSerializationVersion())
+    out:AddValue(HEADER_SPEC, specID)
+    for _ = 1, 16 do out:AddValue(8, 0) end -- tree hash left blank
+    for _, nodeID in ipairs(nodes) do
+        local info, p = LTT:GetLibNodeInfo(nodeID), picked[nodeID]
+        local granted = info and LTT:IsNodeGrantedForSpec(specID, nodeID)
+        if granted then
+            out:AddValue(1, 1); out:AddValue(1, 0) -- selected, not purchased (given free)
+        elseif p and info and p.rank > 0 then
+            out:AddValue(1, 1); out:AddValue(1, 1)
+            local partial = info.maxRanks and p.rank ~= info.maxRanks
+            out:AddValue(1, partial and 1 or 0)
+            if partial then out:AddValue(6, p.rank) end
+            local choice = info.type == Enum.TraitNodeType.Selection or info.type == Enum.TraitNodeType.SubTreeSelection
+            out:AddValue(1, choice and 1 or 0)
+            if choice then
+                local index = 1
+                for k, e in ipairs(info.entryIDs or {}) do if e == p.entry then index = k end end
+                out:AddValue(2, index - 1)
+            end
+        else
+            out:AddValue(1, 0)
+        end
+    end
+    return out:GetExportString()
+end
+
+local function fromTLM()
+    local db, out = _G.TalentLoadoutManagerDB, {}
+    if type(db) ~= "table" or type(db.customLoadouts) ~= "table" then return out end
+    local blizz = type(db.blizzardLoadouts) == "table" and db.blizzardLoadouts or {}
+    for classID, specs in pairs(db.customLoadouts) do
+        if type(classID) == "number" and type(specs) == "table" then
+            for specID, loadouts in pairs(specs) do
+                if type(specID) == "number" and type(loadouts) == "table" then
+                    for _, l in pairs(loadouts) do
+                        if type(l) == "table" and type(l.selectedNodes) == "string" and l.selectedNodes ~= "" then
+                            local ok, text = pcall(B.listToString, classID, specID, l.selectedNodes)
+                            if ok and text then
+                                -- linked to a game loadout: group under that loadout's name (base + variants)
+                                local group = "From TLM"
+                                for _, configID in pairs(type(l.parentMapping) == "table" and l.parentMapping or {}) do
+                                    for _, byChar in pairs(type(blizz[classID]) == "table" and type(blizz[classID][specID]) == "table" and blizz[classID][specID] or {}) do
+                                        local parent = type(byChar) == "table" and byChar[configID]
+                                        if type(parent) == "table" and parent.name then group = parent.name end
+                                    end
+                                end
+                                out[#out + 1] = { specID = specID, name = l.name, text = text, group = group }
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+    return out
+end
+
+-- The game exports every loadout with your current spec in the string; another spec's needs its
+-- spec patched (header: version 8 bits, spec 16, then the rest copied through).
+local function withSpec(text, specID)
+    local inS, outS = ExportUtil.MakeImportDataStream(text), ExportUtil.MakeExportDataStream()
+    outS:AddValue(HEADER_VERSION, inS:ExtractValue(HEADER_VERSION))
+    inS:ExtractValue(HEADER_SPEC)
+    outS:AddValue(HEADER_SPEC, specID)
+    local left = inS:GetNumberOfBits() - HEADER_VERSION - HEADER_SPEC
+    while left > 0 do
+        local n = math.min(left, 6)
+        outS:AddValue(n, inS:ExtractValue(n))
+        left = left - n
+    end
+    return outS:GetExportString()
+end
+
+local function fromGame()
+    local out = {}
+    for i = 1, GetNumSpecializations() or 0 do
+        local specID = GetSpecializationInfo(i)
+        for _, configID in ipairs(specID and C_ClassTalents.GetConfigIDsBySpecID(specID) or {}) do
+            local info = C_Traits.GetConfigInfo(configID)
+            if info and info.name ~= SLOT then
+                local ok, text = pcall(C_Traits.GenerateImportString, configID)
+                if ok and text and text ~= "" then
+                    ok, text = pcall(withSpec, text, specID)
+                    if ok then out[#out + 1] = { specID = specID, name = info.name, text = text, group = "Blizzard loadouts" } end
+                end
+            end
+        end
+    end
+    return out
+end
+
+-- { { key, name, tag, builds = { ... } }, ... } for the sources that have anything.
+function B.sources()
+    local out = {}
+    for _, s in ipairs({
+        { key = "tle", name = "Talent Loadout Ex", tag = "TLE", get = fromTLE },
+        { key = "tlm", name = "Talent Loadout Manager", tag = "TLM", get = fromTLM },
+        { key = "game", name = "Your game loadouts (this character)", tag = "game", get = fromGame },
+    }) do
+        local ok, builds = pcall(s.get)
+        if ok and #builds > 0 then s.builds = builds out[#out + 1] = s
+        elseif not ok then TK.log("bring in: %s couldn't be read: %s", s.name, tostring(builds)) end
+    end
+    return out
+end
+
+-- Bring the chosen sources in. Returns added, skipped (already here).
+function B.bringIn(sources)
+    local added, skipped = 0, 0
+    for _, s in ipairs(sources) do
+        for _, c in ipairs(s.builds) do
+            local list = B.list(c.specID)
+            local name = c.name and c.name ~= "" and c.name or "Build"
+            for _, x in ipairs(list) do
+                if x.name == name then name = ("%s (%s)"):format(name, s.tag) break end
+            end
+            if B.add(c.specID, { name = name, text = c.text, pvp = c.pvp, group = c.group }) then
+                added = added + 1
+            else
+                skipped = skipped + 1
+            end
+        end
+        TK.log("bring in: %s, %d builds", s.name, #s.builds)
+    end
+    TK.db.imported.offered = true
+    TK.log("bring in: %d added, %d already here", added, skipped)
+    TK.changed()
+    return added, skipped
+end
+
+-- SimulationCraft: TalentKeeper's builds for your spec go into the /simc text the way the game's
+-- own saved loadouts do ("# Saved Loadout: <name>" then "# talents=<string>"), after them. The
+-- profile ends in a checksum of everything above it, so it's worked out again (adler32, as the
+-- SimulationCraft addon does) or sim sites would see an edited profile.
+local function adler32(str)
+    local a, b = 1, 0
+    for i = 1, #str do
+        a = (a + str:byte(i)) % 65521
+        b = (b + a) % 65521
+    end
+    return b * 65536 + a
+end
+
+function B.simcLines()
+    local lines = {}
+    for _, b in ipairs(B.list(B.specID())) do
+        lines[#lines + 1] = "# Saved Loadout: TalentKeeper: " .. b.name
+        lines[#lines + 1] = "# talents=" .. strtrim(b.text)
+    end
+    return lines
+end
+
+function B.addToSimc(profile)
+    if type(profile) ~= "string" or TK.db.noSimc then return profile end
+    local lines = B.simcLines()
+    if #lines == 0 then return profile end
+    local body = profile:gsub("# Checksum: %x+%s*$", "")
+    if body == profile then return profile end -- not the shape we know: leave it alone
+    -- after the last talents line (yours, then the game's saved loadouts)
+    local insertAt
+    local pos = 1
+    while true do
+        local s, e = body:find("\n#? ?talents=[^\n]*", pos)
+        if not s then break end
+        insertAt, pos = e, e + 1
+    end
+    if not insertAt then return profile end
+    body = body:sub(1, insertAt) .. "\n" .. table.concat(lines, "\n") .. body:sub(insertAt + 1)
+    return body .. ("# Checksum: %x"):format(adler32((body:gsub("||", "|"))))
+end
+
+local function hookSimc()
+    local simc = _G.Simulationcraft
+    if not simc or simc.TalentKeeperHooked or type(simc.GetSimcProfile) ~= "function" then return end
+    simc.TalentKeeperHooked = true
+    local original = simc.GetSimcProfile
+    simc.GetSimcProfile = function(...)
+        local profile, err = original(...)
+        local ok, withOurs = pcall(B.addToSimc, profile)
+        return ok and withOurs or profile, err
+    end
+    TK.log("SimulationCraft: TalentKeeper builds go into /simc")
+end
+TK.on("PLAYER_LOGIN", hookSimc)
+TK.on("ADDON_LOADED", function(name) if name == "Simulationcraft" and TK.db then hookSimc() end end)
 
 TK.commands.save = function(name) B.saveCurrent(name) end
 TK.commands.import = function() TK.ui.buildDialog(true) end

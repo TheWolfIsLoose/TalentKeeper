@@ -40,6 +40,19 @@ cast 384255) are reported honestly with the cause.
   shows TalentKeeper and its version; pickers draw above the dialog; rows
   shimmer when a build is saved, tagged or moved.
 - Version shows once (packager versions already start with v).
+- Bring your builds in (pane view, first time talents open, and Options):
+  Talent Loadout Ex (strings, headings kept, else "From TLE"), Talent
+  Loadout Manager (talent lists written out as import strings in the game's
+  format, zero tree hash; grouped under a linked game loadout's name, else
+  "From TLM"), this character's game loadouts (every spec; spec patched in
+  the string; "Blizzard loadouts"). Same talents: skipped; same name, other
+  talents: "<name> (TLE)". Sources show only when that addon is loaded.
+- SimulationCraft: this spec's builds go into /simc as "# Saved Loadout:
+  TalentKeeper: <name>" / "# talents=" after the talents lines; the profile's
+  adler32 checksum is worked out again. Option: Add to /simc.
+- Drag builds to reorder (mint line where it lands, dragged row dims).
+- Smoke test runs again (Lua 5.1 built from source in the dev session);
+  covers bring-in, asking once per session, hub rooms, the /simc checksum.
 
 ## v0.3.0 (2026-10-20)
 

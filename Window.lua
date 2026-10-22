@@ -804,6 +804,125 @@ local function makeTabs()
     showTab("builds")
 end
 
+-- Checkbox: 16px well and gray ring, mint square when on; the label is part of the 24px target.
+function W.checkbox(parent, label, tip, get, set)
+    local cb = CreateFrame("Button", nil, parent)
+    cb:SetSize(204, 24)
+    local box = CreateFrame("Frame", nil, cb)
+    box:SetSize(16, 16)
+    box:SetPoint("LEFT")
+    UI.fill(box, "BACKGROUND", 1, 1, 1, 0.08)
+    local boxRing = UI.ring(box, 0.4)
+    local tick = box:CreateTexture(nil, "ARTWORK")
+    tick:SetPoint("TOPLEFT", 4, -4); tick:SetPoint("BOTTOMRIGHT", -4, 4)
+    tick:SetColorTexture(0.596, 1, 0.596, 1)
+    cb.text = cb:CreateFontString(nil, "OVERLAY", "TalentKeeperFont")
+    cb.text:SetPoint("LEFT", box, "RIGHT", 8, 0)
+    cb.text:SetPoint("RIGHT")
+    cb.text:SetJustifyH("LEFT")
+    cb.text:SetWordWrap(false)
+    cb.text:SetText(label)
+    function cb.sync() tick:SetShown(get() and true or false) end
+    cb:SetScript("OnClick", TK.safe(function() set(not get()) cb.sync() end))
+    cb:SetScript("OnEnter", function(self)
+        boxRing(0.7)
+        if not tip then return end
+        GameTooltip:SetOwner(self, "ANCHOR_TOP")
+        GameTooltip:SetText(label)
+        GameTooltip:AddLine(tip, 0.74, 0.74, 0.74, true)
+        GameTooltip:Show()
+    end)
+    cb:SetScript("OnLeave", function() boxRing(0.4) GameTooltip_Hide() end)
+    cb.sync()
+    return cb
+end
+
+-- Bring your builds in: the first time the pane opens (and from Options), the builds found in
+-- other talent addons and your game loadouts, ticked; one click copies them in.
+local bring
+local function makeBring()
+    bring = CreateFrame("Frame", nil, pane)
+    bring:SetPoint("TOPLEFT", 1, -27); bring:SetPoint("BOTTOMRIGHT", -1, 1)
+    bring:SetFrameLevel(pane:GetFrameLevel() + 25)
+    bring:EnableMouse(true)
+    UI.fill(bring, "BACKGROUND", 0.06, 0.06, 0.06, 1)
+    bring.title = bring:CreateFontString(nil, "OVERLAY", "TalentKeeperFont")
+    bring.title:SetPoint("TOPLEFT", 8, -10)
+    bring.title:SetText("Bring your builds in")
+    bring.note = bring:CreateFontString(nil, "OVERLAY", "TalentKeeperFontSmall")
+    bring.note:SetPoint("TOPLEFT", bring.title, "BOTTOMLEFT", 0, -6)
+    bring.note:SetPoint("RIGHT", -8, 0)
+    bring.note:SetJustifyH("LEFT")
+    bring.note:SetWordWrap(true)
+    bring.note:SetTextColor(0.74, 0.74, 0.74)
+    bring.checks = {}
+    bring.go = UI.button(bring, "Bring them in", 120, function()
+        local chosen = {}
+        for _, cb in ipairs(bring.checks) do if cb:IsShown() and cb.on then chosen[#chosen + 1] = cb.source end end
+        local added, skipped = B.bringIn(chosen)
+        W.showBringResult(added, skipped)
+    end)
+    bring.later = UI.button(bring, "Not now", 76, function()
+        TK.db.imported.offered = true
+        TK.log("bring in: not now")
+        bring:Hide()
+    end)
+    bring.later:SetPoint("LEFT", bring.go, "RIGHT", 8, 0)
+    bring.done = UI.button(bring, "Done", 76, function() bring:Hide() end)
+    bring:Hide()
+end
+
+function W.showBring(fromOptions)
+    if not pane then return end
+    if not bring then makeBring() end
+    local sources = B.sources()
+    for _, cb in ipairs(bring.checks) do cb:Hide() end
+    local prev = bring.note
+    for i, src in ipairs(sources) do
+        local cb = bring.checks[i]
+        if not cb then
+            cb = W.checkbox(bring, "", nil, function() return cb and cb.on end, function(on) cb.on = on end)
+            cb.count = cb:CreateFontString(nil, "OVERLAY", "TalentKeeperFontSmall")
+            cb.count:SetPoint("RIGHT")
+            cb.count:SetTextColor(0.55, 0.55, 0.55)
+            cb.text:SetPoint("RIGHT", cb.count, "LEFT", -6, 0)
+            bring.checks[i] = cb
+        end
+        cb.source, cb.on = src, true
+        cb.text:SetText(src.name)
+        cb.count:SetText(("%d build%s"):format(#src.builds, #src.builds == 1 and "" or "s"))
+        cb:ClearAllPoints()
+        cb:SetPoint("TOPLEFT", prev, "BOTTOMLEFT", 0, i == 1 and -10 or -2)
+        cb.sync()
+        cb:Show()
+        prev = cb
+    end
+    bring.note:SetText(#sources > 0
+        and "Copy the builds you already have elsewhere. Ones TalentKeeper already has are skipped; nothing is removed anywhere."
+        or "Nothing to bring in: no other talent addon's builds or game loadouts were found.")
+    bring.go:ClearAllPoints()
+    bring.go:SetPoint("TOPLEFT", prev, "BOTTOMLEFT", 0, -12)
+    bring.go:SetShown(#sources > 0)
+    bring.later:SetShown(#sources > 0)
+    bring.done:SetShown(#sources == 0)
+    bring.done:ClearAllPoints()
+    bring.done:SetPoint("TOPLEFT", prev, "BOTTOMLEFT", 0, -12)
+    TK.log("bring in: offered (%d sources)%s", #sources, fromOptions and " from Options" or "")
+    bring:Show()
+    return #sources
+end
+
+function W.showBringResult(added, skipped)
+    for _, cb in ipairs(bring.checks) do cb:Hide() end
+    bring.note:SetText(("Brought in %d build%s. %d %s already here."):format(added, added == 1 and "" or "s",
+        skipped, skipped == 1 and "was" or "were"))
+    bring.go:Hide()
+    bring.later:Hide()
+    bring.done:ClearAllPoints()
+    bring.done:SetPoint("TOPLEFT", bring.note, "BOTTOMLEFT", 0, -12)
+    bring.done:Show()
+end
+
 -- Options: a gear in the pane's header swaps the build list for this view ---------------------
 local opt
 local function scaleLabel(v) return ("%d%%"):format(math.floor(v * 100 + 0.5)) end
@@ -877,36 +996,24 @@ local function makeOptions()
     head2:SetPoint("TOPLEFT", normal, "BOTTOMLEFT", 0, -18)
     head2:SetTextColor(0.55, 0.55, 0.55)
     head2:SetText("Prompts")
-    -- checkbox: 16px well and gray ring, mint square when on; the label is part of the 24px target
-    local cb = CreateFrame("Button", nil, opt)
-    cb:SetHeight(24)
-    cb:SetPoint("TOPLEFT", head2, "BOTTOMLEFT", 0, -4)
-    cb:SetPoint("RIGHT", -8, 0)
-    local box = CreateFrame("Frame", nil, cb)
-    box:SetSize(16, 16)
-    box:SetPoint("LEFT")
-    UI.fill(box, "BACKGROUND", 1, 1, 1, 0.08)
-    local boxRing = UI.ring(box, 0.4)
-    local tick = box:CreateTexture(nil, "ARTWORK")
-    tick:SetPoint("TOPLEFT", 4, -4); tick:SetPoint("BOTTOMRIGHT", -4, 4)
-    tick:SetColorTexture(0.596, 1, 0.596, 1)
-    local cbText = cb:CreateFontString(nil, "OVERLAY", "TalentKeeperFont")
-    cbText:SetPoint("LEFT", box, "RIGHT", 8, 0)
-    cbText:SetText("Ask in delves")
-    local function sync() tick:SetShown(not TK.db.noDelvePrompt) end
-    cb:SetScript("OnClick", TK.safe(function()
-        TK.db.noDelvePrompt = not TK.db.noDelvePrompt or nil
-        TK.log("option: ask in delves %s", TK.db.noDelvePrompt and "off" or "on")
-        sync()
-    end))
-    cb:SetScript("OnEnter", function(self)
-        boxRing(0.7)
-        GameTooltip:SetOwner(self, "ANCHOR_TOP")
-        GameTooltip:SetText("Ask in delves")
-        GameTooltip:AddLine("Offer your Delves build when you enter a delve. Off: no prompt or ready check strip in delves.", 0.74, 0.74, 0.74, true)
-        GameTooltip:Show()
-    end)
-    cb:SetScript("OnLeave", function() boxRing(0.4) GameTooltip_Hide() end)
+    local delve = W.checkbox(opt, "Ask in delves",
+        "Offer your Delves build when you enter a delve. Off: no prompt or ready check strip in delves.",
+        function() return not TK.db.noDelvePrompt end,
+        function(on) TK.db.noDelvePrompt = not on or nil TK.log("option: ask in delves %s", on and "on" or "off") end)
+    delve:SetPoint("TOPLEFT", head2, "BOTTOMLEFT", 0, -4)
+    -- Builds
+    local head3 = opt:CreateFontString(nil, "OVERLAY", "TalentKeeperFontSmall")
+    head3:SetPoint("TOPLEFT", delve, "BOTTOMLEFT", 0, -14)
+    head3:SetTextColor(0.55, 0.55, 0.55)
+    head3:SetText("Builds")
+    local simc = W.checkbox(opt, "Add to /simc",
+        "Your builds for this spec go into the SimulationCraft addon's /simc text as saved loadouts, so sim sites can pick them.",
+        function() return not TK.db.noSimc end,
+        function(on) TK.db.noSimc = not on or nil TK.log("option: add to /simc %s", on and "on" or "off") end)
+    simc:SetPoint("TOPLEFT", head3, "BOTTOMLEFT", 0, -4)
+    local bringBtn = UI.button(opt, "Bring builds in...", 140, function() opt:Hide() W.showBring(true) end)
+    bringBtn:SetPoint("TOPLEFT", simc, "BOTTOMLEFT", 0, -6)
+    local function sync() delve.sync() simc.sync() end
     opt.sync = sync
     opt:SetScript("OnShow", function() s:SetValue(TK.db.windowScale or 1) value:SetText(scaleLabel(TK.db.windowScale or 1)) sync() end)
     opt:Hide()
@@ -988,7 +1095,13 @@ EventUtil.ContinueOnAddOnLoaded("Blizzard_PlayerSpells", TK.safe(function()
     specButtons()
     makeTabs()
     pane:Hide()
-    tf:HookScript("OnShow", function() pane:Show() TK.safe(W.refresh)() end)
+    tf:HookScript("OnShow", function()
+        pane:Show()
+        TK.safe(W.refresh)()
+        if not TK.db.imported.offered then
+            TK.safe(function() if W.showBring() == 0 then TK.db.imported.offered = true bring:Hide() end end)()
+        end
+    end)
     tf:HookScript("OnHide", function() W.hide() UI.hidePicker() pane:Hide() end)
     PlayerSpellsFrame:HookScript("OnShow", function() applyScale() end)
     hooksecurefunc("UpdateUIPanelPositions", function() TK.safe(recenter)() end) -- another panel moved it
