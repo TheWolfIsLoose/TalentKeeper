@@ -140,7 +140,7 @@ end
 -- class's spec order, so each sits in the same spot; the strip's width is shared out, so there's no
 -- gap for three specs or crowding for four), then Apply / Tags... / More... and Save current /
 -- Import across the full width; under it what's in the tree now and the build you're previewing;
--- then the Builds / Tag Mgmt tabs and the list, which scrolls.
+-- then the Builds / Tag Config tabs and the list, which scrolls.
 local pane, rows, heads = nil, {}, {}
 local PANE_W = 220
 local DECK_Y, TILE_H, GAP = -34, 40, 4 -- the spec strip
@@ -148,7 +148,7 @@ local COL_X, COL_W = 8, PANE_W - 16
 local ROW1 = DECK_Y - TILE_H - 6         -- Apply / Tags... / More...
 local ROW2 = ROW1 - 24                   -- Save current / Import
 local DETAIL_Y = ROW2 - 20 - 10          -- in the tree now / previewing
-local TABS = DETAIL_Y - 52               -- the Builds / Tag Mgmt tabs
+local TABS = DETAIL_Y - 52               -- the Builds / Tag Config tabs
 local ROW, HEAD, TOP = 24, 22, TABS - 24
 local SHIMMER_W = 90
 local offset = 0
@@ -855,7 +855,7 @@ end
 
 local function makeTabs()
     local x = 8
-    for _, def in ipairs({ { "builds", "Builds" }, { "season", "Tag Mgmt" } }) do
+    for _, def in ipairs({ { "builds", "Builds" }, { "season", "Tag Config" } }) do
         local t = CreateFrame("Button", nil, pane)
         t.which = def[1]
         t.text = t:CreateFontString(nil, "OVERLAY", "TalentKeeperFont")
@@ -871,7 +871,7 @@ local function makeTabs()
             if not self.bar:IsShown() then self.text:SetTextColor(1, 1, 1) end
             if self.which ~= "season" then return end
             GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-            GameTooltip:SetText("Tag Mgmt")
+            GameTooltip:SetText("Tag Config")
             GameTooltip:AddLine("This season's dungeons, delves and raid bosses, with the build tagged for each of your specs. The gaps stand out; click a place to tag one.", 0.74, 0.74, 0.74, true)
             GameTooltip:Show()
         end)
