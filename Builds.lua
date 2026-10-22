@@ -854,7 +854,9 @@ function B.addToSimc(profile)
 end
 
 local function hookSimc()
-    local simc = _G.Simulationcraft
+    -- the addon keeps itself in a local; it's registered with AceAddon by name
+    local ace = LibStub and LibStub("AceAddon-3.0", true)
+    local simc = _G.Simulationcraft or (ace and ace:GetAddon("Simulationcraft", true))
     if not simc or simc.TalentKeeperHooked or type(simc.GetSimcProfile) ~= "function" then return end
     simc.TalentKeeperHooked = true
     local original = simc.GetSimcProfile
