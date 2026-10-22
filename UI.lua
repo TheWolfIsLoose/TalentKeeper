@@ -98,11 +98,11 @@ function UI.dock(f, alone)
     return inPane
 end
 
--- The footer band: 36px, a black rule over a faint band (the suite's footer).
-function UI.footBand(f)
+-- The footer band: 36px (or h), a black rule over a faint band (the suite's footer).
+function UI.footBand(f, h)
     local band = CreateFrame("Frame", nil, f)
     band:SetPoint("BOTTOMLEFT"); band:SetPoint("BOTTOMRIGHT")
-    band:SetHeight(36)
+    band:SetHeight(h or 36)
     fill(band, "BACKGROUND", 1, 1, 1, 0.035)
     local rule = band:CreateTexture(nil, "OVERLAY")
     rule:SetColorTexture(0, 0, 0, 1)
@@ -265,7 +265,7 @@ local function makeDialog()
     dlg.forText = dlg.forBox:CreateFontString(nil, "OVERLAY", "TalentKeeperFontSmall")
     dlg.forText:SetPoint("LEFT", 6, 0); dlg.forText:SetPoint("RIGHT", -6, 0)
     dlg.forText:SetJustifyH("LEFT"); dlg.forText:SetWordWrap(false)
-    caption(dlg, "For (blank for nothing yet)", dlg.forBox)
+    caption(dlg, "Tags (blank for none yet)", dlg.forBox)
     local function showFor() dlg.forText:SetText(UI.tagSummary(dlg.draft) or "") end
     dlg.showFor = showFor
     local function draftToggle(_, key, name)
@@ -275,7 +275,7 @@ local function makeDialog()
         showFor()
     end
     dlg.forPick = button(dlg, "...", 24, function(self)
-        UI.picker(self, "For", function() return UI.tagItems(dlg.draft, draftToggle) end)
+        UI.picker(self, "Tags", function() return UI.tagItems(dlg.draft, draftToggle) end)
     end)
     dlg.forPick:SetPoint("LEFT", dlg.forBox, "RIGHT", 6, 0)
     dlg.text.edit.next, dlg.name.edit.next, dlg.group.edit.next = dlg.name.edit, dlg.group.edit, nil
@@ -624,7 +624,7 @@ function UI.tagItems(b, toggle)
 end
 
 function UI.tagMenu(owner, b)
-    UI.picker(owner, b.name .. " is for", function() return UI.tagItems(b) end)
+    UI.picker(owner, "Tags: " .. b.name, function() return UI.tagItems(b) end)
 end
 
 -- "Raid +2"

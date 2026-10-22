@@ -138,11 +138,10 @@ end
 -- Docked to the window's right edge, at our own scale (parented to UIParent, shown with the
 -- talent window). Groups as headings; the list scrolls; the selected build's panel sits below.
 local pane, rows, heads = nil, {}, {}
--- The toolbar under the header: spec icons from the left, sized so four fit (Druids) beside
--- Save and Import stacked on the right.
-local PANE_W, SPEC_GAP, TOOL_W = 220, 4, 44
-local SPEC = math.floor((PANE_W - 16 - TOOL_W - 6 - 3 * SPEC_GAP) / 4)
-local TABS = -(32 + SPEC + 8) -- the Builds / This season tabs, under the toolbar
+-- The spec icons fill a fixed strip under the header: as big as fits the class's count (four for
+-- Druids), up to the strip's height, spread across its width.
+local PANE_W, SPEC_GAP, SPEC_H = 220, 4, 52
+local TABS = -(32 + SPEC_H + 8) -- the Builds / Places tabs, under the spec icons
 local ROW, HEAD, TOP = 24, 22, TABS - 24
 local SHIMMER_W = 90
 local offset = 0
@@ -221,7 +220,7 @@ local function row(i)
         local hero = C.heroName(self.b.text)
         if hero then GameTooltip:AddLine(hero, 0.74, 0.74, 0.74) end
         local tags = B.tagNames(self.b)
-        if #tags > 0 then GameTooltip:AddLine("For: " .. table.concat(tags, ", "), 0.596, 1, 0.596, true) end
+        if #tags > 0 then GameTooltip:AddLine("Tags: " .. table.concat(tags, ", "), 0.596, 1, 0.596, true) end
         GameTooltip:AddLine("Click to preview on the tree, double-click to apply. Drag to reorder, or onto a group heading.", 0.55, 0.55, 0.55, true)
         GameTooltip:Show()
     end))
@@ -325,8 +324,8 @@ function W.drop()
     if target ~= nil and (target or nil) ~= b.group then B.setGroup(b, target or nil) end
 end
 
--- The selected build's panel: its name and what it is, over the footer band (Apply, For...,
--- More...), always there; grayed until a build is picked.
+-- The selected build's panel: its name and what it is, over the footer band with every control
+-- (Apply, Tags..., More...; Save current, Import), always there; the build's grayed until one is picked.
 local armedBuild
 local function refreshDetail(specID)
     local b = TK.selected
@@ -348,7 +347,7 @@ local function refreshDetail(specID)
     else parts[#parts + 1] = ("%d change%s marked"):format(#d, #d == 1 and "" or "s") end
     if b.outdated then parts[#parts + 1] = "|cffffb84doutdated|r" end
     local tags = UI.tagSummary(b)
-    detail.info:SetText(table.concat(parts, " · ") .. "\n" .. (tags and ("For: " .. tags) or "|cff8c8c8cNot tagged for anything|r"))
+    detail.info:SetText(table.concat(parts, " · ") .. "\n" .. (tags and ("Tags: " .. tags) or "|cff8c8c8cNo tags yet|r"))
     detail.apply:SetEnabled(d ~= nil and #d > 0)
 end
 
@@ -388,7 +387,7 @@ end
 local function makeDetail()
     detail = CreateFrame("Frame", nil, pane)
     detail:SetPoint("BOTTOMLEFT"); detail:SetPoint("BOTTOMRIGHT")
-    detail:SetHeight(36 + 50)
+    detail:SetHeight(60 + 50)
     local rule = detail:CreateTexture(nil, "OVERLAY")
     rule:SetColorTexture(0, 0, 0, 1)
     rule:SetHeight(1)
@@ -402,22 +401,39 @@ local function makeDetail()
     detail.info:SetJustifyH("LEFT")
     detail.info:SetTextColor(0.74, 0.74, 0.74)
     detail.info:SetSpacing(2)
-    local foot = UI.footBand(detail)
+    -- every control in one footer: the selected build's (Apply, Tags..., More...) over the list's
+    -- (Save current, Import)
+    local foot = UI.footBand(detail, 60)
     local function on(fn) return function(self) local b = TK.selected if b then fn(b, self) end end end
-    -- Apply: the same as double-clicking the build, every time.
     local more = UI.button(foot, "More...", 52, on(function(b, self)
         UI.picker(self, b.name, function() return moreItems(b, self) end)
     end))
-    more:SetPoint("RIGHT", -8, 0)
+    more:SetPoint("TOPRIGHT", -8, -8)
     tip(more, "More", "Group, rename, copy the talent string, update to your talents, delete.")
-    local forBtn = UI.button(foot, "For...", 52, on(function(b, self) UI.tagMenu(self, b) end))
-    forBtn:SetPoint("RIGHT", more, "LEFT", -4, 0)
-    tip(forBtn, "For", "The dungeons, delves and bosses this build is for.")
+    local tagsBtn = UI.button(foot, "Tags...", 52, on(function(b, self) UI.tagMenu(self, b) end))
+    tagsBtn:SetPoint("RIGHT", more, "LEFT", -4, 0)
+    tip(tagsBtn, "Tags", "The dungeons, delves and bosses this build is for.")
+    -- Apply: the same as double-clicking the build, every time.
     detail.apply = UI.button(foot, "Apply", 10, on(function(b) B.apply(b) end))
-    detail.apply:SetPoint("LEFT", 8, 0)
-    detail.apply:SetPoint("RIGHT", forBtn, "LEFT", -4, 0)
+    detail.apply:SetPoint("TOPLEFT", 8, -8)
+    detail.apply:SetPoint("RIGHT", tagsBtn, "LEFT", -4, 0)
     tip(detail.apply, "Apply", "Changes your talents to this build (same as double-clicking it). Grayed when it's already your talents.")
-    detail.buttons = { detail.apply, forBtn, more }
+    local save = UI.button(foot, "Save current", 10, function() UI.buildDialog(false) end)
+    save:SetPoint("BOTTOMLEFT", 8, 8)
+    save:SetPoint("RIGHT", foot, "CENTER", -2, 0)
+    local import = UI.button(foot, "Import", 10, function() UI.buildDialog(true) end)
+    import:SetPoint("BOTTOMRIGHT", -8, 8)
+    import:SetPoint("LEFT", foot, "CENTER", 2, 0)
+    for bt, t in pairs({ [save] = { "Save current", "Save your talents now as a new build." }, [import] = { "Import", "Paste a talent string; it shows on the tree before you save it." } }) do
+        bt:HookScript("OnEnter", function(self)
+            GameTooltip:SetOwner(self, "ANCHOR_TOP")
+            GameTooltip:SetText(t[1])
+            GameTooltip:AddLine(t[2], 0.74, 0.74, 0.74, true)
+            GameTooltip:Show()
+        end)
+        bt:HookScript("OnLeave", GameTooltip_Hide)
+    end
+    detail.buttons = { detail.apply, tagsBtn, more }
 end
 
 function W.refresh()
@@ -529,7 +545,9 @@ end
 
 local function specButtons()
     local n = GetNumSpecializations() or 0
-    local step = SPEC + SPEC_GAP
+    local width = PANE_W - 16
+    local SPEC = math.min(SPEC_H, math.floor((width - SPEC_GAP * (n - 1)) / math.max(n, 1)))
+    local step = n > 1 and (width - SPEC) / (n - 1) or 0
     for i = 1, n do
         local specID, name, _, icon = GetSpecializationInfo(i)
         local b = CreateFrame("Button", nil, pane)
@@ -792,7 +810,7 @@ end
 
 local function makeTabs()
     local x = 8
-    for _, def in ipairs({ { "builds", "Builds" }, { "season", "This season" } }) do
+    for _, def in ipairs({ { "builds", "Builds" }, { "season", "Places" } }) do
         local t = CreateFrame("Button", nil, pane)
         t.which = def[1]
         t.text = t:CreateFontString(nil, "OVERLAY", "TalentKeeperFont")
@@ -804,8 +822,15 @@ local function makeTabs()
         t.bar:SetColorTexture(0.596, 1, 0.596, 1)
         t.bar:SetHeight(2)
         t.bar:SetPoint("BOTTOMLEFT"); t.bar:SetPoint("BOTTOMRIGHT")
-        t:SetScript("OnEnter", function(self) if not self.bar:IsShown() then self.text:SetTextColor(1, 1, 1) end end)
-        t:SetScript("OnLeave", function(self) if not self.bar:IsShown() then self.text:SetTextColor(0.55, 0.55, 0.55) end end)
+        t:SetScript("OnEnter", function(self)
+            if not self.bar:IsShown() then self.text:SetTextColor(1, 1, 1) end
+            if self.which ~= "season" then return end
+            GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+            GameTooltip:SetText("Places")
+            GameTooltip:AddLine("This season's dungeons, delves and raid bosses, with the build tagged for each of your specs. The gaps stand out; click a place to tag one.", 0.74, 0.74, 0.74, true)
+            GameTooltip:Show()
+        end)
+        t:SetScript("OnLeave", function(self) if not self.bar:IsShown() then self.text:SetTextColor(0.55, 0.55, 0.55) end GameTooltip_Hide() end)
         t:SetScript("OnClick", TK.safe(function(self) showTab(self.which) end))
         tabs[#tabs + 1] = t
         x = x + t:GetWidth() + 14
@@ -1238,22 +1263,6 @@ EventUtil.ContinueOnAddOnLoaded("Blizzard_PlayerSpells", TK.safe(function()
     ng:SetPoint("LEFT")
     ng:SetText("+ New group (drop a build here)")
     ng:SetTextColor(0.55, 0.55, 0.55)
-    -- Save and Import stacked at the right of the spec icons, sharing an edge
-    local save = UI.button(pane, "Save", TOOL_W, function() UI.buildDialog(false) end)
-    save:SetHeight(math.floor(SPEC / 2) + 1)
-    save:SetPoint("TOPRIGHT", -8, -32)
-    local import = UI.button(pane, "Import", TOOL_W, function() UI.buildDialog(true) end)
-    import:SetHeight(math.floor(SPEC / 2) + 1)
-    import:SetPoint("TOPRIGHT", save, "BOTTOMRIGHT", 0, 1)
-    for bt, t in pairs({ [save] = { "Save", "Save your talents now as a new build." }, [import] = { "Import", "Paste a talent string; it shows on the tree before you save it." } }) do
-        bt:HookScript("OnEnter", function(self)
-            GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-            GameTooltip:SetText(t[1])
-            GameTooltip:AddLine(t[2], 0.74, 0.74, 0.74, true)
-            GameTooltip:Show()
-        end)
-        bt:HookScript("OnLeave", GameTooltip_Hide)
-    end
     specButtons()
     makeTabs()
     pane:Hide()
