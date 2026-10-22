@@ -82,6 +82,15 @@ Done on `dev` (2026-10-21, later):
 - **GUI pass:** the hero tree name under the emblem (on a hero tree swap
   preview) runs into the game's eye button below it; find it a clear spot.
 
+## Parked 2026-10-22 ~01:20 ET (build 52a5cfe installed, not released)
+
+v0.4.0 is written up on `dev` (CHANGELOG, HISTORY, README, CurseForge text).
+Morning: run the DevChecklist round (bring builds in with TLM / TLE turned
+on, TLM builds preview and apply cleanly, Options entries, /simc lines and
+no edited-profile warning, drag to reorder), then merge `dev` to `main` and
+confirm the v0.4.0 tag and GitHub release. After that: GUI pass (one
+footprint), style guide reconcile and palette review (project doc).
+
 ## Next: bring builds in, SimulationCraft (decided 2026-10-22)
 
 - **First-run import becomes a prompt** in the pane ("Bring your builds in"):
