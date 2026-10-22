@@ -478,7 +478,7 @@ local function inPlace(b, e, specID, slot)
     local ids = {}
     for _, id in ipairs(C_Traits.GetTreeNodes(treeID)) do
         local info = C_Traits.GetNodeInfo(cfg, id)
-        if info and (info.isVisible or want[id]) then ids[#ids + 1] = { id = id, y = info.posY or 0, x = info.posX or 0 } end
+        if info and (info.isVisible or want[id]) then ids[#ids + 1] = { id = id, y = info.posY or 0, x = info.posX or 0, sel = info.type == TYPE.SubTreeSelection } end
     end
     table.sort(ids, function(a, c) if a.y ~= c.y then return a.y < c.y end return a.x < c.x end)
     local function granted(info) return (info.activeRank or 0) > (info.ranksPurchased or 0) end
@@ -496,8 +496,7 @@ local function inPlace(b, e, specID, slot)
     -- a different hero tree: clear the hero talents; otherwise they're diffed like the rest
     local heroChanged = false
     for _, n in ipairs(ids) do
-        local info = C_Traits.GetNodeInfo(cfg, n.id)
-        if info.type == TYPE.SubTreeSelection and want[n.id] and not done(info) then heroChanged = true end
+        if n.sel and want[n.id] and not done(C_Traits.GetNodeInfo(cfg, n.id)) then heroChanged = true end
     end
     if heroChanged then
         for _, sub in ipairs(C_ClassTalents.GetHeroTalentSpecsForClassSpec() or {}) do
@@ -505,12 +504,20 @@ local function inPlace(b, e, specID, slot)
             if s and s.traitCurrencyID then C_Traits.ResetTreeByCurrency(cfg, treeID, s.traitCurrencyID) end
         end
     end
-    -- refund what the build doesn't have (bottom row first), then buy what's missing (top row
-    -- first); repeat, since a refund can wait on a purchase (another path to a talent) and back
-    local function refundPass()
+    -- Only the talents that differ can change, so after one read of the tree the passes touch just
+    -- those (in tree order: refunds bottom row first, purchases top row first). Reading every node
+    -- on every pass cost up to 1.4 s of frozen game before this.
+    local reads = 0
+    local function node(id) reads = reads + 1 return C_Traits.GetNodeInfo(cfg, id) end
+    local function differing()
+        local list = {}
+        for _, n in ipairs(ids) do if not done(node(n.id)) then list[#list + 1] = n.id end end
+        return list
+    end
+    local function refundPass(work)
         local progress = false
-        for i = #ids, 1, -1 do
-            local info = C_Traits.GetNodeInfo(cfg, ids[i].id)
+        for i = #work, 1, -1 do
+            local info = node(work[i])
             local w = want[info.ID]
             if info.ranksPurchased > 0 and not done(info) then
                 if not w or w.ranks == 0 then
@@ -523,41 +530,42 @@ local function inPlace(b, e, specID, slot)
         end
         return progress
     end
-    local function buyPass()
+    local function buyPass(work)
         local progress = false
-        for _, n in ipairs(ids) do
-            local info = C_Traits.GetNodeInfo(cfg, n.id)
-            local w = want[n.id]
+        for _, id in ipairs(work) do
+            local info = node(id)
+            local w = want[id]
             if w and w.ranks > 0 and not done(info) then
                 if isChoice(info) then
-                    progress = C_Traits.SetSelection(cfg, n.id, w.entry) or progress
+                    progress = C_Traits.SetSelection(cfg, id, w.entry) or progress
                 else
-                    while info.ranksPurchased < w.ranks and C_Traits.PurchaseRank(cfg, n.id) do
+                    while info.ranksPurchased < w.ranks and C_Traits.PurchaseRank(cfg, id) do
                         progress = true
-                        info = C_Traits.GetNodeInfo(cfg, n.id)
+                        info = node(id)
                     end
                 end
             end
         end
         return progress
     end
-    local function off()
-        local list = {}
-        for _, n in ipairs(ids) do
-            local info = C_Traits.GetNodeInfo(cfg, n.id)
-            if not done(info) then list[#list + 1] = info end
-        end
-        return list
-    end
-    local function settle()
+    local passes = 0
+    local function settle(work)
         for _ = 1, 30 do
-            local progress = refundPass()
-            progress = buyPass() or progress
-            if #off() == 0 or not progress then break end
+            passes = passes + 1
+            local progress = refundPass(work)
+            progress = buyPass(work) or progress
+            local still = {}
+            for _, id in ipairs(work) do if not done(node(id)) then still[#still + 1] = id end end
+            work = still
+            if #work == 0 or not progress then break end
         end
-        return off()
+        local left = {}
+        for _, id in ipairs(work) do left[#left + 1] = node(id) end
+        return left
     end
-    local left, rebuilt = settle(), false
+    local work = differing()
+    local changed = #work
+    local left, rebuilt = settle(work), false
     if #left > 0 then
         -- the changes can't be made one by one: clear the class and spec talents and buy them
         -- all again top to bottom (the hero tree keeps its own points)
@@ -565,8 +573,9 @@ local function inPlace(b, e, specID, slot)
         TK.log("apply '%s': %d talents wouldn't change one by one; rebuilding", b.name, #left)
         local cur = C_Traits.GetTreeCurrencyInfo(cfg, treeID, false) or {}
         for i = 1, 2 do if cur[i] then C_Traits.ResetTreeByCurrency(cfg, treeID, cur[i].traitCurrencyID) end end
-        left = settle()
+        left = settle(differing())
     end
+    TK.log("apply '%s': %d talents differed, %d passes, %d node reads", b.name, changed, passes, reads)
     local missing = #left
     if missing > 0 then
         local what = {}
