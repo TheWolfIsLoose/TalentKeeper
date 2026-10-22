@@ -438,6 +438,13 @@ function W.refresh()
         h:Show()
     end
     refreshDetail(specID)
+    if W.override then W.show(W.override) end -- a string being imported shows on the tree instead
+end
+
+-- Preview a talent string on the tree while it's being imported (nil: back to the selected build).
+function W.preview(text)
+    W.override = text and { text = text } or nil
+    W.refresh()
 end
 
 local prev = TK.onChange
@@ -499,6 +506,57 @@ local function applyScale()
     if PlayerSpellsFrame and not InCombatLockdown() then PlayerSpellsFrame:SetScale(TK.db.windowScale or 1) end
 end
 
+-- Where you moved the window: kept in screen pixels (so a size change doesn't throw it off) and put
+-- back whenever the game places it (opening, or another panel opening beside it). Out of combat.
+local function applyPos()
+    local p, f = TK.db.windowPos, PlayerSpellsFrame
+    if not p or not f or not f:IsShown() or InCombatLockdown() then return end
+    local s = f:GetEffectiveScale()
+    f:ClearAllPoints()
+    f:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", p.x / s, p.y / s)
+end
+
+local function savePos()
+    local f = PlayerSpellsFrame
+    local s = f:GetEffectiveScale()
+    TK.db.windowPos = { x = f:GetLeft() * s, y = f:GetTop() * s }
+end
+
+local function mover()
+    local f = PlayerSpellsFrame
+    f:SetClampedToScreen(true)
+    local d = CreateFrame("Frame", nil, f) -- over the title bar, short of the close button
+    d:SetPoint("TOPLEFT", 0, 0); d:SetPoint("TOPRIGHT", -28, 0)
+    d:SetHeight(22)
+    d:EnableMouse(true)
+    d:RegisterForDrag("LeftButton")
+    d:SetScript("OnDragStart", function()
+        if InCombatLockdown() then return end
+        f:SetMovable(true)
+        f:StartMoving()
+    end)
+    d:SetScript("OnDragStop", TK.safe(function()
+        f:StopMovingOrSizing()
+        f:SetUserPlaced(false) -- the game's layout cache stays out of it; TalentKeeper puts it back
+        savePos()
+        TK.log("talent window moved")
+    end))
+    d:SetScript("OnMouseUp", function(_, button)
+        if button ~= "RightButton" or not TK.db.windowPos then return end
+        TK.db.windowPos = nil
+        TK.chat("The talent window opens in the game's spot again from next time.")
+    end)
+    d:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_TOP")
+        GameTooltip:SetText("Talent window")
+        GameTooltip:AddLine("Drag to move it; it opens there next time. Right-click to go back to the game's spot.", 0.74, 0.74, 0.74, true)
+        GameTooltip:Show()
+    end)
+    d:SetScript("OnLeave", GameTooltip_Hide)
+    f:HookScript("OnShow", function() C_Timer.After(0, TK.safe(applyPos)) end)
+    hooksecurefunc("UpdateUIPanelPositions", function() C_Timer.After(0, TK.safe(applyPos)) end)
+end
+
 local function grip()
     local g = CreateFrame("Button", nil, PlayerSpellsFrame)
     g:SetSize(16, 16)
@@ -521,7 +579,10 @@ local function grip()
             applyScale()
         end)
     end)
-    g:SetScript("OnMouseUp", function(self) self:SetScript("OnUpdate", nil) end)
+    g:SetScript("OnMouseUp", function(self)
+        self:SetScript("OnUpdate", nil)
+        if TK.db.windowPos then savePos() end -- keep the moved spot where you see it now
+    end)
     g:SetScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
         GameTooltip:SetText("Talent window size")
@@ -583,5 +644,6 @@ EventUtil.ContinueOnAddOnLoaded("Blizzard_PlayerSpells", TK.safe(function()
     tf:HookScript("OnHide", function() W.hide() UI.hidePicker() pane:Hide() end)
     PlayerSpellsFrame:HookScript("OnShow", applyScale)
     grip()
+    mover()
     applyScale()
 end))

@@ -238,7 +238,33 @@ local function makeDialog()
     for _, box in ipairs({ dlg.name, dlg.group }) do
         box.edit:SetScript("OnEnterPressed", function() dlg.ok:Click() end)
     end
-    dlg:SetScript("OnHide", function() dlg.text.edit:ClearFocus() dlg.name.edit:ClearFocus() dlg.group.edit:ClearFocus() end)
+    dlg:SetScript("OnHide", function()
+        dlg.text.edit:ClearFocus() dlg.name.edit:ClearFocus() dlg.group.edit:ClearFocus()
+        if TK.window and TK.window.override then TK.window.preview(nil) end
+    end)
+    -- Import: the pasted string shows on the tree before it's saved; the note says what you see
+    dlg.note = dlg:CreateFontString(nil, "OVERLAY", "TalentKeeperFontSmall")
+    dlg.note:SetPoint("TOPLEFT", dlg.text, "BOTTOMLEFT", 0, -3)
+    dlg.note:SetTextColor(0.55, 0.55, 0.55)
+    dlg.text.edit:SetScript("OnTextChanged", TK.safe(function(self)
+        if not dlg.import then return end
+        local text = strtrim(self:GetText())
+        local spec = text ~= "" and B.stringSpec(text)
+        local preview, note = nil, ""
+        if spec and spec ~= B.specID() then
+            note = ("For %s: change to it to see this build on the tree."):format(B.specName(spec))
+        elseif spec then
+            local d = TK.compare.diff(B.currentString(), text)
+            if d then
+                preview = text
+                note = #d == 0 and "Same as your talents now." or ("%d changes marked on the tree."):format(#d)
+            end
+        elseif text ~= "" then
+            note = "|cffff8888That isn't a talent string.|r"
+        end
+        dlg.note:SetText(note)
+        if TK.window then TK.window.preview(preview) end
+    end))
 end
 
 -- import = true: paste a string; otherwise save your current talents.
@@ -257,6 +283,7 @@ function UI.buildDialog(import)
     dlg.draft = {}
     dlg.showFor()
     dlg.text.edit:SetText("")
+    dlg.note:SetText("")
     dlg.name.edit:SetText(import and "" or ("%s %d"):format(B.specName(specID), #B.list(specID) + 1))
     local sel = TK.selected
     dlg.group.edit:SetText((sel and sel.group) or TK.lastGroup or "")
