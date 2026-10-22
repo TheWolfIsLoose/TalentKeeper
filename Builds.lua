@@ -271,7 +271,7 @@ function B.updateToCurrent(b)
 end
 
 -- Situations a build is for ----------------------------------------------------------
--- b.tags[key] = name. Keys: "delve" (delves), "world" (the open world), "zone:<instanceID>" (a
+-- b.tags[key] = name. Keys: "delve" (delves and the open world), "zone:<instanceID>" (a
 -- dungeon, raid or delve), "boss:<encounterID>". One build per spec per situation; one
 -- situation can point at builds in several specs.
 -- A situation points at one build per spec: tagging a build takes the tag off the spec's others.
@@ -308,7 +308,7 @@ end
 local DELVE = 208
 function B.here()
     local name, kind, difficulty, _, _, _, _, id = GetInstanceInfo()
-    if not id or kind == "none" or kind == nil then return { key = "world", name = "Open world" } end
+    if not id or kind == "none" or kind == nil then return { key = "delve", name = "Delves" } end -- the open world shares the Delves build
     local content = difficulty == DELVE and "delve" or nil
     return { key = "zone:" .. id, name = name, content = content, difficulty = difficulty }
 end

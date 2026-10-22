@@ -393,7 +393,7 @@ end
 UI.seasonRaids, UI.seasonDungeons = seasonRaids, seasonDungeons
 
 -- Miscellaneous: places that aren't a dungeon or a raid boss. (PvP comes later.)
-local CONTENT = { { key = "delve", name = "Delves" }, { key = "world", name = "Open world" } }
+local CONTENT = { { key = "delve", name = "Delves" } }
 UI.CONTENT = CONTENT
 
 -- Picker: the suite's flat list in a small panel (headings, 24px check rows, plain rows) ------
@@ -605,7 +605,7 @@ local function tagItem(b, s, toggle)
         onClick = function() toggle(b, s.key, s.name) end }
 end
 
--- Two columns: Miscellaneous (Delves, Open world) and this season's dungeons; then each raid's bosses.
+-- Two columns: Miscellaneous (Delves) and this season's dungeons; then each raid's bosses.
 -- toggle(b, key, name) defaults to B.toggleTag (the import dialog passes its own for a draft).
 function UI.tagItems(b, toggle)
     toggle = toggle or B.toggleTag

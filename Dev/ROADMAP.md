@@ -109,7 +109,7 @@ Done on `dev` (2026-10-21, later):
 ## Future: PvP (player, 2026-10-22, not scheduled)
 
 - **Open:** PvP situations under the tag list's Miscellaneous heading (with
-  Delves and Open world): likely arenas, rated battlegrounds and casual
+  Delves): likely arenas, rated battlegrounds and casual
   battlegrounds as places, with the build carrying its PvP talents. Needs:
   how instance info reports each (instance type `pvp` / `arena`), whether the
   zone-in prompt and ready check strip make sense there (queue pops, no ready

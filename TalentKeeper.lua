@@ -98,12 +98,11 @@ TK.on("ADDON_LOADED", function(name)
     for _, list in pairs(db.builds) do -- the tag's old label
         for _, b in ipairs(list) do if b.tags and b.tags.delve then b.tags.delve = "Delves" end end
     end
-    if not db.worldSplit then -- the open world had shared the Delves tag: it keeps that build
-        for _, list in pairs(db.builds) do
-            for _, b in ipairs(list) do if b.tags and b.tags.delve then b.tags.world = "Open world" end end
-        end
-        db.worldSplit = true
+    -- A dev build briefly had a separate open world tag: drop it (the open world shares Delves).
+    for _, list in pairs(db.builds) do
+        for _, b in ipairs(list) do if b.tags and b.tags.world then b.tags.world = nil if not next(b.tags) then b.tags = nil end end end
     end
+    db.worldSplit = nil
     local version = C_AddOns.GetAddOnMetadata(addonName, "Version")
     if TK.build then version = "dev " .. TK.build elseif version:find("@") then version = "dev" else version = version:find("^v") and version or ("v" .. version) end
     TK.version = version
