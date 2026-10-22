@@ -841,11 +841,12 @@ end
 -- other talent addons and your game loadouts, ticked; one click copies them in.
 local bring
 local function makeBring()
-    bring = CreateFrame("Frame", nil, pane)
-    bring:SetPoint("TOPLEFT", 1, -27); bring:SetPoint("BOTTOMRIGHT", -1, 1)
+    bring = CreateFrame("Frame", "TalentKeeperBring", UIParent)
     bring:SetFrameStrata("DIALOG") -- above another talent addon's panel in the same spot (pickers stay above)
     bring:EnableMouse(true)
+    bring:SetClampedToScreen(true)
     UI.fill(bring, "BACKGROUND", 0.06, 0.06, 0.06, 1)
+    bring.ring = UI.ring(bring, 0)
     bring.title = bring:CreateFontString(nil, "OVERLAY", "TalentKeeperFont")
     bring.title:SetPoint("TOPLEFT", 8, -10)
     bring.title:SetText("Bring your builds in")
@@ -882,9 +883,17 @@ local function makeBring()
     bring:Hide()
 end
 
-function W.showBring(fromOptions)
-    if not pane then return end
+-- where: "login" (on its own, mid-screen: the talent window isn't open), else in the pane
+function W.showBring(fromOptions, where)
     if not bring then makeBring() end
+    bring:ClearAllPoints()
+    bring.inPane = not (where == "login" or not (pane and pane:IsShown()))
+    if not bring.inPane then
+        bring:SetSize(300, 230)
+        bring:SetPoint("CENTER", UIParent, "CENTER", 0, 120)
+    else
+        bring:SetPoint("TOPLEFT", pane, "TOPLEFT", 1, -27); bring:SetPoint("BOTTOMRIGHT", pane, "BOTTOMRIGHT", -1, 1)
+    end
     local sources = B.sources()
     for _, cb in ipairs(bring.checks) do cb:Hide() end
     local prev = bring.note
@@ -919,7 +928,7 @@ function W.showBring(fromOptions)
     bring.reload:Hide()
     bring.done:ClearAllPoints()
     bring.done:SetPoint("TOPLEFT", prev, "BOTTOMLEFT", 0, -12)
-    TK.log("bring in: offered (%d sources)%s", #sources, fromOptions and " from Options" or "")
+    TK.log("bring in: offered (%d sources)%s", #sources, fromOptions and " from Options" or where == "login" and " at login" or "")
     bring:Show()
     return #sources
 end
@@ -1138,9 +1147,21 @@ EventUtil.ContinueOnAddOnLoaded("Blizzard_PlayerSpells", TK.safe(function()
             TK.safe(function() if W.showBring() == 0 then TK.db.imported.offered = true bring:Hide() end end)()
         end
     end)
-    tf:HookScript("OnHide", function() W.hide() UI.hidePicker() pane:Hide() end)
+    tf:HookScript("OnHide", function()
+        W.hide() UI.hidePicker() pane:Hide()
+        if bring and bring.inPane then bring:Hide() end -- it sits in the pane: goes with it
+    end)
     PlayerSpellsFrame:HookScript("OnShow", function() applyScale() end)
     hooksecurefunc("UpdateUIPanelPositions", function() TK.safe(recenter)() end) -- another panel moved it
     gear()
     applyScale()
 end))
+
+-- The first login with builds elsewhere: ask right away, before any talent window (and another
+-- addon's panel beside it) is open. Out of combat; otherwise opening talents asks instead.
+TK.on("PLAYER_LOGIN", function()
+    C_Timer.After(5, TK.safe(function()
+        if TK.db.imported.offered or InCombatLockdown() then return end
+        if W.showBring(nil, "login") == 0 then TK.db.imported.offered = true bring:Hide() end
+    end))
+end)
