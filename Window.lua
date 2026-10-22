@@ -459,8 +459,7 @@ function W.refresh()
     for _, h in ipairs(heads) do h:Hide() end
     local specID = B.specID()
     local now = specID and B.onNow(specID)
-    local v = TK.version or ""
-    pane.version:SetText(((v:find("^dev") or v:find("%-alpha") or v:find("%-beta")) and "|cffffd84a" or "|cff8c8c8c") .. v .. "|r")
+    pane.head.version:SetText(UI.versionText())
     -- lay out every line, then show the ones inside the list's window
     local lines, y = {}, 0
     for _, line in ipairs(B.ordered(specID)) do
@@ -529,15 +528,6 @@ function W.refresh()
     refreshDetail(specID, now)
     if lastNow ~= nil and lastNow ~= (now or false) then UIFrameFadeIn(detail.name, 0.4, 0, 1) end
     lastNow = now or false
-    if W.override then W.show(W.override) end -- a string being imported shows on the tree instead
-end
-
--- Preview a talent string on the tree while it's being imported (nil: back to the selected build).
-function W.preview(text)
-    if text == (W.override and W.override.text) then return end -- nothing changed (typing junk, say)
-    W.override = text and { text = text } or nil
-    W.refresh()
-    if not text and not TK.selected then W.hide() end
 end
 
 local prev = TK.onChange
@@ -953,25 +943,7 @@ local function makeBring()
     UI.ring(bring, 0)
     tinsert(UISpecialFrames, "TalentKeeperBring") -- Escape closes it; it asks again next login
     -- header: the suite's strip with the mark, the name and the version; drag it to move
-    local head = CreateFrame("Frame", nil, bring)
-    head:SetPoint("TOPLEFT"); head:SetPoint("TOPRIGHT")
-    head:SetHeight(BHEAD)
-    UI.fill(head, "BACKGROUND", 1, 1, 1, 0.035)
-    local rule = head:CreateTexture(nil, "OVERLAY")
-    rule:SetColorTexture(0, 0, 0, 1)
-    rule:SetHeight(1)
-    rule:SetPoint("BOTTOMLEFT"); rule:SetPoint("BOTTOMRIGHT")
-    local mark = head:CreateTexture(nil, "ARTWORK")
-    mark:SetSize(16, 16)
-    mark:SetPoint("LEFT", 8, 0)
-    mark:SetTexture("Interface\\AddOns\\TalentKeeper\\icon.png")
-    local name = head:CreateFontString(nil, "OVERLAY", "TalentKeeperFont")
-    name:SetPoint("LEFT", mark, "RIGHT", 6, 0)
-    name:SetText("|cffffffffTalent|r|cffb3b3b3Keeper|r")
-    local ver = head:CreateFontString(nil, "OVERLAY", "TalentKeeperFontSmall")
-    ver:SetPoint("BOTTOMLEFT", name, "BOTTOMRIGHT", 6, 1)
-    local v = TK.version or ""
-    ver:SetText(((v:find("^dev") or v:find("%-alpha") or v:find("%-beta")) and "|cffffd84a" or "|cff8c8c8c") .. v .. "|r")
+    local head = UI.header(bring)
     head:EnableMouse(true)
     head:RegisterForDrag("LeftButton")
     head:SetScript("OnDragStart", function() bring:StartMoving() end)
@@ -985,14 +957,7 @@ local function makeBring()
     bring.note:SetTextColor(0.74, 0.74, 0.74)
     bring.checks = {}
     -- footer: the band with the actions on the right, the main one first
-    local foot = CreateFrame("Frame", nil, bring)
-    foot:SetPoint("BOTTOMLEFT"); foot:SetPoint("BOTTOMRIGHT")
-    foot:SetHeight(BFOOT)
-    UI.fill(foot, "BACKGROUND", 1, 1, 1, 0.035)
-    local frule = foot:CreateTexture(nil, "OVERLAY")
-    frule:SetColorTexture(0, 0, 0, 1)
-    frule:SetHeight(1)
-    frule:SetPoint("TOPLEFT"); frule:SetPoint("TOPRIGHT")
+    local foot = UI.footBand(bring, BFOOT)
     bring.foot = foot
     local function place(list)
         local prev
@@ -1281,21 +1246,7 @@ EventUtil.ContinueOnAddOnLoaded("Blizzard_PlayerSpells", TK.safe(function()
     pane:EnableMouse(true)
     UI.fill(pane, "BACKGROUND", 0.06, 0.06, 0.06, 1)
     UI.ring(pane, 0)
-    local mark = pane:CreateTexture(nil, "ARTWORK")
-    mark:SetSize(16, 16)
-    mark:SetPoint("LEFT", pane, "TOPLEFT", 8, -13)
-    mark:SetTexture("Interface\\AddOns\\TalentKeeper\\icon.png")
-    -- name and version, as the suite's other headers: white first half and gray second, version in Small,
-    -- yellow while it's a dev, alpha or beta build
-    local title = pane:CreateFontString(nil, "OVERLAY", "TalentKeeperFont")
-    title:SetPoint("LEFT", mark, "RIGHT", 6, 0)
-    title:SetText("|cffffffffTalent|r|cffb3b3b3Keeper|r")
-    pane.version = pane:CreateFontString(nil, "OVERLAY", "TalentKeeperFontSmall")
-    pane.version:SetPoint("BOTTOMLEFT", title, "BOTTOMRIGHT", 6, 1)
-    local rule = pane:CreateTexture(nil, "OVERLAY")
-    rule:SetColorTexture(0, 0, 0, 1)
-    rule:SetHeight(1)
-    rule:SetPoint("TOPLEFT", 0, -26); rule:SetPoint("TOPRIGHT", 0, -26)
+    pane.head = UI.header(pane)
     makeDetail()
     -- the scrolling list between the spec buttons and the selected build's panel
     pane.list = CreateFrame("Frame", nil, pane)

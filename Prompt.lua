@@ -114,7 +114,6 @@ local function chooseFor(here, owner, after)
         return items
     end)
 end
-P.chooseFor = chooseFor
 
 -- Only places the tag list offers: delves and this season's dungeons (old and timewalking
 -- dungeons, follower dungeons of past content and the like get nothing).

@@ -180,7 +180,7 @@ TalentLoadoutEx = { WARLOCK = { [3] = {
 }, [1] = { { name = "Aff", text = "SPEC:265:1" } } } }
 fire("ADDON_LOADED", "TalentKeeper")
 ok(TalentKeeperDB and TK.db == TalentKeeperDB, "saved data set up")
-ok(said("TalentKeeper|r: dev loaded"), "load line")
+ok(said("Keeper|r: dev loaded"), "load line")
 section("saved data and load line")
 
 fire("PLAYER_LOGIN")
@@ -299,8 +299,8 @@ for _, it in ipairs(quick) do if it.label == "Solo" then it.onClick() end end
 B.apply = realApply
 ok(applied and applied.name == "Solo", "clicking a build in the quick list applies it")
 local tl = labelsOf(TK.ui.tagItems(B.list(267)[1]))
-ok(tl:find("^check:Delves,head:Mythic%+ dungeons,check:Dungeon A,head:Raid A,check:Boss A$"),
-    "tag list: delves, open world, dungeons, then raid bosses (no Raid / Mythic+ / whole raid): " .. tl)
+ok(tl:find("^head:Miscellaneous,check:Delves,head:Mythic%+ dungeons,check:Dungeon A,head:Raid A,check:Boss A$"),
+    "tag list: Miscellaneous (delves), dungeons, then raid bosses (no Raid / Mythic+ / whole raid): " .. tl)
 local cols = 0
 for _, it in ipairs(TK.ui.tagItems(B.list(267)[1])) do if it.column then cols = cols + 1 end end
 ok(cols == 1, "raids in a second column")

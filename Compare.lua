@@ -134,15 +134,6 @@ function C.nearNote(list, b)
         table.concat(C.describe(d, 3), ", "))
 end
 
--- An earlier build in the list with the same talents, for the "same as X" mark.
-function C.sameAsEarlier(list, b)
-    for _, other in ipairs(list) do
-        if other == b then return nil end
-        local d = C.diff(other.text, b.text)
-        if d and #d == 0 then return other end
-    end
-end
-
 -- The hero tree a build takes, by name (nil if unknown).
 function C.heroName(text)
     local picks = LTT and C.picks(text)

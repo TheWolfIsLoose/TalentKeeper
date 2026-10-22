@@ -111,6 +111,36 @@ function UI.footBand(f, h)
     return band
 end
 
+-- The version as the suite shows it: yellow while it's a dev, alpha or beta build, else muted.
+function UI.versionText()
+    local v = TK.version or ""
+    return ((v:find("^dev") or v:find("%-alpha") or v:find("%-beta")) and "|cffffd84a" or "|cff8c8c8c") .. v .. "|r"
+end
+
+-- The header: a 26px faint band over a black rule, with the icon, the two-tone name and the
+-- version (head.version) on the left, as the suite's other headers.
+function UI.header(f)
+    local head = CreateFrame("Frame", nil, f)
+    head:SetPoint("TOPLEFT"); head:SetPoint("TOPRIGHT")
+    head:SetHeight(26)
+    fill(head, "BACKGROUND", 1, 1, 1, 0.035)
+    local rule = head:CreateTexture(nil, "OVERLAY")
+    rule:SetColorTexture(0, 0, 0, 1)
+    rule:SetHeight(1)
+    rule:SetPoint("BOTTOMLEFT"); rule:SetPoint("BOTTOMRIGHT")
+    local mark = head:CreateTexture(nil, "ARTWORK")
+    mark:SetSize(16, 16)
+    mark:SetPoint("LEFT", 8, 0)
+    mark:SetTexture("Interface\\AddOns\\TalentKeeper\\icon.png")
+    local name = head:CreateFontString(nil, "OVERLAY", "TalentKeeperFont")
+    name:SetPoint("LEFT", mark, "RIGHT", 6, 0)
+    name:SetText("|cffffffffTalent|r|cffb3b3b3Keeper|r")
+    head.version = head:CreateFontString(nil, "OVERLAY", "TalentKeeperFontSmall")
+    head.version:SetPoint("BOTTOMLEFT", name, "BOTTOMRIGHT", 6, 1)
+    head.version:SetText(UI.versionText())
+    return head
+end
+
 -- Drag to move, only when it's on its own.
 local function movable(f)
     f:SetMovable(true); f:EnableMouse(true); f:RegisterForDrag("LeftButton")
@@ -295,7 +325,6 @@ local function makeDialog()
     end
     dlg:SetScript("OnHide", function()
         dlg.text.edit:ClearFocus() dlg.name.edit:ClearFocus() dlg.group.edit:ClearFocus()
-        if dlg.import and TK.window then TK.window.preview(nil) end
     end)
     -- Import: the pasted string shows on the tree before it's saved; the note says what you see
     dlg.note = dlg:CreateFontString(nil, "OVERLAY", "TalentKeeperFontSmall")
