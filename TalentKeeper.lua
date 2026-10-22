@@ -89,7 +89,7 @@ TK.on("ADDON_LOADED", function(name)
         for _, b in ipairs(list) do if b.tags and b.tags.delve then b.tags.delve = "Delves" end end
     end
     local version = C_AddOns.GetAddOnMetadata(addonName, "Version")
-    if TK.build then version = "dev " .. TK.build elseif version:find("@") then version = "dev" else version = "v" .. version end
+    if TK.build then version = "dev " .. TK.build elseif version:find("@") then version = "dev" else version = version:find("^v") and version or ("v" .. version) end
     TK.version = version
     if db.lastVersion ~= version then TK.log("version: %s -> %s", tostring(db.lastVersion), version) end
     db.lastVersion = version

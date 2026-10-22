@@ -371,15 +371,11 @@ local function verify(b)
     -- skip when another build was applied since (it's checked instead)
     if not lastApply or lastApply.b ~= b then return end
     lastApply.timed = true -- the apply is over either way
+    if lastApply.failed then return end -- the refusal handler checked it once the change was dropped
     local d = TK.compare.diff(b.text, currentString())
     if not d then return TK.log("check '%s': couldn't read talents", b.name) end
     local names = TK.compare.describe(d)
     TK.log("check '%s': %d differences%s", b.name, #d, #d > 0 and (": " .. table.concat(names, ", ")) or "")
-    if lastApply.failed and #d > 0 then
-        -- a refused commit only matters if the talents didn't end up as saved (a retry often lands it)
-        TK.log("apply '%s': refused and %d talents differ", b.name, #d)
-        return TK.chat(("|cffff8888The game didn't accept %s.|r Your talents weren't changed; try again out of combat, or check the build in the talent window."):format(b.name))
-    end
     b.outdated = #d > 0 and #d or nil
     TK.changed()
     if #d > 0 then
@@ -388,10 +384,42 @@ local function verify(b)
     end
 end
 
+-- The game cancelled the change (it fires once per config; one is enough). Its staged changes stay
+-- in the talent window and make a check read as if the build landed, so drop them first, then
+-- check what you really have.
 TK.on("CONFIG_COMMIT_FAILED", function(configID)
-    if not lastApply or not B.muteUntil or GetTime() > B.muteUntil then return end
-    TK.log("apply '%s': the game refused a change (config %s)", lastApply.b.name, tostring(configID))
-    lastApply.failed = true -- reported by the check after applying, if the talents didn't land
+    local a = lastApply
+    if not a or a.failed or not B.muteUntil or GetTime() > B.muteUntil then return end
+    a.failed = true
+    TK.log("apply '%s': the game cancelled the change (config %s)%s after %d ms", a.b.name, tostring(configID),
+        a.why and (", " .. a.why) or "", debugprofilestop() - a.t0)
+    C_Timer.After(0.2, TK.safe(function()
+        if lastApply ~= a then return end
+        if B.unsaved() then C_Traits.RollbackConfig(C_ClassTalents.GetActiveConfigID()) end
+        local d = TK.compare.diff(a.b.text, currentString())
+        a.timed, B.muteUntil = true, 0
+        if d and #d == 0 then return TK.log("apply '%s': landed anyway", a.b.name) end
+        TK.db.active[B.specID()] = a.prev
+        TK.changed()
+        TK.chat(("|cffff8888%s wasn't applied:|r the game cancelled the talent change%s. Click it again to retry.")
+            :format(a.b.name, a.why and (" (" .. a.why .. ")") or ""))
+    end))
+end)
+
+-- What can cancel a talent change while it goes through: moving, or combat starting.
+local function during(why)
+    local a = lastApply
+    if a and a.committed and not a.timed and not a.why then
+        a.why = why
+        TK.log("apply '%s': %s %d ms after the click", a.b.name, why, debugprofilestop() - a.t0)
+    end
+end
+TK.on("PLAYER_STARTED_MOVING", function() during("you moved") end)
+TK.on("PLAYER_REGEN_DISABLED", function() during("combat started") end)
+TK.on("UNIT_SPELLCAST_INTERRUPTED", function(unit, _, spellID)
+    if unit == "player" and lastApply and lastApply.committed and not lastApply.timed then
+        TK.log("apply '%s': your cast %s was interrupted", lastApply.b.name, tostring(spellID))
+    end
 end)
 
 -- After the talents are in: PvP talents, and the check 5 s later.
@@ -534,6 +562,7 @@ local function inPlace(b, e, specID, slot)
         -- the changes can't be made one by one: clear the class and spec talents and buy them
         -- all again top to bottom (the hero tree keeps its own points)
         rebuilt = true
+        TK.log("apply '%s': %d talents wouldn't change one by one; rebuilding", b.name, #left)
         local cur = C_Traits.GetTreeCurrencyInfo(cfg, treeID, false) or {}
         for i = 1, 2 do if cur[i] then C_Traits.ResetTreeByCurrency(cfg, treeID, cur[i].traitCurrencyID) end end
         left = settle()
@@ -613,8 +642,8 @@ end
 
 -- How long an apply took, click to talents committed (logged for comparing methods).
 TK.on("TRAIT_CONFIG_UPDATED", function(id)
-    if lastApply and lastApply.committed and not lastApply.timed and id == C_ClassTalents.GetActiveConfigID() then
-        lastApply.timed = true
+    if lastApply and lastApply.committed and not lastApply.logged and id == C_ClassTalents.GetActiveConfigID() then
+        lastApply.logged = true
         TK.log("apply '%s': talents in after %d ms", lastApply.b.name, debugprofilestop() - lastApply.t0)
     end
 end)
