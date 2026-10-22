@@ -825,18 +825,37 @@ local function adler32(str)
     return b * 65536 + a
 end
 
-function B.simcLines()
-    local lines = {}
-    for _, b in ipairs(B.list(B.specID())) do
+-- offspec: the other specs' builds too, the way SimulationCraft lists the game's offspec
+-- loadouts ("### Offspec Loadouts: <spec>", "# Offspec Loadout: <name>", "# offspec_talents=").
+-- It follows SimulationCraft's own Offspec Talent Loadouts checkbox (off unless ticked).
+function B.simcLines(offspec)
+    local lines, cur = {}, B.specID()
+    for _, b in ipairs(B.list(cur)) do
         lines[#lines + 1] = "# Saved Loadout: TalentKeeper: " .. b.name
         lines[#lines + 1] = "# talents=" .. strtrim(b.text)
+    end
+    if offspec then
+        for i = 1, GetNumSpecializations() or 0 do
+            local specID, specName = GetSpecializationInfo(i)
+            local list = specID and specID ~= cur and TK.db.builds[specID] or {}
+            if #list > 0 then
+                lines[#lines + 1] = ""
+                lines[#lines + 1] = "### Offspec Loadouts: " .. specName .. " (TalentKeeper)"
+                for _, b in ipairs(list) do
+                    lines[#lines + 1] = "# Offspec Loadout: TalentKeeper: " .. b.name
+                    lines[#lines + 1] = "# offspec_talents=" .. strtrim(b.text)
+                end
+            end
+        end
     end
     return lines
 end
 
+local simcAddon
 function B.addToSimc(profile)
     if type(profile) ~= "string" or TK.db.noSimc then return profile end
-    local lines = B.simcLines()
+    local db = simcAddon and simcAddon.db
+    local lines = B.simcLines(db and db.profile and db.profile.offspecLoadouts)
     if #lines == 0 then return profile end
     local body = profile:gsub("# Checksum: %x+%s*$", "")
     if body == profile then return profile end -- not the shape we know: leave it alone
@@ -858,7 +877,7 @@ local function hookSimc()
     local ace = LibStub and LibStub("AceAddon-3.0", true)
     local simc = _G.Simulationcraft or (ace and ace:GetAddon("Simulationcraft", true))
     if not simc or simc.TalentKeeperHooked or type(simc.GetSimcProfile) ~= "function" then return end
-    simc.TalentKeeperHooked = true
+    simc.TalentKeeperHooked, simcAddon = true, simc
     local original = simc.GetSimcProfile
     simc.GetSimcProfile = function(...)
         local profile, err = original(...)

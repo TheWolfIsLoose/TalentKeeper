@@ -481,6 +481,11 @@ local out = B.addToSimc(prof)
 ok(out:find("# talents=DEF\n# Saved Loadout: TalentKeeper: ", 1, true), "builds after the saved loadouts")
 local newBody = out:gsub("# Checksum: %x+$", "")
 ok(out:find(("# Checksum: %x"):format(adler(newBody)), 1, true), "checksum matches the new text")
+ok(not out:find("Offspec Loadout: TalentKeeper", 1, true), "other specs only when SimulationCraft's offspec box is ticked")
+local offspec = B.simcLines(true)
+local hasOff = false
+for _, l in ipairs(offspec) do if l:find("^# Offspec Loadout: TalentKeeper: ") then hasOff = true end end
+ok(hasOff, "ticked: other specs' builds listed as offspec loadouts")
 TK.db.noSimc = true
 ok(B.addToSimc(prof) == prof, "option off: untouched")
 TK.db.noSimc = nil
