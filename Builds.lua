@@ -774,9 +774,12 @@ end
 function B.sources()
     local out = {}
     for _, s in ipairs({
-        { key = "tle", name = "Talent Loadout Ex", tag = "TLE", get = fromTLE },
-        { key = "tlm", name = "Talent Loadout Manager", tag = "TLM", get = fromTLM },
-        { key = "game", name = "Your game loadouts (this character)", tag = "game", get = fromGame },
+        { key = "tle", name = "Talent Loadout Ex", tag = "TLE", get = fromTLE,
+          about = "Every build saved in Talent Loadout Ex, all classes. Its headings become groups." },
+        { key = "tlm", name = "Talent Loadout Manager", tag = "TLM", get = fromTLM,
+          about = "Every build saved in Talent Loadout Manager, all classes, in a From TLM group." },
+        { key = "game", name = "Game loadouts", tag = "game", get = fromGame,
+          about = "This character's saved loadouts in the game, every spec, copied into a Blizzard loadouts group. The loadouts stay as they are." },
     }) do
         local ok, builds = pcall(s.get)
         if ok and #builds > 0 then s.builds = builds out[#out + 1] = s

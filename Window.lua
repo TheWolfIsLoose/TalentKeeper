@@ -840,47 +840,145 @@ end
 -- Bring your builds in: the first time the pane opens (and from Options), the builds found in
 -- other talent addons and your game loadouts, ticked; one click copies them in.
 local bring
+local BW, BPAD, BHEAD, BFOOT = 300, 12, 26, 36
+
+-- Lay the view out top to bottom; on its own it's as tall as what it shows.
+local function layoutBring()
+    local y = bring.inPane and -8 or -(BHEAD + 10)
+    bring.title:ClearAllPoints(); bring.title:SetPoint("TOPLEFT", BPAD, y)
+    y = y - bring.title:GetStringHeight() - 6
+    bring.note:ClearAllPoints(); bring.note:SetPoint("TOPLEFT", BPAD, y); bring.note:SetPoint("RIGHT", -BPAD, 0)
+    y = y - bring.note:GetStringHeight() - 10
+    local n = 0
+    for _, cb in ipairs(bring.checks) do
+        if cb:IsShown() then
+            n = n + 1
+            cb.row:ClearAllPoints()
+            cb.row:SetPoint("TOPLEFT", 1, y); cb.row:SetPoint("TOPRIGHT", -1, y)
+            cb.row.stripe:SetShown(n % 2 == 0)
+            y = y - 24
+        end
+    end
+    if n > 0 then y = y - 8 end
+    if not bring.inPane then bring:SetHeight(-y + BFOOT) end
+end
+
 local function makeBring()
     bring = CreateFrame("Frame", "TalentKeeperBring", UIParent)
     bring:SetFrameStrata("DIALOG") -- above another talent addon's panel in the same spot (pickers stay above)
     bring:EnableMouse(true)
     bring:SetClampedToScreen(true)
-    UI.fill(bring, "BACKGROUND", 0.06, 0.06, 0.06, 1)
-    bring.ring = UI.ring(bring, 0)
-    bring.title = bring:CreateFontString(nil, "OVERLAY", "TalentKeeperFont")
-    bring.title:SetPoint("TOPLEFT", 8, -10)
+    bring:SetMovable(true)
+    bring.bg = UI.fill(bring, "BACKGROUND", 0.031, 0.031, 0.031, 0.97)
+    UI.ring(bring, 0)
+    tinsert(UISpecialFrames, "TalentKeeperBring") -- Escape closes it; it asks again next login
+    -- header: the suite's strip with the mark, the name and the version; drag it to move
+    local head = CreateFrame("Frame", nil, bring)
+    head:SetPoint("TOPLEFT"); head:SetPoint("TOPRIGHT")
+    head:SetHeight(BHEAD)
+    UI.fill(head, "BACKGROUND", 1, 1, 1, 0.035)
+    local rule = head:CreateTexture(nil, "OVERLAY")
+    rule:SetColorTexture(0, 0, 0, 1)
+    rule:SetHeight(1)
+    rule:SetPoint("BOTTOMLEFT"); rule:SetPoint("BOTTOMRIGHT")
+    local mark = head:CreateTexture(nil, "ARTWORK")
+    mark:SetSize(16, 16)
+    mark:SetPoint("LEFT", 8, 0)
+    mark:SetTexture("Interface\\AddOns\\TalentKeeper\\icon.png")
+    local name = head:CreateFontString(nil, "OVERLAY", "TalentKeeperFont")
+    name:SetPoint("LEFT", mark, "RIGHT", 6, 0)
+    name:SetText("|cff98ff98Talent|rKeeper")
+    local ver = head:CreateFontString(nil, "OVERLAY", "TalentKeeperFontSmall")
+    ver:SetPoint("BOTTOMLEFT", name, "BOTTOMRIGHT", 6, 1)
+    local v = TK.version or ""
+    ver:SetText(((v:find("^dev") or v:find("%-alpha") or v:find("%-beta")) and "|cffffb84d" or "|cff8c8c8c") .. v .. "|r")
+    head:EnableMouse(true)
+    head:RegisterForDrag("LeftButton")
+    head:SetScript("OnDragStart", function() bring:StartMoving() end)
+    head:SetScript("OnDragStop", function() bring:StopMovingOrSizing() end)
+    bring.head = head
+    bring.title = bring:CreateFontString(nil, "OVERLAY", "TalentKeeperFontLarge")
     bring.title:SetText("Bring your builds in")
     bring.note = bring:CreateFontString(nil, "OVERLAY", "TalentKeeperFontSmall")
-    bring.note:SetPoint("TOPLEFT", bring.title, "BOTTOMLEFT", 0, -6)
-    bring.note:SetPoint("RIGHT", -8, 0)
     bring.note:SetJustifyH("LEFT")
     bring.note:SetWordWrap(true)
     bring.note:SetTextColor(0.74, 0.74, 0.74)
     bring.checks = {}
-    bring.go = UI.button(bring, "Bring them in", 120, function()
+    -- footer: the band with the actions on the right, the main one first
+    local foot = CreateFrame("Frame", nil, bring)
+    foot:SetPoint("BOTTOMLEFT"); foot:SetPoint("BOTTOMRIGHT")
+    foot:SetHeight(BFOOT)
+    UI.fill(foot, "BACKGROUND", 1, 1, 1, 0.035)
+    local frule = foot:CreateTexture(nil, "OVERLAY")
+    frule:SetColorTexture(0, 0, 0, 1)
+    frule:SetHeight(1)
+    frule:SetPoint("TOPLEFT"); frule:SetPoint("TOPRIGHT")
+    bring.foot = foot
+    local function place(list)
+        local prev
+        for k = #list, 1, -1 do -- right to left
+            local bt = list[k]
+            bt:ClearAllPoints()
+            if prev then bt:SetPoint("RIGHT", prev, "LEFT", -8, 0) else bt:SetPoint("RIGHT", foot, "RIGHT", -8, 0) end
+            bt:Show()
+            prev = bt
+        end
+    end
+    bring.place = function(list)
+        for _, bt in ipairs({ bring.go, bring.later, bring.done, bring.off, bring.reload }) do bt:Hide() end
+        place(list)
+    end
+    bring.go = UI.button(foot, "Bring them in", 112, function()
         local chosen = {}
         for _, cb in ipairs(bring.checks) do if cb:IsShown() and cb.on then chosen[#chosen + 1] = cb.source end end
         local added, skipped = B.bringIn(chosen)
         W.showBringResult(added, skipped)
     end)
-    bring.later = UI.button(bring, "Not now", 76, function()
+    bring.later = UI.button(foot, "Not now", 76, function()
         TK.db.imported.offered = true
         TK.log("bring in: not now")
         bring:Hide()
     end)
-    bring.later:SetPoint("LEFT", bring.go, "RIGHT", 8, 0)
-    bring.done = UI.button(bring, "Done", 76, function() bring:Hide() end)
+    bring.done = UI.button(foot, "Done", 76, function() bring:Hide() end)
     -- after bringing builds in: the other talent addons can be turned off (their panels sit where
-    -- this one does); it takes effect on the next reload
-    bring.off = UI.button(bring, "Turn them off", 120, TK.safe(function()
+    -- TalentKeeper's does); it takes effect on the next reload
+    bring.off = UI.button(foot, "Turn them off", 112, TK.safe(function()
         for _, a in ipairs(W.otherAddons()) do C_AddOns.DisableAddOn(a.folder) TK.log("bring in: turned off %s", a.name) end
         bring.note:SetText(bring.note:GetText() .. "\n\nTurned off from your next reload.")
-        bring.off:Hide()
-        bring.reload:Show()
+        layoutBring()
+        bring.place({ bring.reload, bring.done })
     end))
-    bring.reload = UI.button(bring, "Reload now", 100, function() C_UI.Reload() end)
-    bring.reload:SetPoint("TOPLEFT", bring.off, "TOPLEFT")
+    bring.reload = UI.button(foot, "Reload now", 100, function() C_UI.Reload() end)
     bring:Hide()
+end
+
+-- A source row: checkbox, the source's name and its count; the tooltip says where it comes from.
+local function sourceRow(i)
+    local cb = bring.checks[i]
+    if cb then return cb end
+    local row = CreateFrame("Frame", nil, bring)
+    row:SetHeight(24)
+    row.stripe = UI.fill(row, "BACKGROUND", 1, 1, 1, 0.05)
+    cb = W.checkbox(row, "", nil, function() return cb and cb.on end, function(on) cb.on = on end)
+    cb:SetPoint("LEFT", BPAD - 1, 0)
+    cb:SetPoint("RIGHT", -BPAD, 0)
+    cb.count = cb:CreateFontString(nil, "OVERLAY", "TalentKeeperFontSmall")
+    cb.count:SetPoint("RIGHT")
+    cb.count:SetTextColor(0.55, 0.55, 0.55)
+    cb.text:SetPoint("RIGHT", cb.count, "LEFT", -6, 0)
+    cb:HookScript("OnEnter", function(self)
+        if not self.source then return end
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:SetText(self.source.name)
+        GameTooltip:AddLine(self.source.about, 0.74, 0.74, 0.74, true)
+        GameTooltip:Show()
+    end)
+    cb:HookScript("OnLeave", GameTooltip_Hide)
+    cb.row = row
+    hooksecurefunc(cb, "Show", function() row:Show() end)
+    hooksecurefunc(cb, "Hide", function() row:Hide() end)
+    bring.checks[i] = cb
+    return cb
 end
 
 -- where: "login" (on its own, mid-screen: the talent window isn't open), else in the pane
@@ -888,46 +986,29 @@ function W.showBring(fromOptions, where)
     if not bring then makeBring() end
     bring:ClearAllPoints()
     bring.inPane = not (where == "login" or not (pane and pane:IsShown()))
-    if not bring.inPane then
-        bring:SetSize(300, 230)
-        bring:SetPoint("CENTER", UIParent, "CENTER", 0, 120)
+    bring.head:SetShown(not bring.inPane)
+    bring.bg:SetColorTexture(bring.inPane and 0.06 or 0.031, bring.inPane and 0.06 or 0.031, bring.inPane and 0.06 or 0.031, bring.inPane and 1 or 0.97)
+    if bring.inPane then
+        bring:SetPoint("TOPLEFT", pane, "TOPLEFT", 0, -27); bring:SetPoint("BOTTOMRIGHT", pane, "BOTTOMRIGHT", 0, 0)
     else
-        bring:SetPoint("TOPLEFT", pane, "TOPLEFT", 1, -27); bring:SetPoint("BOTTOMRIGHT", pane, "BOTTOMRIGHT", -1, 1)
+        bring:SetWidth(BW)
+        bring:SetPoint("CENTER", UIParent, "CENTER", 0, 120)
     end
     local sources = B.sources()
     for _, cb in ipairs(bring.checks) do cb:Hide() end
-    local prev = bring.note
     for i, src in ipairs(sources) do
-        local cb = bring.checks[i]
-        if not cb then
-            cb = W.checkbox(bring, "", nil, function() return cb and cb.on end, function(on) cb.on = on end)
-            cb.count = cb:CreateFontString(nil, "OVERLAY", "TalentKeeperFontSmall")
-            cb.count:SetPoint("RIGHT")
-            cb.count:SetTextColor(0.55, 0.55, 0.55)
-            cb.text:SetPoint("RIGHT", cb.count, "LEFT", -6, 0)
-            bring.checks[i] = cb
-        end
+        local cb = sourceRow(i)
         cb.source, cb.on = src, true
-        cb.text:SetText(src.name)
+        cb.text:SetText(src.short or src.name)
         cb.count:SetText(("%d build%s"):format(#src.builds, #src.builds == 1 and "" or "s"))
-        cb:ClearAllPoints()
-        cb:SetPoint("TOPLEFT", prev, "BOTTOMLEFT", 0, i == 1 and -10 or -2)
         cb.sync()
         cb:Show()
-        prev = cb
     end
-    bring.note:SetText(#sources > 0
-        and "Copy the builds you already have elsewhere. Ones TalentKeeper already has are skipped; nothing is removed anywhere."
+    bring.title:SetText("Bring your builds in")
+    bring.note:SetText(#sources > 0 and "Copy your builds from elsewhere. Ones you already have are skipped, and nothing is removed."
         or "Nothing to bring in: no other talent addon's builds or game loadouts were found.")
-    bring.go:ClearAllPoints()
-    bring.go:SetPoint("TOPLEFT", prev, "BOTTOMLEFT", 0, -12)
-    bring.go:SetShown(#sources > 0)
-    bring.later:SetShown(#sources > 0)
-    bring.done:SetShown(#sources == 0)
-    bring.off:Hide()
-    bring.reload:Hide()
-    bring.done:ClearAllPoints()
-    bring.done:SetPoint("TOPLEFT", prev, "BOTTOMLEFT", 0, -12)
+    layoutBring()
+    bring.place(#sources > 0 and { bring.go, bring.later } or { bring.done })
     TK.log("bring in: offered (%d sources)%s", #sources, fromOptions and " from Options" or where == "login" and " at login" or "")
     bring:Show()
     return #sources
@@ -951,21 +1032,13 @@ function W.showBringResult(added, skipped)
     if #others > 0 then
         local names = {}
         for _, a in ipairs(others) do names[#names + 1] = a.name end
-        text = text .. ("\n\n%s %s on, and %s its own panel where this one sits. Turn %s off?"):format(
-            table.concat(names, " and "), #others == 1 and "is still" or "are still", #others == 1 and "has" or "have",
-            #others == 1 and "it" or "them")
+        text = text .. ("\n\n%s %s on, with its own panel where TalentKeeper's sits. Turn %s off?"):format(
+            table.concat(names, " and "), #others == 1 and "is still" or "are still", #others == 1 and "it" or "them")
     end
+    bring.title:SetText(added > 0 and "Your builds are in" or "All set")
     bring.note:SetText(text)
-    bring.go:Hide()
-    bring.later:Hide()
-    bring.reload:Hide()
-    bring.off:ClearAllPoints()
-    bring.off:SetPoint("TOPLEFT", bring.note, "BOTTOMLEFT", 0, -12)
-    bring.off:SetShown(#others > 0)
-    bring.done:ClearAllPoints()
-    if #others > 0 then bring.done:SetPoint("LEFT", bring.off, "RIGHT", 8, 0)
-    else bring.done:SetPoint("TOPLEFT", bring.note, "BOTTOMLEFT", 0, -12) end
-    bring.done:Show()
+    layoutBring()
+    bring.place(#others > 0 and { bring.off, bring.done } or { bring.done })
 end
 
 -- Options: a gear in the pane's header swaps the build list for this view ---------------------
