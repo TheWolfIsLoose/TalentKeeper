@@ -937,18 +937,13 @@ local function makeBring()
     bring.later = UI.button(foot, "Not now", 76, function()
         TK.db.imported.offered = true
         TK.log("bring in: not now")
-        bring:Hide()
+        W.showConflicts(nil)
     end)
     bring.done = UI.button(foot, "Done", 76, function() bring:Hide() end)
     -- after bringing builds in: the other talent addons can be turned off (their panels sit where
     -- TalentKeeper's does); it takes effect on the next reload
-    bring.off = UI.button(foot, "Turn them off", 112, TK.safe(function()
-        for _, a in ipairs(W.otherAddons()) do C_AddOns.DisableAddOn(a.folder) TK.log("bring in: turned off %s", a.name) end
-        bring.note:SetText(bring.note:GetText() .. "\n\nTurned off from your next reload.")
-        layoutBring()
-        bring.place({ bring.reload, bring.done })
-    end))
-    bring.reload = UI.button(foot, "Reload now", 100, function() C_UI.Reload() end)
+    bring.off = UI.button(foot, "Later", 76, function() TK.log("other addons: later") bring:Hide() end)
+    bring.reload = UI.button(foot, "Reload now", 100, function() TK.log("other addons: reload") C_UI.Reload() end)
     bring:Hide()
 end
 
@@ -959,7 +954,13 @@ local function sourceRow(i)
     local row = CreateFrame("Frame", nil, bring)
     row:SetHeight(24)
     row.stripe = UI.fill(row, "BACKGROUND", 1, 1, 1, 0.05)
-    cb = W.checkbox(row, "", nil, function() return cb and cb.on end, function(on) cb.on = on end)
+    cb = W.checkbox(row, "", nil, function() return cb and cb.on end, function(on)
+        cb.on = on
+        if cb.addon then -- an other-addon row: on / off from the next reload
+            if on then C_AddOns.EnableAddOn(cb.addon.folder) else C_AddOns.DisableAddOn(cb.addon.folder) end
+            TK.log("other addons: %s %s from next reload", cb.addon.name, on and "on" or "off")
+        end
+    end)
     cb:SetPoint("LEFT", BPAD - 1, 0)
     cb:SetPoint("RIGHT", -BPAD, 0)
     cb.count = cb:CreateFontString(nil, "OVERLAY", "TalentKeeperFontSmall")
@@ -998,7 +999,7 @@ function W.showBring(fromOptions, where)
     for _, cb in ipairs(bring.checks) do cb:Hide() end
     for i, src in ipairs(sources) do
         local cb = sourceRow(i)
-        cb.source, cb.on = src, true
+        cb.source, cb.on, cb.addon = src, true, nil
         cb.text:SetText(src.short or src.name)
         cb.count:SetText(("%d build%s"):format(#src.builds, #src.builds == 1 and "" or "s"))
         cb.sync()
@@ -1024,21 +1025,42 @@ function W.otherAddons()
     return out
 end
 
-function W.showBringResult(added, skipped)
-    for _, cb in ipairs(bring.checks) do cb:Hide() end
-    local text = ("Brought in %d build%s. %d %s already here."):format(added, added == 1 and "" or "s",
-        skipped, skipped == 1 and "was" or "were")
+-- After bringing builds in (or skipping it): the other talent addons, ticked while they're on.
+-- Untick one to turn it off from the next reload (their panels sit where TalentKeeper's does).
+function W.showConflicts(result)
     local others = W.otherAddons()
-    if #others > 0 then
-        local names = {}
-        for _, a in ipairs(others) do names[#names + 1] = a.name end
-        text = text .. ("\n\n%s %s on, with its own panel where TalentKeeper's sits. Turn %s off?"):format(
-            table.concat(names, " and "), #others == 1 and "is still" or "are still", #others == 1 and "it" or "them")
+    if #others == 0 then
+        if not result then return bring:Hide() end
+        bring.title:SetText("Your builds are in")
+        bring.note:SetText(result)
+        for _, cb in ipairs(bring.checks) do cb:Hide() end
+        layoutBring()
+        return bring.place({ bring.done })
     end
-    bring.title:SetText(added > 0 and "Your builds are in" or "All set")
-    bring.note:SetText(text)
+    local names = {}
+    for _, a in ipairs(others) do names[#names + 1] = a.name end
+    bring.title:SetText(("Turn off %s?"):format(#others == 1 and others[1].name or "the other talent addons"))
+    bring.note:SetText((result and (result .. "\n\n") or "") .. ("%s %s its own panel where TalentKeeper's sits. Untick to turn %s off from your next reload."):format(
+        table.concat(names, " and "), #others == 1 and "has" or "have", #others == 1 and "it" or "them"))
+    for _, cb in ipairs(bring.checks) do cb:Hide() end
+    for i, a in ipairs(others) do
+        local cb = sourceRow(i)
+        cb.source = { name = a.name, about = "Ticked: on. Untick to turn it off from your next reload; its saved builds stay where they are." }
+        cb.on = true
+        cb.text:SetText(a.name)
+        cb.count:SetText("")
+        cb.addon = a
+        cb.sync()
+        cb:Show()
+    end
     layoutBring()
-    bring.place(#others > 0 and { bring.off, bring.done } or { bring.done })
+    bring.place({ bring.reload, bring.off })
+    TK.log("other addons: asked (%s)", table.concat(names, ", "))
+end
+
+function W.showBringResult(added, skipped)
+    W.showConflicts(("Brought in %d build%s. %d %s already here."):format(added, added == 1 and "" or "s",
+        skipped, skipped == 1 and "was" or "were"))
 end
 
 -- Options: a gear in the pane's header swaps the build list for this view ---------------------
