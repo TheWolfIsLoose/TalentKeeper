@@ -46,15 +46,14 @@ Done on `dev` (2026-10-21):
 - Spec buttons fill the pane's width, sized so four fit (the most any class
   has).
 - In a delve, no prompt when the build you last applied is your Delves build.
+- Options view in the pane (gear): talent window size slider; the window
+  shrinks toward its middle and stays centered (a mover addon handles
+  moving it).
+- Import previews the pasted string on the tree before saving.
+- A cancelled talent change is reported (no false "applied"), with what
+  cancelled it and how long swaps take in the log.
 
 To do:
-- **Remember where the talent window was moved.** Possible: the game places it
-  as a managed panel on every open (left / center, with other panels pushing
-  it), so TalentKeeper would let you drag it by its title bar, save the spot,
-  and put it back each time it opens (out of combat only; the game
-  rearranges it when another panel opens beside it, so re-place after that).
-  Changing the game's own default spot would mean editing its panel table,
-  which risks taint: re-placing on open is the safer route.
 - **Delves: opt in or out of the delve prompt** (option, later).
 - **Recommendations across specs.** End state: about one tagged build per
   spec per place. The strip and prompt say which spec a build is for (names
@@ -71,9 +70,6 @@ To do:
   it. Only the log stays a separate window.
 - **GUI pass:** the hero tree name under the emblem (on a hero tree swap
   preview) runs into the game's eye button below it; find it a clear spot.
-- **Try a build before saving it.** Import a string into a preview: the tree
-  shows what it takes and drops, then Save names, groups and tags it (or
-  discard it).
 
 ## Next session: start here
 
