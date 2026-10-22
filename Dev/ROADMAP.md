@@ -106,6 +106,16 @@ Done on `dev` (2026-10-21, later):
 - ~~**GUI pass:** the hero tree name under the emblem (on a hero tree swap
   preview) runs into the game's eye button below it; find it a clear spot.~~
 
+## Parked 2026-10-22 13:30 ET (v0.4.0 released, installed locally)
+
+v0.4.0 shipped (GitHub release + CurseForge). The player's game runs the
+release build. `dev` = v0.4.0 plus doc fixes (update.bat removed, Build.lua
+note). Untested in the wild: bringing builds in for real, Talent Loadout
+Manager conversion. Next effort is suite-level (style guide reconcile, then
+the palette; see the project's style guide review doc), in another
+conversation. After that: TalentKeeper's own follow-ups (the More... menu
+for friction, the Tag Config name, any v0.4.0 reports).
+
 ## Parked 2026-10-22 ~01:20 ET (build 52a5cfe installed, not released)
 
 v0.4.0 is written up on `dev` (CHANGELOG, HISTORY, README, CurseForge text).
