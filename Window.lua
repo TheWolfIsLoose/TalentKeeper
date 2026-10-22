@@ -869,6 +869,16 @@ local function makeBring()
     end)
     bring.later:SetPoint("LEFT", bring.go, "RIGHT", 8, 0)
     bring.done = UI.button(bring, "Done", 76, function() bring:Hide() end)
+    -- after bringing builds in: the other talent addons can be turned off (their panels sit where
+    -- this one does); it takes effect on the next reload
+    bring.off = UI.button(bring, "Turn them off", 120, TK.safe(function()
+        for _, a in ipairs(W.otherAddons()) do C_AddOns.DisableAddOn(a.folder) TK.log("bring in: turned off %s", a.name) end
+        bring.note:SetText(bring.note:GetText() .. "\n\nTurned off from your next reload.")
+        bring.off:Hide()
+        bring.reload:Show()
+    end))
+    bring.reload = UI.button(bring, "Reload now", 100, function() C_UI.Reload() end)
+    bring.reload:SetPoint("TOPLEFT", bring.off, "TOPLEFT")
     bring:Hide()
 end
 
@@ -905,21 +915,48 @@ function W.showBring(fromOptions)
     bring.go:SetShown(#sources > 0)
     bring.later:SetShown(#sources > 0)
     bring.done:SetShown(#sources == 0)
+    bring.off:Hide()
+    bring.reload:Hide()
     bring.done:ClearAllPoints()
     bring.done:SetPoint("TOPLEFT", prev, "BOTTOMLEFT", 0, -12)
     TK.log("bring in: offered (%d sources)%s", #sources, fromOptions and " from Options" or "")
+    pane:Raise() -- another talent addon's panel may sit in the same spot: this one on top while it asks
     bring:Show()
     return #sources
 end
 
+-- Other talent addons that are on right now: { name, folder }.
+function W.otherAddons()
+    local out = {}
+    for _, a in ipairs({ { name = "Talent Loadout Ex", folder = "TalentLoadoutsEx" },
+        { name = "Talent Loadout Manager", folder = "TalentLoadoutManager" } }) do
+        if C_AddOns.IsAddOnLoaded(a.folder) then out[#out + 1] = a end
+    end
+    return out
+end
+
 function W.showBringResult(added, skipped)
     for _, cb in ipairs(bring.checks) do cb:Hide() end
-    bring.note:SetText(("Brought in %d build%s. %d %s already here."):format(added, added == 1 and "" or "s",
-        skipped, skipped == 1 and "was" or "were"))
+    local text = ("Brought in %d build%s. %d %s already here."):format(added, added == 1 and "" or "s",
+        skipped, skipped == 1 and "was" or "were")
+    local others = W.otherAddons()
+    if #others > 0 then
+        local names = {}
+        for _, a in ipairs(others) do names[#names + 1] = a.name end
+        text = text .. ("\n\n%s %s on, and %s its own panel where this one sits. Turn %s off?"):format(
+            table.concat(names, " and "), #others == 1 and "is still" or "are still", #others == 1 and "has" or "have",
+            #others == 1 and "it" or "them")
+    end
+    bring.note:SetText(text)
     bring.go:Hide()
     bring.later:Hide()
+    bring.reload:Hide()
+    bring.off:ClearAllPoints()
+    bring.off:SetPoint("TOPLEFT", bring.note, "BOTTOMLEFT", 0, -12)
+    bring.off:SetShown(#others > 0)
     bring.done:ClearAllPoints()
-    bring.done:SetPoint("TOPLEFT", bring.note, "BOTTOMLEFT", 0, -12)
+    if #others > 0 then bring.done:SetPoint("LEFT", bring.off, "RIGHT", 8, 0)
+    else bring.done:SetPoint("TOPLEFT", bring.note, "BOTTOMLEFT", 0, -12) end
     bring.done:Show()
 end
 
