@@ -136,12 +136,14 @@ end
 
 -- The side pane of builds -----------------------------------------------------------------
 -- Docked to the window's right edge, at our own scale (parented to UIParent, shown with the
--- talent window). Groups as headings; the list scrolls; the selected build's panel sits below.
+-- talent window). Every control sits at the top: the spec deck (your spec big, the others small,
+-- Save current and Import), the selected build and its Apply / Tags... / More...; then the tabs and
+-- the list, which scrolls.
 local pane, rows, heads = nil, {}, {}
--- The spec icons fill a fixed strip under the header: as big as fits the class's count (four for
--- Druids), up to the strip's height, spread across its width.
-local PANE_W, SPEC_GAP, SPEC_H = 220, 4, 52
-local TABS = -(32 + SPEC_H + 8) -- the Builds / Places tabs, under the spec icons
+local PANE_W = 220
+local DECK_Y, BIG, SMALL, SPEC_GAP = -34, 56, 24, 4 -- the spec deck; four specs fit (Druids)
+local DETAIL_Y = DECK_Y - BIG - 8                   -- the selected build and its buttons
+local TABS = DETAIL_Y - 82                           -- the Builds / Places tabs
 local ROW, HEAD, TOP = 24, 22, TABS - 24
 local SHIMMER_W = 90
 local offset = 0
@@ -324,8 +326,8 @@ function W.drop()
     if target ~= nil and (target or nil) ~= b.group then B.setGroup(b, target or nil) end
 end
 
--- The selected build's panel: its name and what it is, over the footer band with every control
--- (Apply, Tags..., More...; Save current, Import), always there; the build's grayed until one is picked.
+-- The selected build's panel under the spec deck: its name and what it is, and Apply / Tags... /
+-- More..., always there; grayed until a build is picked.
 local armedBuild
 local function refreshDetail(specID)
     local b = TK.selected
@@ -386,58 +388,41 @@ end
 
 local function makeDetail()
     detail = CreateFrame("Frame", nil, pane)
-    detail:SetPoint("BOTTOMLEFT"); detail:SetPoint("BOTTOMRIGHT")
-    detail:SetHeight(60 + 50)
+    detail:SetPoint("TOPLEFT", 0, DETAIL_Y); detail:SetPoint("TOPRIGHT", 0, DETAIL_Y)
+    detail:SetHeight(78)
     local rule = detail:CreateTexture(nil, "OVERLAY")
     rule:SetColorTexture(0, 0, 0, 1)
     rule:SetHeight(1)
-    rule:SetPoint("TOPLEFT"); rule:SetPoint("TOPRIGHT")
+    rule:SetPoint("BOTTOMLEFT"); rule:SetPoint("BOTTOMRIGHT")
     detail.name = detail:CreateFontString(nil, "OVERLAY", "TalentKeeperFont")
-    detail.name:SetPoint("TOPLEFT", 8, -8); detail.name:SetPoint("TOPRIGHT", -8, -8)
+    detail.name:SetPoint("TOPLEFT", 8, 0); detail.name:SetPoint("TOPRIGHT", -8, 0)
     detail.name:SetJustifyH("LEFT")
     detail.name:SetWordWrap(false)
     detail.info = detail:CreateFontString(nil, "OVERLAY", "TalentKeeperFontSmall")
-    detail.info:SetPoint("TOPLEFT", 8, -24); detail.info:SetPoint("TOPRIGHT", -8, -24)
+    detail.info:SetPoint("TOPLEFT", 8, -16); detail.info:SetPoint("TOPRIGHT", -8, -16)
     detail.info:SetJustifyH("LEFT")
     detail.info:SetTextColor(0.74, 0.74, 0.74)
     detail.info:SetSpacing(2)
-    -- every control in one footer: the selected build's (Apply, Tags..., More...) over the list's
-    -- (Save current, Import)
-    local foot = UI.footBand(detail, 60)
     local function on(fn) return function(self) local b = TK.selected if b then fn(b, self) end end end
-    local more = UI.button(foot, "More...", 52, on(function(b, self)
+    local more = UI.button(detail, "More...", 52, on(function(b, self)
         UI.picker(self, b.name, function() return moreItems(b, self) end)
     end))
-    more:SetPoint("TOPRIGHT", -8, -8)
+    more:SetPoint("TOPRIGHT", -8, -48)
     tip(more, "More", "Group, rename, copy the talent string, update to your talents, delete.")
-    local tagsBtn = UI.button(foot, "Tags...", 52, on(function(b, self) UI.tagMenu(self, b) end))
+    local tagsBtn = UI.button(detail, "Tags...", 52, on(function(b, self) UI.tagMenu(self, b) end))
     tagsBtn:SetPoint("RIGHT", more, "LEFT", -4, 0)
     tip(tagsBtn, "Tags", "The dungeons, delves and bosses this build is for.")
     -- Apply: the same as double-clicking the build, every time.
-    detail.apply = UI.button(foot, "Apply", 10, on(function(b) B.apply(b) end))
-    detail.apply:SetPoint("TOPLEFT", 8, -8)
+    detail.apply = UI.button(detail, "Apply", 10, on(function(b) B.apply(b) end))
+    detail.apply:SetPoint("TOPLEFT", 8, -48)
     detail.apply:SetPoint("RIGHT", tagsBtn, "LEFT", -4, 0)
     tip(detail.apply, "Apply", "Changes your talents to this build (same as double-clicking it). Grayed when it's already your talents.")
-    local save = UI.button(foot, "Save current", 10, function() UI.buildDialog(false) end)
-    save:SetPoint("BOTTOMLEFT", 8, 8)
-    save:SetPoint("RIGHT", foot, "CENTER", -2, 0)
-    local import = UI.button(foot, "Import", 10, function() UI.buildDialog(true) end)
-    import:SetPoint("BOTTOMRIGHT", -8, 8)
-    import:SetPoint("LEFT", foot, "CENTER", 2, 0)
-    for bt, t in pairs({ [save] = { "Save current", "Save your talents now as a new build." }, [import] = { "Import", "Paste a talent string; it shows on the tree before you save it." } }) do
-        bt:HookScript("OnEnter", function(self)
-            GameTooltip:SetOwner(self, "ANCHOR_TOP")
-            GameTooltip:SetText(t[1])
-            GameTooltip:AddLine(t[2], 0.74, 0.74, 0.74, true)
-            GameTooltip:Show()
-        end)
-        bt:HookScript("OnLeave", GameTooltip_Hide)
-    end
     detail.buttons = { detail.apply, tagsBtn, more }
 end
 
 function W.refresh()
     if not pane or not pane:IsShown() then return end
+    W.refreshSpecs()
     if W.inSeason and W.inSeason() then W.hide() return W.refreshSeason() end -- no tree marks there
     for _, r in ipairs(rows) do r:Hide() end
     for _, h in ipairs(heads) do h:Hide() end
@@ -445,7 +430,6 @@ function W.refresh()
     local active = specID and TK.db.active[specID]
     local v = TK.version or ""
     pane.version:SetText(((v:find("^dev") or v:find("%-alpha") or v:find("%-beta")) and "|cffffb84d" or "|cff8c8c8c") .. v .. "|r")
-    W.refreshSpecs()
     -- lay out every line, then show the ones inside the list's window
     local lines, y = {}, 0
     for _, line in ipairs(B.ordered(specID)) do
@@ -531,39 +515,110 @@ TK.on("ACTIVE_PLAYER_SPECIALIZATION_CHANGED", function() TK.selected = nil offse
 -- your talents changed (an apply landed, a click in the tree): redraw the preview
 TK.on("TRAIT_CONFIG_UPDATED", function() TK.safe(W.refresh)() end)
 
--- Spec buttons under the header: click one to change spec without leaving the talents.
-local specs = {}
+-- The spec deck: your spec big on the left with its name, the others small at the right; click
+-- a small one to change spec without leaving the talents. It fills like a cast bar while the
+-- change casts; when it lands the two trade places (a quarter second, eased) and the name fades over.
+local specs, deck, lastCur = {}, nil, nil
+local SWAP = 0.25
+
+local function slots(cur)
+    local out, others = {}, {}
+    for i in ipairs(specs) do if i ~= cur then others[#others + 1] = i end end
+    out[cur or 1] = { 8, DECK_Y, BIG }
+    local m = #others
+    for k, i in ipairs(others) do
+        out[i] = { PANE_W - 8 - (m - k + 1) * SMALL - (m - k) * SPEC_GAP, DECK_Y, SMALL }
+    end
+    return out
+end
+
+local function placeSpec(b, x, y, size)
+    b.x, b.y, b.size = x, y, size
+    b:ClearAllPoints()
+    b:SetPoint("TOPLEFT", pane, "TOPLEFT", math.floor(x + 0.5), math.floor(y + 0.5))
+    b:SetSize(size, size)
+end
+
+local function stopCast(b)
+    b.casting = nil
+    b.fill:Hide()
+    b:SetScript("OnUpdate", nil)
+end
+
 function W.refreshSpecs()
+    if not deck then return end
     local cur = GetSpecialization and GetSpecialization()
+    local target = slots(cur)
+    local animate = lastCur and cur ~= lastCur and pane:IsVisible()
     for i, b in ipairs(specs) do
         local on = i == cur
         b.icon:SetDesaturated(not on)
         b.icon:SetAlpha(on and 1 or 0.7)
-        b.ring(on and 0.596 or 0)
+        b.ring(on and 0.596 or 0.4)
+        stopCast(b)
+        local t = target[i]
+        if animate then b.from, b.to = { b.x, b.y, b.size }, t else placeSpec(b, t[1], t[2], t[3]) end
     end
+    local _, name = GetSpecializationInfo(cur or 1)
+    deck.name:SetText(name or "")
+    if animate then
+        local t0 = GetTime()
+        deck.name:SetAlpha(0)
+        deck:SetScript("OnUpdate", function(self)
+            local t = math.min(1, (GetTime() - t0) / SWAP)
+            local e = t * t * (3 - 2 * t)
+            for _, b in ipairs(specs) do
+                local f, to = b.from, b.to
+                placeSpec(b, f[1] + (to[1] - f[1]) * e, f[2] + (to[2] - f[2]) * e, f[3] + (to[3] - f[3]) * e)
+            end
+            self.name:SetAlpha(e)
+            if t >= 1 then self:SetScript("OnUpdate", nil) end
+        end)
+    end
+    lastCur = cur
 end
 
 local function specButtons()
+    deck = CreateFrame("Frame", nil, pane)
+    deck:SetAllPoints()
+    deck.name = deck:CreateFontString(nil, "OVERLAY", "TalentKeeperFont")
+    deck.name:SetPoint("TOPLEFT", pane, "TOPLEFT", 8 + BIG + 8, DECK_Y - 4)
+    deck.name:SetJustifyH("LEFT")
+    deck.name:SetWordWrap(false)
     local n = GetNumSpecializations() or 0
-    local width = PANE_W - 16
-    local SPEC = math.min(SPEC_H, math.floor((width - SPEC_GAP * (n - 1)) / math.max(n, 1)))
-    local step = n > 1 and (width - SPEC) / (n - 1) or 0
+    deck.name:SetWidth(PANE_W - 8 - (BIG + 16) - (n - 1) * (SMALL + SPEC_GAP) - 4)
     for i = 1, n do
         local specID, name, _, icon = GetSpecializationInfo(i)
         local b = CreateFrame("Button", nil, pane)
-        b:SetSize(SPEC, SPEC)
-        b:SetPoint("TOPLEFT", math.floor(8 + (i - 1) * step), -32)
         b.icon = b:CreateTexture(nil, "ARTWORK")
         b.icon:SetPoint("TOPLEFT", 1, -1); b.icon:SetPoint("BOTTOMRIGHT", -1, 1)
         b.icon:SetTexture(icon)
         b.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
-        b.ring = UI.ring(b, 0)
+        b.fill = b:CreateTexture(nil, "OVERLAY")
+        b.fill:SetColorTexture(0.596, 1, 0.596, 0.35)
+        b.fill:SetPoint("BOTTOMLEFT", 1, 1); b.fill:SetPoint("BOTTOMRIGHT", -1, 1)
+        b.fill:Hide()
+        b.ring = UI.ring(b, 0.4)
         UI.fill(b, "HIGHLIGHT", 1, 1, 1, 0.15)
-        b:SetScript("OnClick", TK.safe(function()
+        b:SetScript("OnClick", TK.safe(function(self)
             if i == GetSpecialization() then return end
             if InCombatLockdown() then return TK.chat("|cffff8888Can't change spec in combat.|r") end
             TK.log("spec change to %s", name)
             C_SpecializationInfo.SetSpecialization(i)
+            -- fill like a cast bar while the change casts; stop when it ends or never starts
+            local t0, seen = GetTime(), false
+            self.casting = true
+            self:SetScript("OnUpdate", function(me)
+                local _, _, _, startMs, endMs = UnitCastingInfo("player")
+                if startMs and endMs and endMs > startMs then
+                    seen = true
+                    local p = math.min(1, (GetTime() * 1000 - startMs) / (endMs - startMs))
+                    me.fill:SetHeight(math.max(1, (me.size - 2) * p))
+                    me.fill:Show()
+                elseif seen or GetTime() - t0 > 1.5 then
+                    stopCast(me)
+                end
+            end)
         end))
         b:SetScript("OnEnter", function(self)
             GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
@@ -574,6 +629,22 @@ local function specButtons()
         end)
         b:SetScript("OnLeave", GameTooltip_Hide)
         specs[i] = b
+    end
+    -- Save current and Import under the spec's name, level with the big icon's bottom
+    local colX, colW = 8 + BIG + 8, PANE_W - 8 - (8 + BIG + 8)
+    local half = math.floor((colW - 4) / 2)
+    local save = UI.button(pane, "Save current", half, function() UI.buildDialog(false) end)
+    save:SetPoint("TOPLEFT", colX, DECK_Y - BIG + 20)
+    local import = UI.button(pane, "Import", colW - half - 4, function() UI.buildDialog(true) end)
+    import:SetPoint("LEFT", save, "RIGHT", 4, 0)
+    for bt, t in pairs({ [save] = { "Save current", "Save your talents now as a new build." }, [import] = { "Import", "Paste a talent string; it shows on the tree before you save it." } }) do
+        bt:HookScript("OnEnter", function(self)
+            GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+            GameTooltip:SetText(t[1])
+            GameTooltip:AddLine(t[2], 0.74, 0.74, 0.74, true)
+            GameTooltip:Show()
+        end)
+        bt:HookScript("OnLeave", GameTooltip_Hide)
     end
     W.refreshSpecs()
 end
@@ -1252,7 +1323,7 @@ EventUtil.ContinueOnAddOnLoaded("Blizzard_PlayerSpells", TK.safe(function()
     -- the scrolling list between the spec buttons and the selected build's panel
     pane.list = CreateFrame("Frame", nil, pane)
     pane.list:SetPoint("TOPLEFT", 0, TOP); pane.list:SetPoint("TOPRIGHT", 0, TOP)
-    pane.list:SetPoint("BOTTOM", detail, "TOP", 0, 2)
+    pane.list:SetPoint("BOTTOM", pane, "BOTTOM", 0, 1)
     pane.list:SetClipsChildren(true)
     pane.list:EnableMouseWheel(true)
     pane.list:SetScript("OnMouseWheel", function(_, delta) offset = offset - delta * ROW * 3 TK.safe(W.refresh)() end)
