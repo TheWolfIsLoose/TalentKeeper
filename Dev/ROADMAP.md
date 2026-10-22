@@ -334,8 +334,9 @@ CurseForge: project 1746823 (`talentkeeper`), GitHub webhook on this repo.
 
 Dev loop: GitHub is the record, not the install path. Commit and push to
 `dev`, then write the changed files straight into the installed addon
-folder (stamp `Build.lua` with the commit). `Dev/update.bat` is only a
-fallback full resync.
+folder (stamp `Build.lua` with the commit). No update script (removed
+2026-10-22): the player develops and tests first-hand; testers get alpha /
+beta builds pushed to Git when the player is comfortable.
 
 ---
 
@@ -660,8 +661,7 @@ time, then the retry worked).
 v0.2.0-alpha1 released 2026-10-16 (part 1).
 
 **Part 2a, in testing:** LibTalentTree-1.0 (unmodified) + LibStub committed
-under `libs/` (no `.pkgmeta` externals, so `update.bat` checkouts work
-too). Used for: another class's tree and names, nodes free for a spec,
+under `libs/` (no `.pkgmeta` externals, so plain Git checkouts work too). Used for: another class's tree and names, nodes free for a spec,
 diffs ordered spec / hero / class with "(hero)" / "(class)" tags, and the
 build's hero tree named at the top of its submenu.
 
