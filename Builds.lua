@@ -390,6 +390,9 @@ end
 TK.on("CONFIG_COMMIT_FAILED", function(configID)
     local a = lastApply
     if not a or a.failed or not B.muteUntil or GetTime() > B.muteUntil then return end
+    if not a.committed then -- a load that errored and is about to be retried
+        return TK.log("apply '%s': the game cancelled a load (config %s); retrying", a.b.name, tostring(configID))
+    end
     a.failed = true
     TK.log("apply '%s': the game cancelled the change (config %s)%s after %d ms", a.b.name, tostring(configID),
         a.why and (", " .. a.why) or "", debugprofilestop() - a.t0)
@@ -450,10 +453,11 @@ local function load(id, p)
     local r, changeError = C_ClassTalents.LoadConfig(id, true)
     TK.log("apply '%s': LoadConfig %s %s%s", p.b.name, resultName[r] or tostring(r), changeError or "", p.retried and " (retry)" or "")
     if r == Enum.LoadConfigResult.Error then
-        if not p.retried then
+        p.tries = (p.tries or 0) + 1
+        if p.tries < 2 then
             -- the game often loads it anyway; only load again if the talents didn't land
             p.retried = true
-            return C_Timer.After(1.5, TK.safe(function()
+            return C_Timer.After(1.5, TK.safe(function() -- sooner can cut off a load the game did start
                 local d = TK.compare.diff(p.b.text, currentString())
                 if d and #d == 0 then
                     TK.log("apply '%s': landed despite the error", p.b.name)
@@ -516,11 +520,30 @@ function B.apply(b, staged)
     end
 end
 
+-- Is b waiting as pending changes in the talent window? Only while its loadout menu is still on
+-- TalentKeeper's loadout and changes are pending: picking another loadout (Default Loadout,
+-- say) stages that one instead, and Apply changes must never commit it as ours.
+function B.isStaged(b)
+    local st, tf = B.staged, PlayerSpellsFrame and PlayerSpellsFrame.TalentsFrame
+    if not st or (b and st.b ~= b) then return false end
+    local sel = tf and tf.LoadSystem and tf.LoadSystem.GetSelectionID and tf.LoadSystem:GetSelectionID()
+    if sel ~= st.id then return false end
+    return B.unsaved()
+end
+
 -- A staged build: applied once the talent window's changes are committed and match it; forgotten
 -- when the pending changes go away otherwise (undone, or another loadout picked).
 TK.on("TRAIT_CONFIG_UPDATED", function(id)
     local st = B.staged
-    if not st or id ~= C_ClassTalents.GetActiveConfigID() or B.unsaved() then return end
+    if not st or id ~= C_ClassTalents.GetActiveConfigID() then return end
+    if B.unsaved() then
+        if not B.isStaged() then -- another loadout's changes now
+            B.staged = nil
+            TK.log("apply '%s': pending changes replaced (another loadout picked)", st.b.name)
+            TK.changed()
+        end
+        return
+    end
     B.staged = nil
     local d = TK.compare.diff(currentString(), st.b.text)
     if d and #d == 0 then
