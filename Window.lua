@@ -501,7 +501,7 @@ local function specButtons()
     W.refreshSpecs()
 end
 
--- Window size: drag the corner grip to scale the talent window (kept between sessions).
+-- Window size: the Options slider scales the talent window (kept between sessions).
 -- A new scale also scales the window's anchor offsets, which threw it across the screen: keep it
 -- where it is on screen (wherever the game or a mover put it). Centered by the game: keep its top
 -- center, so it stays centered; otherwise its top-left corner.
@@ -520,36 +520,96 @@ local function applyScale()
     end
 end
 
-local function grip()
-    local g = CreateFrame("Button", nil, PlayerSpellsFrame)
-    g:SetSize(16, 16)
-    g:SetPoint("BOTTOMRIGHT", -2, 2)
-    g:SetFrameLevel(PlayerSpellsFrame:GetFrameLevel() + 50)
-    g:SetNormalTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Up")
-    g:SetHighlightTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Highlight")
-    g:SetPushedTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Down")
-    g:RegisterForClicks("RightButtonUp")
-    g:SetScript("OnClick", function() if InCombatLockdown() then return end TK.db.windowScale = nil applyScale() end)
-    g:SetScript("OnMouseDown", function(self, button)
-        if button ~= "LeftButton" or InCombatLockdown() then return end
-        self:SetScript("OnUpdate", function()
-            local f = PlayerSpellsFrame
-            local x = GetCursorPosition()
-            local px = UIParent:GetEffectiveScale()
-            local width = x - f:GetLeft() * f:GetEffectiveScale()
-            local s = math.max(0.5, math.min(1.2, width / (f:GetWidth() * px)))
-            TK.db.windowScale = math.floor(s * 100 + 0.5) / 100
-            applyScale()
-        end)
-    end)
-    g:SetScript("OnMouseUp", function(self) self:SetScript("OnUpdate", nil) end)
-    g:SetScript("OnEnter", function(self)
-        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+-- Options: a gear in the pane's header swaps the build list for this view ---------------------
+local opt
+local function scaleLabel(v) return ("%d%%"):format(math.floor(v * 100 + 0.5)) end
+
+local function makeOptions()
+    opt = CreateFrame("Frame", nil, pane)
+    opt:SetPoint("TOPLEFT", 1, -27); opt:SetPoint("BOTTOMRIGHT", -1, 1)
+    opt:SetFrameLevel(pane:GetFrameLevel() + 20)
+    opt:EnableMouse(true)
+    UI.fill(opt, "BACKGROUND", 0.06, 0.06, 0.06, 1)
+    local head = opt:CreateFontString(nil, "OVERLAY", "TalentKeeperFontSmall")
+    head:SetPoint("TOPLEFT", 8, -10)
+    head:SetTextColor(0.55, 0.55, 0.55)
+    head:SetText("Talent window")
+    local label = opt:CreateFontString(nil, "OVERLAY", "TalentKeeperFont")
+    label:SetPoint("TOPLEFT", head, "BOTTOMLEFT", 0, -8)
+    label:SetText("Size")
+    -- the slider: a well-filled track with the gray ring, a light thumb (mint while dragging)
+    local s = CreateFrame("Slider", nil, opt)
+    s:SetOrientation("HORIZONTAL")
+    s:SetPoint("TOPLEFT", label, "BOTTOMLEFT", 0, -8)
+    s:SetPoint("RIGHT", -8, 0)
+    s:SetHeight(16)
+    local value = opt:CreateFontString(nil, "OVERLAY", "TalentKeeperFont")
+    value:SetPoint("BOTTOMRIGHT", s, "TOPRIGHT", 0, 8)
+    s:SetMinMaxValues(0.5, 1.2)
+    s:SetValueStep(0.05)
+    s:SetObeyStepOnDrag(true)
+    s:SetHitRectInsets(0, 0, -4, -4)
+    UI.fill(s, "BACKGROUND", 1, 1, 1, 0.08)
+    local setRing = UI.ring(s, 0.4)
+    local thumb = s:CreateTexture(nil, "OVERLAY")
+    thumb:SetSize(10, 16)
+    thumb:SetColorTexture(0.851, 0.851, 0.851, 1)
+    s:SetThumbTexture(thumb)
+    s:SetScript("OnEnter", function(self)
+        setRing(0.7)
+        GameTooltip:SetOwner(self, "ANCHOR_TOP")
         GameTooltip:SetText("Talent window size")
-        GameTooltip:AddLine("Drag to make the window smaller or bigger. Right-click for the normal size.", 0.74, 0.74, 0.74, true)
+        GameTooltip:AddLine("Drag to make the talent window smaller or bigger. It stays where it is on screen.", 0.74, 0.74, 0.74, true)
         GameTooltip:Show()
     end)
-    g:SetScript("OnLeave", GameTooltip_Hide)
+    s:SetScript("OnLeave", function() setRing(0.4) GameTooltip_Hide() end)
+    s:SetScript("OnMouseDown", function() thumb:SetColorTexture(0.596, 1, 0.596, 1) end)
+    s:SetScript("OnMouseUp", function() thumb:SetColorTexture(0.851, 0.851, 0.851, 1) end)
+    s:SetScript("OnValueChanged", TK.safe(function(_, v, user)
+        v = math.floor(v * 20 + 0.5) / 20
+        value:SetText(scaleLabel(v))
+        if not user then return end
+        if InCombatLockdown() then return TK.chat("|cffff8888Can't resize the talent window in combat.|r") end
+        TK.db.windowScale = math.abs(v - 1) > 0.001 and v or nil
+        applyScale()
+    end))
+    local normal = UI.button(opt, "Normal size", 98, function()
+        if InCombatLockdown() then return end
+        TK.db.windowScale = nil
+        s:SetValue(1)
+        applyScale()
+    end)
+    normal:SetPoint("TOPLEFT", s, "BOTTOMLEFT", 0, -10)
+    opt.slider = s
+    opt:SetScript("OnShow", function() s:SetValue(TK.db.windowScale or 1) value:SetText(scaleLabel(TK.db.windowScale or 1)) end)
+    opt:Hide()
+end
+
+-- The gear: gray at rest, mint on hover and while the options are open.
+local function gear()
+    local g = CreateFrame("Button", nil, pane)
+    g:SetSize(24, 24)
+    g:SetPoint("TOPRIGHT", -2, -1)
+    g.icon = g:CreateTexture(nil, "ARTWORK")
+    g.icon:SetSize(16, 16)
+    g.icon:SetPoint("CENTER")
+    g.icon:SetTexture("Interface\\Buttons\\UI-OptionsButton")
+    g.icon:SetDesaturated(true)
+    local function tint(on) if on then g.icon:SetVertexColor(0.596, 1, 0.596) else g.icon:SetVertexColor(0.851, 0.851, 0.851) end end
+    tint(false)
+    g:SetScript("OnClick", TK.safe(function()
+        if not opt then makeOptions() end
+        opt:SetShown(not opt:IsShown())
+        UI.hidePicker()
+        tint(opt:IsShown())
+    end))
+    g:SetScript("OnEnter", function(self)
+        tint(true)
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:SetText(opt and opt:IsShown() and "Back to your builds" or "Options")
+        GameTooltip:Show()
+    end)
+    g:SetScript("OnLeave", function() tint(opt and opt:IsShown()) GameTooltip_Hide() end)
 end
 
 EventUtil.ContinueOnAddOnLoaded("Blizzard_PlayerSpells", TK.safe(function()
@@ -603,6 +663,6 @@ EventUtil.ContinueOnAddOnLoaded("Blizzard_PlayerSpells", TK.safe(function()
     tf:HookScript("OnShow", function() pane:Show() TK.safe(W.refresh)() end)
     tf:HookScript("OnHide", function() W.hide() UI.hidePicker() pane:Hide() end)
     PlayerSpellsFrame:HookScript("OnShow", applyScale)
-    grip()
+    gear()
     applyScale()
 end))
