@@ -825,50 +825,56 @@ local function adler32(str)
     return b * 65536 + a
 end
 
--- offspec: the other specs' builds too, the way SimulationCraft lists the game's offspec
--- loadouts ("### Offspec Loadouts: <spec>", "# Offspec Loadout: <name>", "# offspec_talents=").
--- It follows SimulationCraft's own Offspec Talent Loadouts checkbox (off unless ticked).
+-- One TalentKeeper block after all of SimulationCraft's talent lines: this spec's builds as saved
+-- loadouts, then (only when SimulationCraft's own Offspec Talent Loadouts box is ticked) the other
+-- specs' builds as offspec loadouts, each spec under its own "### TalentKeeper: <spec>" heading.
 function B.simcLines(offspec)
     local lines, cur = {}, B.specID()
-    for _, b in ipairs(B.list(cur)) do
-        lines[#lines + 1] = "# Saved Loadout: TalentKeeper: " .. b.name
-        lines[#lines + 1] = "# talents=" .. strtrim(b.text)
-    end
-    if offspec then
-        for i = 1, GetNumSpecializations() or 0 do
-            local specID, specName = GetSpecializationInfo(i)
-            local list = specID and specID ~= cur and TK.db.builds[specID] or {}
-            if #list > 0 then
-                lines[#lines + 1] = ""
-                lines[#lines + 1] = "### Offspec Loadouts: " .. specName .. " (TalentKeeper)"
-                for _, b in ipairs(list) do
-                    lines[#lines + 1] = "# Offspec Loadout: TalentKeeper: " .. b.name
-                    lines[#lines + 1] = "# offspec_talents=" .. strtrim(b.text)
-                end
-            end
+    local function block(specID, specName, other)
+        local list = TK.db.builds[specID] or {}
+        if #list == 0 then return end
+        lines[#lines + 1] = ""
+        lines[#lines + 1] = "### TalentKeeper: " .. specName .. (other and " (offspec)" or "")
+        for _, b in ipairs(list) do
+            lines[#lines + 1] = (other and "# Offspec Loadout: " or "# Saved Loadout: ") .. b.name
+            lines[#lines + 1] = (other and "# offspec_talents=" or "# talents=") .. strtrim(b.text)
         end
     end
+    local specs = {}
+    for i = 1, GetNumSpecializations() or 0 do
+        local specID, specName = GetSpecializationInfo(i)
+        if specID == cur then table.insert(specs, 1, { specID, specName }) elseif specID and offspec then specs[#specs + 1] = { specID, specName, true } end
+    end
+    for _, sp in ipairs(specs) do block(sp[1], sp[2], sp[3]) end
     return lines
 end
 
 local simcAddon
 function B.addToSimc(profile)
     if type(profile) ~= "string" or TK.db.noSimc then return profile end
-    local db = simcAddon and simcAddon.db
-    local lines = B.simcLines(db and db.profile and db.profile.offspecLoadouts)
-    if #lines == 0 then return profile end
     local body = profile:gsub("# Checksum: %x+%s*$", "")
     if body == profile then return profile end -- not the shape we know: leave it alone
-    -- after the last talents line (yours, then the game's saved loadouts)
+    -- the game's "TalentKeeper" loadout is only the slot builds are applied through: drop it, and
+    -- any offspec heading it leaves empty
+    body = body:gsub("\n# Saved Loadout: " .. SLOT .. "\n# talents=[^\n]*", "")
+    body = body:gsub("\n# Offspec Loadout: " .. SLOT .. "\n# offspec_talents=[^\n]*", "")
+    local n
+    repeat body, n = body:gsub("\n### Offspec Loadouts: [^\n]*\n\n", "\n") until n == 0
+    -- after the last of SimulationCraft's talent lines (yours, saved loadouts, offspec loadouts)
     local insertAt
-    local pos = 1
-    while true do
-        local s, e = body:find("\n#? ?talents=[^\n]*", pos)
-        if not s then break end
-        insertAt, pos = e, e + 1
+    for _, pat in ipairs({ "\ntalents=[^\n]*", "\n# talents=[^\n]*", "\n# offspec_talents=[^\n]*" }) do
+        local pos = 1
+        while true do
+            local s, e = body:find(pat, pos)
+            if not s then break end
+            if not insertAt or e > insertAt then insertAt = e end
+            pos = e + 1
+        end
     end
     if not insertAt then return profile end
-    body = body:sub(1, insertAt) .. "\n" .. table.concat(lines, "\n") .. body:sub(insertAt + 1)
+    local db = simcAddon and simcAddon.db
+    local lines = B.simcLines(db and db.profile and db.profile.offspecLoadouts)
+    if #lines > 0 then body = body:sub(1, insertAt) .. "\n" .. table.concat(lines, "\n") .. body:sub(insertAt + 1) end
     return body .. ("# Checksum: %x"):format(adler32((body:gsub("||", "|"))))
 end
 

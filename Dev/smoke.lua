@@ -475,16 +475,18 @@ section("ready check")
 
 -- SimulationCraft: our builds go in after the talents lines, and the checksum is worked out again
 local function adler(str) local a, b = 1, 0 for i = 1, #str do a = (a + str:byte(i)) % 65521 b = (b + a) % 65521 end return b * 65536 + a end
-local body = "# header\ntalents=ABC\n# Saved Loadout: Mine\n# talents=DEF\n\n# gear\n\n"
+local body = "# header\ntalents=ABC\n# Saved Loadout: Mine\n# talents=DEF\n# Saved Loadout: TalentKeeper\n# talents=SLOT\n\n### Offspec Loadouts: Other\n# Offspec Loadout: TalentKeeper\n# offspec_talents=SLOT2\n\nomnium_talents=1\n\n# gear\n\n"
 local prof = body .. ("# Checksum: %x"):format(adler(body))
 local out = B.addToSimc(prof)
-ok(out:find("# talents=DEF\n# Saved Loadout: TalentKeeper: ", 1, true), "builds after the saved loadouts")
+ok(not out:find("SLOT", 1, true) and not out:find("### Offspec Loadouts: Other", 1, true), "TalentKeeper's slot and the heading it leaves empty are dropped")
+ok(out:find("# talents=DEF\n\n### TalentKeeper: ", 1, true), "one TalentKeeper block after the game's talent lines")
+ok(out:find("\n\nomnium_talents=1", 1, true), "omnium line left where it was")
 local newBody = out:gsub("# Checksum: %x+$", "")
 ok(out:find(("# Checksum: %x"):format(adler(newBody)), 1, true), "checksum matches the new text")
-ok(not out:find("Offspec Loadout: TalentKeeper", 1, true), "other specs only when SimulationCraft's offspec box is ticked")
+ok(not out:find("Offspec Loadout:", 1, true), "other specs only when SimulationCraft's offspec box is ticked")
 local offspec = B.simcLines(true)
 local hasOff = false
-for _, l in ipairs(offspec) do if l:find("^# Offspec Loadout: TalentKeeper: ") then hasOff = true end end
+for _, l in ipairs(offspec) do if l:find("^# Offspec Loadout: ") then hasOff = true end end
 ok(hasOff, "ticked: other specs' builds listed as offspec loadouts")
 TK.db.noSimc = true
 ok(B.addToSimc(prof) == prof, "option off: untouched")
