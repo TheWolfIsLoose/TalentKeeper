@@ -240,7 +240,7 @@ local function makeDialog()
     end
     dlg:SetScript("OnHide", function()
         dlg.text.edit:ClearFocus() dlg.name.edit:ClearFocus() dlg.group.edit:ClearFocus()
-        if TK.window and TK.window.override then TK.window.preview(nil) end
+        if dlg.import and TK.window then TK.window.preview(nil) end
     end)
     -- Import: the pasted string shows on the tree before it's saved; the note says what you see
     dlg.note = dlg:CreateFontString(nil, "OVERLAY", "TalentKeeperFontSmall")

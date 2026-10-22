@@ -444,7 +444,9 @@ end
 -- Preview a talent string on the tree while it's being imported (nil: back to the selected build).
 function W.preview(text)
     W.override = text and { text = text } or nil
+    TK.log("import preview %s", text and "shown" or "cleared")
     W.refresh()
+    if not text and not TK.selected then W.hide() end
 end
 
 local prev = TK.onChange
@@ -501,23 +503,37 @@ local function specButtons()
     W.refreshSpecs()
 end
 
--- Window size: the Options slider scales the talent window (kept between sessions).
--- A new scale also scales the window's anchor offsets, which threw it across the screen: keep it
--- where it is on screen (wherever the game or a mover put it). Centered by the game: keep its top
--- center, so it stays centered; otherwise its top-left corner.
+-- Window size: the Options slider scales the talent window (kept between sessions). It shrinks
+-- toward its middle: the game places it by its top-left corner (the same spot at any size), so
+-- TalentKeeper moves it to where its middle would be at full size. A size change keeps its middle.
+local function centerAt(f, x, y) -- screen pixels
+    local eff = f:GetEffectiveScale()
+    f:ClearAllPoints()
+    f:SetPoint("CENTER", UIParent, "BOTTOMLEFT", x / eff, y / eff)
+end
+
+-- After the game placed it (TOPLEFT on UIParent's TOPLEFT): its middle as if at full size.
+local function recenter()
+    local f = PlayerSpellsFrame
+    if not f or not f:IsShown() or InCombatLockdown() or not TK.db.windowScale then return end
+    local point, rel, relPoint = f:GetPoint(1)
+    if point ~= "TOPLEFT" or rel ~= UIParent or relPoint ~= "TOPLEFT" then return end -- not the game's spot
+    local eff = f:GetEffectiveScale()
+    local full = eff / f:GetScale()
+    local left, top = f:GetLeft(), f:GetTop()
+    if not left then return end
+    centerAt(f, left * eff + f:GetWidth() * full / 2, top * eff - f:GetHeight() * full / 2)
+end
+
 local function applyScale()
     local f = PlayerSpellsFrame
     if not f or InCombatLockdown() then return end
     local want = TK.db.windowScale or 1
-    if math.abs(f:GetScale() - want) < 0.001 then return end
-    local centered = f:GetPoint(1) == "TOP"
-    local x, top, old = centered and f:GetCenter() or f:GetLeft(), f:GetTop(), f:GetEffectiveScale()
+    if math.abs(f:GetScale() - want) < 0.001 then return recenter() end
+    local x, y = f:GetCenter()
+    local old = f:GetEffectiveScale()
     f:SetScale(want)
-    if x and top then
-        local new = f:GetEffectiveScale()
-        f:ClearAllPoints()
-        f:SetPoint(centered and "TOP" or "TOPLEFT", UIParent, "BOTTOMLEFT", x * old / new, top * old / new)
-    end
+    if x then centerAt(f, x * old, y * old) end
 end
 
 -- Options: a gear in the pane's header swaps the build list for this view ---------------------
@@ -563,15 +579,22 @@ local function makeOptions()
         GameTooltip:Show()
     end)
     s:SetScript("OnLeave", function() setRing(0.4) GameTooltip_Hide() end)
+    -- applied on release: resizing while dragging moves the slider (the pane hangs off the window)
+    -- under the cursor, which fed back into the value
+    local pending
     s:SetScript("OnMouseDown", function() thumb:SetColorTexture(0.596, 1, 0.596, 1) end)
-    s:SetScript("OnMouseUp", function() thumb:SetColorTexture(0.851, 0.851, 0.851, 1) end)
+    s:SetScript("OnMouseUp", TK.safe(function()
+        thumb:SetColorTexture(0.851, 0.851, 0.851, 1)
+        if not pending then return end
+        if InCombatLockdown() then pending = nil return TK.chat("|cffff8888Can't resize the talent window in combat.|r") end
+        TK.db.windowScale = math.abs(pending - 1) > 0.001 and pending or nil
+        pending = nil
+        applyScale()
+    end))
     s:SetScript("OnValueChanged", TK.safe(function(_, v, user)
         v = math.floor(v * 20 + 0.5) / 20
         value:SetText(scaleLabel(v))
-        if not user then return end
-        if InCombatLockdown() then return TK.chat("|cffff8888Can't resize the talent window in combat.|r") end
-        TK.db.windowScale = math.abs(v - 1) > 0.001 and v or nil
-        applyScale()
+        if user then pending = v end
     end))
     local normal = UI.button(opt, "Normal size", 98, function()
         if InCombatLockdown() then return end
@@ -663,6 +686,7 @@ EventUtil.ContinueOnAddOnLoaded("Blizzard_PlayerSpells", TK.safe(function()
     tf:HookScript("OnShow", function() pane:Show() TK.safe(W.refresh)() end)
     tf:HookScript("OnHide", function() W.hide() UI.hidePicker() pane:Hide() end)
     PlayerSpellsFrame:HookScript("OnShow", applyScale)
+    hooksecurefunc("UpdateUIPanelPositions", function() TK.safe(recenter)() end) -- another panel moved it
     gear()
     applyScale()
 end))
