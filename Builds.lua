@@ -500,6 +500,14 @@ function B.apply(b, staged)
     local d = TK.compare.diff(currentString(), b.text)
     if d and #d == 0 then
         TK.db.active[specID] = b.name
+        -- another build waiting as pending changes: undo it, you asked for what you already have
+        local tf = PlayerSpellsFrame and PlayerSpellsFrame.TalentsFrame
+        if B.staged and tf and tf.RollbackConfig then
+            TK.log("apply '%s': already your talents; dropped '%s' pending", b.name, B.staged.b.name)
+            B.staged = nil
+            tf:RollbackConfig()
+            return TK.changed()
+        end
         TK.log("apply '%s': already your talents", b.name)
         return TK.changed()
     end
