@@ -1,7 +1,7 @@
 # TalentKeeper — UI style rules
 
 Suite-wide rules (colour tokens, controls, accessibility, words, chat) live in
-the "Suite style guide" doc in the WoW Addons project; this file holds
+`Dev/SUITE-STYLE.md`; this file holds
 TalentKeeper's specifics and wins only where it names an exception.
 
 - **Beside the talent window.** One side pane docked to its right edge (the
