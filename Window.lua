@@ -507,7 +507,7 @@ function W.refresh()
             r.sel:SetShown(b == TK.selected)
             local isOn = b == now
             if isOn and lastNow ~= nil and lastNow ~= now then r.Shimmer() end -- it just went in the tree
-            r.text:SetTextColor(isOn and 0.596 or 1, 1, isOn and 0.596 or 1)
+            r.text:SetTextColor(1, 1, 1)
             r.bar:SetShown(isOn)
             r:ClearAllPoints()
             r:SetPoint("TOPLEFT", 0, -(line.y - offset)); r:SetPoint("TOPRIGHT", 0, -(line.y - offset))
@@ -565,7 +565,7 @@ function W.refreshSpecs()
         local on = i == cur
         b.icon:SetDesaturated(not on)
         b.icon:SetAlpha(on and 1 or 0.6)
-        b.ring(on and 0.596 or 0.4)
+        b.ring(on and 1 or 0.4)
         if on then stopCast(b) end
     end
 end
@@ -714,7 +714,7 @@ local function seasonRow(i)
         for _, sp in ipairs(classSpecs()) do
             local b = taggedFor(sp.id, self.place.key)
             GameTooltip:AddDoubleLine(sp.name, b and b.name or "nothing tagged", 0.74, 0.74, 0.74,
-                b and 0.596 or 0.55, b and 1 or 0.55, b and 0.596 or 0.55)
+                b and 1 or 0.55, b and 1 or 0.55, b and 1 or 0.55)
         end
         GameTooltip:AddLine("Click to pick a build for any of your specs.", 0.55, 0.55, 0.55, true)
         GameTooltip:Show()
@@ -846,7 +846,7 @@ local function showTab(which)
     if season then season:SetShown(which == "season") end
     for _, t in ipairs(tabs) do
         local on = t.which == which
-        t.text:SetTextColor(on and 0.596 or 0.55, on and 1 or 0.55, on and 0.596 or 0.55)
+        t.text:SetTextColor(on and 1 or 0.55, on and 1 or 0.55, on and 1 or 0.55)
         t.bar:SetShown(on)
     end
     UI.hidePicker()
