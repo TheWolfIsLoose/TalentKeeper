@@ -6,7 +6,7 @@
 Builds now go in through the game's own loadout system: they land whole, every time, without a hitch.
 
 - New: Apply loads the build into the talent window as pending changes, so you see exactly what changes; Apply changes (ours or the game's) finishes it. Double-click a build, the quick list and the prompts apply straight away, the same way.
-- New: This season tab: every Mythic+ dungeon, delve and raid boss this season, which of your specs has a build there, and the gaps. Click a place to pick a build for it.
+- New: This season tab: every Mythic+ dungeon, delve and raid boss this season, which of your specs has a build there, and the gaps. Click a place to pick a build for any of your specs, without changing spec.
 - New: Import shows the pasted build on the tree before you save it.
 - New: Options (the gear in the pane's header): talent window size, and whether to ask in delves.
 - Changed: the ready check strip confirms you're on your build, offers Switch when you're on another one, and asks to tag a build only once per play session (with your other spec's build one click away). The dungeon and delve prompt follows the same rules.

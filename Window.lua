@@ -606,32 +606,28 @@ local function seasonRow(i)
             GameTooltip:AddDoubleLine(sp.name, b and b.name or "nothing tagged", 0.74, 0.74, 0.74,
                 b and 0.596 or 0.55, b and 1 or 0.55, b and 0.596 or 0.55)
         end
-        GameTooltip:AddLine("Click to pick this spec's build here.", 0.55, 0.55, 0.55, true)
+        GameTooltip:AddLine("Click to pick a build for any of your specs.", 0.55, 0.55, 0.55, true)
         GameTooltip:Show()
     end)
     r:SetScript("OnLeave", GameTooltip_Hide)
     r:SetScript("OnClick", TK.safe(function(self)
-        local place, specID = self.place, B.specID()
+        local place = self.place
+        -- every spec's builds side by side: tag a build for a place whatever spec you're in now
         UI.picker(self, place.name, function()
-            local items, cur = {}, taggedFor(specID, place.key)
-            for _, line in ipairs(B.ordered(specID)) do
-                if line.header then items[#items + 1] = { heading = line.header }
-                elseif line.build then
-                    local b = line.build
+            local items = {}
+            for k, sp in ipairs(classSpecs()) do
+                if k > 1 then items[#items + 1] = { column = true } end
+                items[#items + 1] = { heading = sp.name }
+                local list, cur = TK.db.builds[sp.id] or {}, taggedFor(sp.id, place.key)
+                for _, b in ipairs(list) do
                     items[#items + 1] = { label = b.name, checked = function() return b.tags and b.tags[place.key] ~= nil end,
                         onClick = function()
-                            if not (b.tags and b.tags[place.key]) then B.setTag(b, place.key, place.name, true) end
+                            if not (b.tags and b.tags[place.key]) then B.setTag(b, place.key, place.name, true)
+                            else B.setTag(b, place.key, place.name, false) end -- clicking the ticked one clears it
                             W.refreshSeason()
                         end }
                 end
-            end
-            if #items == 0 then items[1] = { label = "No builds saved for this spec yet.", disabled = true }
-            elseif cur then
-                items[#items + 1] = { bar = true }
-                items[#items + 1] = { label = "Nothing here for " .. B.specName(specID), onClick = function()
-                    B.setTag(cur, place.key, place.name, false)
-                    W.refreshSeason()
-                end }
+                if #list == 0 then items[#items + 1] = { label = "No builds saved", disabled = true } end
             end
             return items
         end)
@@ -653,7 +649,7 @@ function W.refreshSeason()
     for _, r in ipairs(seasonRows) do r:Hide() end
     for _, h in ipairs(seasonHeads) do h:Hide() end
     local specs, cur = classSpecs(), B.specID()
-    local places, total, done = seasonPlaces(), 0, 0
+    local places, total, counts = seasonPlaces(), 0, {}
     local height = season.list:GetHeight()
     local y, nr, nh, n = 0, 0, 0, 0
     for _, it in ipairs(places) do y = y + (it.heading and SHEAD or SROW) end
@@ -674,16 +670,18 @@ function W.refreshSeason()
             end
         else
             total, n = total + 1, n + 1
-            local mine = taggedFor(cur, it.key)
-            if mine then done = done + 1 end
+            local any = false
+            for _, sp in ipairs(specs) do
+                if taggedFor(sp.id, it.key) then counts[sp.id] = (counts[sp.id] or 0) + 1 any = true end
+            end
             if inView then
                 nr = nr + 1
                 local r = seasonRow(nr)
                 r.place = it
                 r.stripe:SetShown(n % 2 == 0)
-                -- this spec's gaps read gray, with this spec's icon dim: the places left to tag
+                -- places no spec has a build for read gray: the gaps; the icons say which specs have one
                 r.text:SetText(it.name)
-                if mine then r.text:SetTextColor(1, 1, 1) else r.text:SetTextColor(0.55, 0.55, 0.55) end
+                if any then r.text:SetTextColor(1, 1, 1) else r.text:SetTextColor(0.55, 0.55, 0.55) end
                 for k, t in ipairs(r.icons) do
                     local sp = specs[k]
                     t:SetShown(sp ~= nil)
@@ -704,7 +702,9 @@ function W.refreshSeason()
         end
         y = y + h
     end
-    season.summary:SetText(("%s: %d of %d places have a build"):format(B.specName(cur), done, total))
+    local parts = {}
+    for _, sp in ipairs(specs) do parts[#parts + 1] = ("%s %d"):format(sp.name, counts[sp.id] or 0) end
+    season.summary:SetText(("Of %d places: %s"):format(total, table.concat(parts, " · ")))
 end
 
 function W.inSeason() return season ~= nil and season:IsShown() end
@@ -716,10 +716,12 @@ local function makeSeason()
     season:EnableMouse(true)
     UI.fill(season, "BACKGROUND", 0.06, 0.06, 0.06, 1)
     season.summary = season:CreateFontString(nil, "OVERLAY", "TalentKeeperFontSmall")
-    season.summary:SetPoint("BOTTOMLEFT", 8, 10)
+    season.summary:SetPoint("BOTTOMLEFT", 8, 6); season.summary:SetPoint("BOTTOMRIGHT", -8, 6)
+    season.summary:SetJustifyH("LEFT")
+    season.summary:SetWordWrap(true)
     season.summary:SetTextColor(0.74, 0.74, 0.74)
     season.list = CreateFrame("Frame", nil, season)
-    season.list:SetPoint("TOPLEFT", 0, -2); season.list:SetPoint("BOTTOMRIGHT", 0, 30)
+    season.list:SetPoint("TOPLEFT", 0, -2); season.list:SetPoint("BOTTOMRIGHT", 0, 36)
     season.list:SetClipsChildren(true)
     season.list:EnableMouseWheel(true)
     season.list:SetScript("OnMouseWheel", function(_, delta) seasonOffset = seasonOffset - delta * SROW * 3 TK.safe(W.refreshSeason)() end)
