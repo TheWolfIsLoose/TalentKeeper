@@ -502,59 +502,22 @@ local function specButtons()
 end
 
 -- Window size: drag the corner grip to scale the talent window (kept between sessions).
+-- A new scale also scales the window's anchor offsets, which threw it across the screen: keep it
+-- where it is on screen (wherever the game or a mover put it). Centered by the game: keep its top
+-- center, so it stays centered; otherwise its top-left corner.
 local function applyScale()
-    if PlayerSpellsFrame and not InCombatLockdown() then PlayerSpellsFrame:SetScale(TK.db.windowScale or 1) end
-end
-
--- Where you moved the window: kept in screen pixels (so a size change doesn't throw it off) and put
--- back whenever the game places it (opening, or another panel opening beside it). Out of combat.
-local function applyPos()
-    local p, f = TK.db.windowPos, PlayerSpellsFrame
-    if not p or not f or not f:IsShown() or InCombatLockdown() then return end
-    local s = f:GetEffectiveScale()
-    f:ClearAllPoints()
-    f:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", p.x / s, p.y / s)
-end
-
-local function savePos()
     local f = PlayerSpellsFrame
-    local s = f:GetEffectiveScale()
-    TK.db.windowPos = { x = f:GetLeft() * s, y = f:GetTop() * s }
-end
-
-local function mover()
-    local f = PlayerSpellsFrame
-    f:SetClampedToScreen(true)
-    local d = CreateFrame("Frame", nil, f) -- over the title bar, short of the close button
-    d:SetPoint("TOPLEFT", 0, 0); d:SetPoint("TOPRIGHT", -28, 0)
-    d:SetHeight(22)
-    d:EnableMouse(true)
-    d:RegisterForDrag("LeftButton")
-    d:SetScript("OnDragStart", function()
-        if InCombatLockdown() then return end
-        f:SetMovable(true)
-        f:StartMoving()
-    end)
-    d:SetScript("OnDragStop", TK.safe(function()
-        f:StopMovingOrSizing()
-        f:SetUserPlaced(false) -- the game's layout cache stays out of it; TalentKeeper puts it back
-        savePos()
-        TK.log("talent window moved")
-    end))
-    d:SetScript("OnMouseUp", function(_, button)
-        if button ~= "RightButton" or not TK.db.windowPos then return end
-        TK.db.windowPos = nil
-        TK.chat("The talent window opens in the game's spot again from next time.")
-    end)
-    d:SetScript("OnEnter", function(self)
-        GameTooltip:SetOwner(self, "ANCHOR_TOP")
-        GameTooltip:SetText("Talent window")
-        GameTooltip:AddLine("Drag to move it; it opens there next time. Right-click to go back to the game's spot.", 0.74, 0.74, 0.74, true)
-        GameTooltip:Show()
-    end)
-    d:SetScript("OnLeave", GameTooltip_Hide)
-    f:HookScript("OnShow", function() C_Timer.After(0, TK.safe(applyPos)) end)
-    hooksecurefunc("UpdateUIPanelPositions", function() C_Timer.After(0, TK.safe(applyPos)) end)
+    if not f or InCombatLockdown() then return end
+    local want = TK.db.windowScale or 1
+    if math.abs(f:GetScale() - want) < 0.001 then return end
+    local centered = f:GetPoint(1) == "TOP"
+    local x, top, old = centered and f:GetCenter() or f:GetLeft(), f:GetTop(), f:GetEffectiveScale()
+    f:SetScale(want)
+    if x and top then
+        local new = f:GetEffectiveScale()
+        f:ClearAllPoints()
+        f:SetPoint(centered and "TOP" or "TOPLEFT", UIParent, "BOTTOMLEFT", x * old / new, top * old / new)
+    end
 end
 
 local function grip()
@@ -579,10 +542,7 @@ local function grip()
             applyScale()
         end)
     end)
-    g:SetScript("OnMouseUp", function(self)
-        self:SetScript("OnUpdate", nil)
-        if TK.db.windowPos then savePos() end -- keep the moved spot where you see it now
-    end)
+    g:SetScript("OnMouseUp", function(self) self:SetScript("OnUpdate", nil) end)
     g:SetScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
         GameTooltip:SetText("Talent window size")
@@ -644,6 +604,5 @@ EventUtil.ContinueOnAddOnLoaded("Blizzard_PlayerSpells", TK.safe(function()
     tf:HookScript("OnHide", function() W.hide() UI.hidePicker() pane:Hide() end)
     PlayerSpellsFrame:HookScript("OnShow", applyScale)
     grip()
-    mover()
     applyScale()
 end))
