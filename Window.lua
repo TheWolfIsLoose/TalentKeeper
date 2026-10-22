@@ -696,7 +696,7 @@ local function seasonRow(i)
         r.icons[k] = t
     end
     r.text = r:CreateFontString(nil, "OVERLAY", "TalentKeeperFontSmall")
-    r.text:SetPoint("LEFT", 8, 0)
+    r.text:SetPoint("LEFT", 18, 0) -- indented under its heading
     r.text:SetJustifyH("LEFT")
     r.text:SetWordWrap(false)
     r:SetScript("OnEnter", function(self)
