@@ -82,6 +82,30 @@ Done on `dev` (2026-10-21, later):
 - **GUI pass:** the hero tree name under the emblem (on a hero tree swap
   preview) runs into the game's eye button below it; find it a clear spot.
 
+## Next: bring builds in, SimulationCraft (decided 2026-10-22)
+
+- **First-run import becomes a prompt** in the pane ("Bring your builds in"):
+  each source found with counts, tick and import; once, and from Options
+  later. Sources: Talent Loadout Ex (import strings, group headings), Talent
+  Loadout Manager (`customLoadouts[class][spec][id] = { name,
+  selectedNodes = "node_entry_spell_rank" lines, parentMapping }`: node
+  lists, so we write the import string ourselves from the tree data;
+  `blizzardLoadouts[class][spec][character]` caches each character's game
+  loadouts the same way), and this character's game loadouts (every spec;
+  the game exports them, another spec's string needs its spec ID patched).
+- **Conflicts (player):** same talents as a TalentKeeper build: keep ours,
+  skip the copy. Same name, other talents: import as "<name> (TLM)" etc.
+  Imports land in a group per source ("From TLE", "From TLM", "Blizzard
+  loadouts"), keeping their own headings; a TLM build linked to a game
+  loadout goes in a group named after that loadout (base build + variants).
+  Game loadouts are copied, never deleted.
+- **SimulationCraft:** add TalentKeeper builds to the /simc text the way the
+  game's own saved loadouts appear (`# Saved Loadout: <name>` then
+  `# talents=<string>`), after them. No official hook: append to the output
+  frame's text when it's built.
+- Done 2026-10-22: drag builds to reorder them (a mint line shows where it
+  lands; the dragged row dims; no move cursor).
+
 ## How applying works (player, 2026-10-21)
 
 Imports only save a build (with a preview on the tree). Applying always goes

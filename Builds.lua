@@ -174,6 +174,20 @@ function B.rename(specID, b, name)
     TK.changed()
 end
 
+-- Move a build to just before (or after) another in the list, taking that build's group.
+function B.move(specID, b, target, after)
+    local list = B.list(specID)
+    if b == target then return end
+    for i, x in ipairs(list) do if x == b then table.remove(list, i) break end end
+    local at = #list + 1
+    for i, x in ipairs(list) do if x == target then at = after and i + 1 or i break end end
+    table.insert(list, at, b)
+    b.group = target.group
+    TK.flash(b)
+    TK.log("'%s' moved %s '%s'", b.name, after and "after" or "before", target.name)
+    TK.changed()
+end
+
 -- Move a build into a group (nil = no group).
 function B.setGroup(b, group)
     group = group and strtrim(group) or nil

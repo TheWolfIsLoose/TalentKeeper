@@ -205,7 +205,8 @@ local function row(i)
     r:SetScript("OnDragStart", function(self)
         self.dragged, W.dragging = true, self.b
         GameTooltip:Hide()
-        SetCursor("Interface\\Cursor\\UI-Cursor-Move")
+        self:SetAlpha(0.4) -- the row you picked up dims; a mint line shows where it will land
+        pane:SetScript("OnUpdate", TK.safe(W.dragLine))
     end)
     r:SetScript("OnDragStop", TK.safe(function() W.drop() end))
     r:SetScript("OnEnter", TK.safe(function(self)
@@ -215,7 +216,7 @@ local function row(i)
         if hero then GameTooltip:AddLine(hero, 0.74, 0.74, 0.74) end
         local tags = B.tagNames(self.b)
         if #tags > 0 then GameTooltip:AddLine("For: " .. table.concat(tags, ", "), 0.596, 1, 0.596, true) end
-        GameTooltip:AddLine("Click to preview on the tree, double-click to apply. Drag onto a group to move it.", 0.55, 0.55, 0.55, true)
+        GameTooltip:AddLine("Click to preview on the tree, double-click to apply. Drag to reorder, or onto a group heading.", 0.55, 0.55, 0.55, true)
         GameTooltip:Show()
     end))
     r:SetScript("OnLeave", GameTooltip_Hide)
@@ -265,15 +266,52 @@ local function head(i)
     return h
 end
 
--- Drop a dragged build onto a group heading, a build (its group) or "+ New group".
+-- Where a dragged build would land: the row under the cursor (before it, or after it on its lower
+-- half), or a group heading (into that group).
+local function dropSpot()
+    for _, r in ipairs(rows) do
+        if r:IsShown() and r:IsMouseOver() then
+            local _, y = GetCursorPosition()
+            local _, cy = r:GetCenter()
+            return r, y / r:GetEffectiveScale() < cy
+        end
+    end
+end
+
+function W.dragLine()
+    if not W.dragging then pane:SetScript("OnUpdate", nil) return end
+    local line = pane.insertLine
+    if not line then
+        line = pane.list:CreateTexture(nil, "OVERLAY", nil, 7)
+        line:SetColorTexture(0.596, 1, 0.596, 1)
+        line:SetHeight(2)
+        pane.insertLine = line
+    end
+    local r, after = dropSpot()
+    line:ClearAllPoints()
+    if r and r.b ~= W.dragging then
+        local edge = after and "BOTTOM" or "TOP"
+        line:SetPoint(edge .. "LEFT", r, edge .. "LEFT", 4, 0)
+        line:SetPoint(edge .. "RIGHT", r, edge .. "RIGHT", -4, 0)
+        line:Show()
+    else
+        line:Hide()
+    end
+end
+
+-- Drop a dragged build between builds (reorders it, taking that group), onto a group heading or
+-- "+ New group".
 function W.drop()
     local b = W.dragging
     W.dragging = nil
-    ResetCursor()
+    pane:SetScript("OnUpdate", nil)
+    if pane.insertLine then pane.insertLine:Hide() end
+    for _, r in ipairs(rows) do r:SetAlpha(1) end
     if not b then return end
+    local r, after = dropSpot()
+    if r and r.b ~= b then return B.move(B.specID(), b, r.b, after) end
     local target -- nil: no drop target; false: no group
     for _, h in ipairs(heads) do if h:IsShown() and h:IsMouseOver() then target = h.group or false end end
-    for _, r in ipairs(rows) do if r:IsShown() and r:IsMouseOver() then target = r.b.group or false end end
     if pane.newGroup:IsShown() and pane.newGroup:IsMouseOver() then
         return UI.textWindow({ title = "New group for " .. b.name, singleLine = true, okText = "Move",
             onOK = function(name) if strtrim(name) ~= "" then B.setGroup(b, name) end end })
