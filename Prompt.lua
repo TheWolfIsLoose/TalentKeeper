@@ -139,6 +139,15 @@ function P.check()
     local hits = B.forHere(here)
     local hit = hits[1]
     if hit then
+        -- in a delve, the build you last applied counting as your Delves build is enough (a talent
+        -- moved since doesn't bring the prompt back)
+        local cur = here.content == "delve" and B.list(B.specID())
+        for _, b in ipairs(cur or {}) do
+            if b.name == TK.db.active[B.specID()] and b.tags and b.tags.delve then
+                TK.log("prompt: %s, on your Delves build '%s'", here.name, b.name)
+                return P.hide()
+            end
+        end
         if onBuild(hit.b, hit.specID) then
             TK.log("prompt: %s, already on '%s'", here.name, hit.b.name)
             return P.hide()

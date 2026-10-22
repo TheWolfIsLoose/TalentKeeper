@@ -38,6 +38,35 @@ same boss.
 variants / swaps, near-match planning, gear sets. A dungeon's tweak is its
 own build tagged for that dungeon.
 
+## Ideas from play (player, 2026-10-21)
+
+Done on `dev` (2026-10-21):
+- Talents a build drops glow red on the preview, matching the green glow for
+  talents it takes (the red border and dim stay).
+- Spec buttons fill the pane's width, sized so four fit (the most any class
+  has).
+- In a delve, no prompt when the build you last applied is your Delves build.
+
+To do:
+- **Remember where the talent window was moved.** Possible: the game places it
+  as a managed panel on every open (left / center, with other panels pushing
+  it), so TalentKeeper would let you drag it by its title bar, save the spot,
+  and put it back each time it opens (out of combat only; the game
+  rearranges it when another panel opens beside it, so re-place after that).
+  Changing the game's own default spot would mean editing its panel table,
+  which risks taint: re-placing on open is the safer route.
+- **Delves: opt in or out of the delve prompt** (option, later).
+- **Recommendations across specs.** End state: about one tagged build per
+  spec per place. The strip and prompt say which spec a build is for (names
+  don't always say), and offer: stay on what you have, pick another of this
+  spec's builds for this place, or change to the other spec's build.
+- **One prompt per place, then quiet.** Answering ready (or passing on the
+  first prompt) keeps it from coming back until the time-out (16 h) ends,
+  as the ready check strip already does per boss.
+- **Try a build before saving it.** Import a string into a preview: the tree
+  shows what it takes and drops, then Save names, groups and tags it (or
+  discard it).
+
 ## Next session: start here
 
 **v0.3.0-beta1 published 2026-10-20** (public beta from `dev`; notes in `Dev/HISTORY.md`).

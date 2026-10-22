@@ -9,8 +9,8 @@ local tf, marks = nil, {}
 
 -- Marks on the tree ----------------------------------------------------------------------
 -- Drawn in the talent window's own language, from each button's own art set: a talent the
--- build adds glows green like one you can take; one it drops gets the red border and a dim
--- veil, like a talent you'd lose; another choice shows the build's pick on the node. Plus
+-- build adds glows green like one you can take; one it drops glows red, with the red border
+-- and a dim veil, like a talent you'd lose; another choice shows the build's pick on the node. Plus
 -- and minus signs only in colorblind mode.
 local function mark(i)
     if marks[i] then return marks[i] end
@@ -83,7 +83,9 @@ local function place(m, button, c)
     m.veil:SetShown(k == "rem")
     m.border:SetShown(k == "rem" and art.displayError ~= nil)
     if art.displayError then m.border:SetAtlas(art.displayError) end
-    m.glow:SetShown(k ~= "rem")
+    -- the game has no red glow: its green one, desaturated and tinted (additive, so it stays a glow)
+    m.glow:SetDesaturated(k == "rem")
+    if k == "rem" then m.glow:SetVertexColor(1, 0.25, 0.25) else m.glow:SetVertexColor(1, 1, 1) end
     local icon = k == "swap" and c and choiceIcon(c.node, c.to)
     m.icon:SetShown(icon and true or false) -- icon is false, not nil, off a choice node
     if icon then m.icon:SetTexture(icon) end
@@ -131,7 +133,10 @@ end
 -- Docked to the window's right edge, at our own scale (parented to UIParent, shown with the
 -- talent window). Groups as headings; the list scrolls; the selected build's panel sits below.
 local pane, rows, heads = nil, {}, {}
-local ROW, HEAD, TOP = 24, 22, -58
+-- spec buttons: one row across the pane, sized so four fit (the most any class has)
+local PANE_W, SPEC_GAP = 220, 6
+local SPEC = math.floor((PANE_W - 16 - 3 * SPEC_GAP) / 4)
+local ROW, HEAD, TOP = 24, 22, -(32 + SPEC + 8)
 local SHIMMER_W = 90
 local offset = 0
 local detail -- the selected build's panel
@@ -457,11 +462,13 @@ function W.refreshSpecs()
 end
 
 local function specButtons()
-    for i = 1, GetNumSpecializations() or 0 do
+    local n = GetNumSpecializations() or 0
+    local step = n > 1 and (PANE_W - 16 - SPEC) / (n - 1) or 0 -- spread across the width
+    for i = 1, n do
         local specID, name, _, icon = GetSpecializationInfo(i)
         local b = CreateFrame("Button", nil, pane)
-        b:SetSize(22, 22)
-        b:SetPoint("TOPLEFT", 8 + (i - 1) * 28, -32)
+        b:SetSize(SPEC, SPEC)
+        b:SetPoint("TOPLEFT", math.floor(8 + (i - 1) * step), -32)
         b.icon = b:CreateTexture(nil, "ARTWORK")
         b.icon:SetPoint("TOPLEFT", 1, -1); b.icon:SetPoint("BOTTOMRIGHT", -1, 1)
         b.icon:SetTexture(icon)
@@ -529,7 +536,7 @@ EventUtil.ContinueOnAddOnLoaded("Blizzard_PlayerSpells", TK.safe(function()
     if not tf or not tf.GetTalentButtonByNodeID then return TK.log("talent window: no talent buttons found") end
     pane = CreateFrame("Frame", nil, UIParent)
     -- the suite's side panel: opaque panel fill, black edge, a 26px header over a black rule
-    pane:SetWidth(220)
+    pane:SetWidth(PANE_W)
     pane:SetPoint("TOPLEFT", PlayerSpellsFrame, "TOPRIGHT", 1, 0)
     pane:SetPoint("BOTTOMLEFT", PlayerSpellsFrame, "BOTTOMRIGHT", 1, 0)
     pane:SetFrameStrata(PlayerSpellsFrame:GetFrameStrata())
