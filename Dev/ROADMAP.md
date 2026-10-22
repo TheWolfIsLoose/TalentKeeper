@@ -63,6 +63,8 @@ To do:
 - **One prompt per place, then quiet.** Answering ready (or passing on the
   first prompt) keeps it from coming back until the time-out (16 h) ends,
   as the ready check strip already does per boss.
+- **GUI pass:** the hero tree name under the emblem (on a hero tree swap
+  preview) runs into the game's eye button below it; find it a clear spot.
 - **Try a build before saving it.** Import a string into a preview: the tree
   shows what it takes and drops, then Save names, groups and tags it (or
   discard it).
