@@ -106,6 +106,16 @@ Done on `dev` (2026-10-21, later):
 - ~~**GUI pass:** the hero tree name under the emblem (on a hero tree swap
   preview) runs into the game's eye button below it; find it a clear spot.~~
 
+## Future: PvP (player, 2026-10-22, not scheduled)
+
+- **Open:** PvP situations under the tag list's Miscellaneous heading (with
+  Delves and Open world): likely arenas, rated battlegrounds and casual
+  battlegrounds as places, with the build carrying its PvP talents. Needs:
+  how instance info reports each (instance type `pvp` / `arena`), whether the
+  zone-in prompt and ready check strip make sense there (queue pops, no ready
+  check in arenas), and how PvP talent slots are saved and applied alongside
+  the tree.
+
 ## Parked 2026-10-22 13:30 ET (v0.4.0 released, installed locally)
 
 v0.4.0 shipped (GitHub release + CurseForge). The player's game runs the

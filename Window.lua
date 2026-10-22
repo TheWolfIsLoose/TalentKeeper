@@ -416,7 +416,7 @@ local function makeDetail()
     tip(detail.apply, "Apply", "Changes your talents to the build you're previewing (same as double-clicking it).")
     local tagsBtn = UI.button(pane, "Tags...", third, on(function(b, self) UI.tagMenu(self, b) end))
     tagsBtn:SetPoint("LEFT", detail.apply, "RIGHT", GAP, 0)
-    tip(tagsBtn, "Tags", "The dungeons, delves and bosses this build is for.")
+    tip(tagsBtn, "Tags", "The dungeons, delves, open world and bosses this build is for.")
     local more = UI.button(pane, "More...", COL_W - 2 * (third + GAP), on(function(b, self)
         UI.picker(self, b.name, function() return moreItems(b, self) end)
     end))
@@ -658,14 +658,15 @@ local function applyScale(now)
     if x then centerAt(f, x * old, y * old) end
 end
 
--- This season: every place this season (Delves, the Mythic+ dungeons, each raid's bosses) with
+-- This season: every place this season (Miscellaneous, the Mythic+ dungeons, each raid's bosses) with
 -- the build each of your specs has tagged there. Click a place to tag one of this spec's builds.
 -- A second way to tag: quickest for someone arriving with a pile of builds to sort out.
 local season, seasonRows, seasonHeads, seasonOffset = nil, {}, {}, 0
 local SROW, SHEAD = 22, 20
 
 local function seasonPlaces()
-    local out = { { heading = "Delves" }, { key = "delve", name = "Delves" } }
+    local out = { { heading = "Miscellaneous" } }
+    for _, c in ipairs(UI.CONTENT) do out[#out + 1] = c end
     local dungeons = UI.seasonDungeons()
     if #dungeons > 0 then
         out[#out + 1] = { heading = "Mythic+ dungeons" }
@@ -872,7 +873,7 @@ local function makeTabs()
             if self.which ~= "season" then return end
             GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
             GameTooltip:SetText("Tag Config")
-            GameTooltip:AddLine("This season's dungeons, delves and raid bosses, with the build tagged for each of your specs. The gaps stand out; click a place to tag one.", 0.74, 0.74, 0.74, true)
+            GameTooltip:AddLine("This season's dungeons, delves, the open world and raid bosses, with the build tagged for each of your specs. The gaps stand out; click a place to tag one.", 0.74, 0.74, 0.74, true)
             GameTooltip:Show()
         end)
         t:SetScript("OnLeave", function(self) if not self.bar:IsShown() then self.text:SetTextColor(0.55, 0.55, 0.55) end GameTooltip_Hide() end)

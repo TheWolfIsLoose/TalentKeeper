@@ -116,11 +116,11 @@ local function chooseFor(here, owner, after)
 end
 P.chooseFor = chooseFor
 
--- Only places the tag list offers: delves and this season's dungeons (old and timewalking
+-- Only places the tag list offers: delves, the open world and this season's dungeons (old and timewalking
 -- dungeons, follower dungeons of past content and the like get nothing).
 function P.taggable(here)
     if not here then return false end
-    if here.content == "delve" or here.key == "delve" then return true end
+    if here.content == "delve" or here.key == "delve" or here.key == "world" then return true end
     for _, d in ipairs(UI.seasonDungeons()) do if d.key == here.key then return true end end
     return false
 end
