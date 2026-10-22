@@ -41,6 +41,9 @@ function R.expectedBoss()
     if manual and manual.inst == instID then return manual.boss, "picked" end
     local here = room(name)
     local enc = here and ((TK.db.rooms[instID] or {})[here] or (R.KNOWN[instID] or {})[here])
+    for _, need in ipairs(enc and R.AFTER[enc] or {}) do
+        if not killed(instID, diffID, "boss:" .. need) then enc = nil break end -- not up yet
+    end
     if enc then
         for _, b in ipairs(bosses) do if b.key == "boss:" .. enc then return b, "room" end end
     end
@@ -60,11 +63,18 @@ R.KNOWN = {
         ["Altar of the Six Winds"] = 3420,   -- Sszorak
         ["The Coiled Altar"] = 3429,         -- The Coiled Altar
         ["The Tomb of Ula'tek"] = 3492,      -- Ula'tek
+        ["The Chamber of Virulence"] = 3455, -- Vashnik the Malignant
+        ["Pit of Fangs"] = 3421,             -- The Twin Fangs (see R.AFTER)
     },
     [3095] = { -- The Unbinding of Kith'ix
         ["Kith'ix's Prison"] = 3513,         -- Kith'ix
     },
 }
+
+-- Bosses that only appear once others are down: their room means them only after that. The Pit
+-- of Fangs is the hub of the Venomous Abyss's three wings, crossed all night before the Twin Fangs
+-- show up (after Vashnik and Sszorak, and an interaction after each).
+R.AFTER = { [3421] = { 3455, 3420 } }
 
 -- Remember which boss belongs to the room you're in (a pull, or a correction).
 local function learnRoom(enc, why)

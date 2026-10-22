@@ -136,7 +136,8 @@ local pane, rows, heads = nil, {}, {}
 -- spec buttons: one row across the pane, sized so four fit (the most any class has)
 local PANE_W, SPEC_GAP = 220, 6
 local SPEC = math.floor((PANE_W - 16 - 3 * SPEC_GAP) / 4)
-local ROW, HEAD, TOP = 24, 22, -(32 + SPEC + 8)
+local TABS = -(32 + SPEC + 6) -- the Builds / This season tabs, under the spec buttons
+local ROW, HEAD, TOP = 24, 22, TABS - 24
 local SHIMMER_W = 90
 local offset = 0
 local detail -- the selected build's panel
@@ -374,6 +375,7 @@ end
 
 function W.refresh()
     if not pane or not pane:IsShown() then return end
+    if W.inSeason and W.inSeason() then W.hide() return W.refreshSeason() end -- no tree marks there
     for _, r in ipairs(rows) do r:Hide() end
     for _, h in ipairs(heads) do h:Hide() end
     local specID = B.specID()
@@ -544,6 +546,222 @@ local function applyScale(now)
     local old = f:GetEffectiveScale()
     f:SetScale(want)
     if x then centerAt(f, x * old, y * old) end
+end
+
+-- This season: every place this season (Delves, the Mythic+ dungeons, each raid's bosses) with
+-- the build each of your specs has tagged there. Click a place to tag one of this spec's builds.
+-- A second way to tag: quickest for someone arriving with a pile of builds to sort out.
+local season, seasonRows, seasonHeads, seasonOffset = nil, {}, {}, 0
+local SROW, SHEAD = 22, 20
+
+local function seasonPlaces()
+    local out = { { heading = "Delves" }, { key = "delve", name = "Delves" } }
+    local dungeons = UI.seasonDungeons()
+    if #dungeons > 0 then
+        out[#out + 1] = { heading = "Mythic+ dungeons" }
+        for _, d in ipairs(dungeons) do out[#out + 1] = d end
+    end
+    for _, raid in ipairs(UI.seasonRaids()) do
+        out[#out + 1] = { heading = raid.name }
+        for _, boss in ipairs(raid.bosses) do out[#out + 1] = boss end
+    end
+    return out
+end
+
+-- this class's specs, and which build each has tagged for a place
+local function classSpecs()
+    local out = {}
+    for i = 1, GetNumSpecializations() or 0 do
+        local specID, name, _, icon = GetSpecializationInfo(i)
+        if specID then out[#out + 1] = { id = specID, name = name, icon = icon } end
+    end
+    return out
+end
+local function taggedFor(specID, key)
+    for _, b in ipairs(TK.db.builds[specID] or {}) do if b.tags and b.tags[key] then return b end end
+end
+
+local function seasonRow(i)
+    if seasonRows[i] then return seasonRows[i] end
+    local r = CreateFrame("Button", nil, season.list)
+    r:SetHeight(SROW)
+    r.stripe = UI.fill(r, "BACKGROUND", 1, 1, 1, 0.05)
+    UI.fill(r, "HIGHLIGHT", 0.851, 0.851, 0.851, 0.15)
+    r.icons = {}
+    for k = 1, 4 do
+        local t = r:CreateTexture(nil, "ARTWORK")
+        t:SetSize(14, 14)
+        t:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+        r.icons[k] = t
+    end
+    r.text = r:CreateFontString(nil, "OVERLAY", "TalentKeeperFontSmall")
+    r.text:SetPoint("LEFT", 8, 0)
+    r.text:SetJustifyH("LEFT")
+    r.text:SetWordWrap(false)
+    r:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:SetText(self.place.name)
+        for _, sp in ipairs(classSpecs()) do
+            local b = taggedFor(sp.id, self.place.key)
+            GameTooltip:AddDoubleLine(sp.name, b and b.name or "nothing tagged", 0.74, 0.74, 0.74,
+                b and 0.596 or 0.55, b and 1 or 0.55, b and 0.596 or 0.55)
+        end
+        GameTooltip:AddLine("Click to pick this spec's build here.", 0.55, 0.55, 0.55, true)
+        GameTooltip:Show()
+    end)
+    r:SetScript("OnLeave", GameTooltip_Hide)
+    r:SetScript("OnClick", TK.safe(function(self)
+        local place, specID = self.place, B.specID()
+        UI.picker(self, place.name, function()
+            local items, cur = {}, taggedFor(specID, place.key)
+            for _, line in ipairs(B.ordered(specID)) do
+                if line.header then items[#items + 1] = { heading = line.header }
+                elseif line.build then
+                    local b = line.build
+                    items[#items + 1] = { label = b.name, checked = function() return b.tags and b.tags[place.key] ~= nil end,
+                        onClick = function()
+                            if not (b.tags and b.tags[place.key]) then B.setTag(b, place.key, place.name, true) end
+                            W.refreshSeason()
+                        end }
+                end
+            end
+            if #items == 0 then items[1] = { label = "No builds saved for this spec yet.", disabled = true }
+            elseif cur then
+                items[#items + 1] = { bar = true }
+                items[#items + 1] = { label = "Nothing here for " .. B.specName(specID), onClick = function()
+                    B.setTag(cur, place.key, place.name, false)
+                    W.refreshSeason()
+                end }
+            end
+            return items
+        end)
+    end))
+    seasonRows[i] = r
+    return r
+end
+
+local function seasonHead(i)
+    if seasonHeads[i] then return seasonHeads[i] end
+    local h = season.list:CreateFontString(nil, "OVERLAY", "TalentKeeperFontSmall")
+    h:SetTextColor(0.55, 0.55, 0.55)
+    seasonHeads[i] = h
+    return h
+end
+
+function W.refreshSeason()
+    if not season or not season:IsShown() then return end
+    for _, r in ipairs(seasonRows) do r:Hide() end
+    for _, h in ipairs(seasonHeads) do h:Hide() end
+    local specs, cur = classSpecs(), B.specID()
+    local places, total, done = seasonPlaces(), 0, 0
+    local height = season.list:GetHeight()
+    local y, nr, nh, n = 0, 0, 0, 0
+    for _, it in ipairs(places) do y = y + (it.heading and SHEAD or SROW) end
+    seasonOffset = math.max(0, math.min(seasonOffset, y - height))
+    y = 0
+    for _, it in ipairs(places) do
+        local h = it.heading and SHEAD or SROW
+        local top = y - seasonOffset
+        local inView = top >= 0 and top + h <= height
+        if it.heading then
+            if inView then
+                nh = nh + 1
+                local fs = seasonHead(nh)
+                fs:SetText(it.heading)
+                fs:ClearAllPoints()
+                fs:SetPoint("BOTTOMLEFT", season.list, "TOPLEFT", 8, -(top + h - 3))
+                fs:Show()
+            end
+        else
+            total, n = total + 1, n + 1
+            local mine = taggedFor(cur, it.key)
+            if mine then done = done + 1 end
+            if inView then
+                nr = nr + 1
+                local r = seasonRow(nr)
+                r.place = it
+                r.stripe:SetShown(n % 2 == 0)
+                -- this spec's gaps read gray, with this spec's icon dim: the places left to tag
+                r.text:SetText(it.name)
+                if mine then r.text:SetTextColor(1, 1, 1) else r.text:SetTextColor(0.55, 0.55, 0.55) end
+                for k, t in ipairs(r.icons) do
+                    local sp = specs[k]
+                    t:SetShown(sp ~= nil)
+                    if sp then
+                        t:ClearAllPoints()
+                        t:SetPoint("RIGHT", r, "RIGHT", -8 - (#specs - k) * 18, 0)
+                        t:SetTexture(sp.icon)
+                        local has = taggedFor(sp.id, it.key) ~= nil
+                        t:SetDesaturated(not has)
+                        t:SetAlpha(has and 1 or 0.25)
+                    end
+                end
+                r.text:SetPoint("RIGHT", r, "RIGHT", -8 - #specs * 18, 0)
+                r:ClearAllPoints()
+                r:SetPoint("TOPLEFT", 0, -top); r:SetPoint("TOPRIGHT", 0, -top)
+                r:Show()
+            end
+        end
+        y = y + h
+    end
+    season.summary:SetText(("%s: %d of %d places have a build"):format(B.specName(cur), done, total))
+end
+
+function W.inSeason() return season ~= nil and season:IsShown() end
+
+local function makeSeason()
+    season = CreateFrame("Frame", nil, pane)
+    season:SetPoint("TOPLEFT", 1, TOP); season:SetPoint("BOTTOMRIGHT", -1, 1)
+    season:SetFrameLevel(pane:GetFrameLevel() + 15)
+    season:EnableMouse(true)
+    UI.fill(season, "BACKGROUND", 0.06, 0.06, 0.06, 1)
+    season.summary = season:CreateFontString(nil, "OVERLAY", "TalentKeeperFontSmall")
+    season.summary:SetPoint("BOTTOMLEFT", 8, 10)
+    season.summary:SetTextColor(0.74, 0.74, 0.74)
+    season.list = CreateFrame("Frame", nil, season)
+    season.list:SetPoint("TOPLEFT", 0, -2); season.list:SetPoint("BOTTOMRIGHT", 0, 30)
+    season.list:SetClipsChildren(true)
+    season.list:EnableMouseWheel(true)
+    season.list:SetScript("OnMouseWheel", function(_, delta) seasonOffset = seasonOffset - delta * SROW * 3 TK.safe(W.refreshSeason)() end)
+    season:SetScript("OnShow", function() TK.safe(W.refreshSeason)() end)
+    season:Hide()
+end
+
+-- Tabs under the spec buttons: muted text off, mint text and a 2px bar on.
+local tabs = {}
+local function showTab(which)
+    if which == "season" and not season then makeSeason() end
+    if season then season:SetShown(which == "season") end
+    for _, t in ipairs(tabs) do
+        local on = t.which == which
+        t.text:SetTextColor(on and 0.596 or 0.55, on and 1 or 0.55, on and 0.596 or 0.55)
+        t.bar:SetShown(on)
+    end
+    UI.hidePicker()
+    if which == "season" then W.hide() else W.refresh() end
+end
+
+local function makeTabs()
+    local x = 8
+    for _, def in ipairs({ { "builds", "Builds" }, { "season", "This season" } }) do
+        local t = CreateFrame("Button", nil, pane)
+        t.which = def[1]
+        t.text = t:CreateFontString(nil, "OVERLAY", "TalentKeeperFont")
+        t.text:SetPoint("LEFT")
+        t.text:SetText(def[2])
+        t:SetSize(math.ceil(t.text:GetStringWidth()) + 4, 20)
+        t:SetPoint("TOPLEFT", x, TABS)
+        t.bar = t:CreateTexture(nil, "OVERLAY")
+        t.bar:SetColorTexture(0.596, 1, 0.596, 1)
+        t.bar:SetHeight(2)
+        t.bar:SetPoint("BOTTOMLEFT"); t.bar:SetPoint("BOTTOMRIGHT")
+        t:SetScript("OnEnter", function(self) if not self.bar:IsShown() then self.text:SetTextColor(1, 1, 1) end end)
+        t:SetScript("OnLeave", function(self) if not self.bar:IsShown() then self.text:SetTextColor(0.55, 0.55, 0.55) end end)
+        t:SetScript("OnClick", TK.safe(function(self) showTab(self.which) end))
+        tabs[#tabs + 1] = t
+        x = x + t:GetWidth() + 14
+    end
+    showTab("builds")
 end
 
 -- Options: a gear in the pane's header swaps the build list for this view ---------------------
@@ -728,6 +946,7 @@ EventUtil.ContinueOnAddOnLoaded("Blizzard_PlayerSpells", TK.safe(function()
     local import = UI.button(pane, "Import", 98, function() UI.buildDialog(true) end)
     import:SetPoint("BOTTOMRIGHT", -8, 8)
     specButtons()
+    makeTabs()
     pane:Hide()
     tf:HookScript("OnShow", function() pane:Show() TK.safe(W.refresh)() end)
     tf:HookScript("OnHide", function() W.hide() UI.hidePicker() pane:Hide() end)
