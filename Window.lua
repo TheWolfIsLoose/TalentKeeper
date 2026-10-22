@@ -335,7 +335,6 @@ local function refreshDetail(specID)
     if not b then
         detail.name:SetText("|cff8c8c8cNo build selected|r")
         detail.info:SetText("Click a build to see it on the tree.")
-        detail.apply:SetText("Apply")
         W.hide()
         return
     end
@@ -347,13 +346,10 @@ local function refreshDetail(specID)
     if not d then parts[#parts + 1] = "|cffff8888can't read it|r"
     elseif #d == 0 then parts[#parts + 1] = "|cff98ff98your talents now|r"
     else parts[#parts + 1] = ("%d change%s marked"):format(#d, #d == 1 and "" or "s") end
-    local staged = B.isStaged(b)
-    if staged then parts[#parts] = "|cff98ff98pending: Apply changes to finish|r" end
     if b.outdated then parts[#parts + 1] = "|cffffb84doutdated|r" end
     local tags = UI.tagSummary(b)
     detail.info:SetText(table.concat(parts, " · ") .. "\n" .. (tags and ("For: " .. tags) or "|cff8c8c8cNot tagged for anything|r"))
-    detail.apply:SetText(staged and "|cff98ff98Apply changes|r" or "Apply")
-    detail.apply:SetEnabled(staged or (d ~= nil and #d > 0))
+    detail.apply:SetEnabled(d ~= nil and #d > 0)
 end
 
 -- More...: the build's less frequent actions, in the suite's picker.
@@ -408,8 +404,7 @@ local function makeDetail()
     detail.info:SetSpacing(2)
     local foot = UI.footBand(detail)
     local function on(fn) return function(self) local b = TK.selected if b then fn(b, self) end end end
-    -- Apply: the build goes in as pending changes (the game's own load); then Apply changes
-    -- commits them, same as the talent window's button. Double-click a row applies right away.
+    -- Apply: the same as double-clicking the build, every time.
     local more = UI.button(foot, "More...", 52, on(function(b, self)
         UI.picker(self, b.name, function() return moreItems(b, self) end)
     end))
@@ -418,13 +413,10 @@ local function makeDetail()
     local forBtn = UI.button(foot, "For...", 52, on(function(b, self) UI.tagMenu(self, b) end))
     forBtn:SetPoint("RIGHT", more, "LEFT", -4, 0)
     tip(forBtn, "For", "The dungeons, delves and bosses this build is for.")
-    detail.apply = UI.button(foot, "Apply", 10, on(function(b)
-        if B.isStaged(b) then return tf:ApplyConfig() end
-        B.apply(b, true)
-    end))
+    detail.apply = UI.button(foot, "Apply", 10, on(function(b) B.apply(b) end))
     detail.apply:SetPoint("LEFT", 8, 0)
     detail.apply:SetPoint("RIGHT", forBtn, "LEFT", -4, 0)
-    tip(detail.apply, "Apply", "Puts this build in as pending changes; then Apply changes finishes it. Double-click a build to do both.")
+    tip(detail.apply, "Apply", "Changes your talents to this build (same as double-clicking it). Grayed when it's already your talents.")
     detail.buttons = { detail.apply, forBtn, more }
 end
 

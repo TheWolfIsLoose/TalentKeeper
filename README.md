@@ -19,7 +19,7 @@ talent window becomes something you rarely need to open.
 ## Features
 
 - **Right beside your talents.** A side pane on the talent window lists your builds, in groups you can drag them between. Click one to preview it on the tree: talents it takes glow green, talents it drops glow red. Tags, Group, Rename, Copy, Resave and Delete sit under the list, and spec buttons change spec without leaving the window.
-- **Lands whole, every time.** Apply puts the build into the talent window as pending changes through the game's own loadout system, so you see exactly what changes before Apply changes finishes it. Double-click a build (or use the quick list) to apply it straight away, the same way.
+- **Lands whole, every time.** Apply (or double-click a build, or the quick list) changes your talents through the game's own loadout system, the same way every time.
 - **Tag builds for where you use them.** This season's Mythic+ dungeons, delves (one shared Delves tag) and each raid boss. One build per spec for each place, so TalentKeeper always knows what to offer.
 - **This season at a glance.** A tab lists every dungeon, delve and raid boss this season with which of your specs has a build there. Pick a build for any spec from there, without changing spec, and fill the gaps in one place.
 - **The right build when you arrive.** Entering one of this season's dungeons or a delve offers the build tagged for it. Nothing tagged for your spec yet: it asks once what to use there, with your other spec's build one click away. Nothing changes your talents without a click.

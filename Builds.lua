@@ -393,7 +393,7 @@ local function verify(b)
     b.outdated = #d > 0 and #d or nil
     TK.changed()
     if #d > 0 then
-        TK.chat(("|cffffb84dApplied %s, but %d of its talents didn't come out as saved|r (%s). Re-save it once you've fixed them.")
+        TK.chat(("|cffffb84dApplied %s, but %d of its talents didn't come out as saved|r (%s). Fix them, then More... > Update to my talents.")
             :format(b.name, #d, table.concat(TK.compare.describe(d, 3), ", ")))
     end
 end
@@ -452,18 +452,6 @@ end
 -- so the same loadout is loaded once more a second later before giving up.
 local function load(id, p)
     local specID = B.specID()
-    local tf = PlayerSpellsFrame and PlayerSpellsFrame.TalentsFrame
-    if p.staged and tf and tf:IsVisible() and tf.SetSelectedSavedConfigID then
-        -- the game's own "pick this loadout without applying it": the loadout menu shows
-        -- TalentKeeper and the build waits as pending changes for Apply Changes, which saves into
-        -- this loadout (Apply Changes saves into whatever the menu shows)
-        tf:SetSelectedSavedConfigID(id, false)
-        B.staged = { b = p.b, id = id, prev = p.prev }
-        B.muteUntil = 0
-        if lastApply then lastApply.timed = true end
-        TK.log("apply '%s': pending in the talent window (%d ms)", p.b.name, lastApply and (debugprofilestop() - lastApply.t0) or -1)
-        return TK.changed()
-    end
     local r, changeError = C_ClassTalents.LoadConfig(id, true)
     TK.log("apply '%s': LoadConfig %s %s%s", p.b.name, resultName[r] or tostring(r), changeError or "", p.retried and " (retry)" or "")
     if r == Enum.LoadConfigResult.Error then
@@ -490,9 +478,8 @@ end
 
 
 -- Apply b through the game's own load: TalentKeeper's loadout is replaced with the build, then
--- loaded. staged = true (the Apply button, talent window open): it waits as pending changes for
--- Apply Changes. Otherwise (double-click, quick list, prompts) it's applied right away.
-function B.apply(b, staged)
+-- loaded. One thing every time: the Apply button, double-click, the quick list and the prompts.
+function B.apply(b)
     if InCombatLockdown() then return TK.chat("|cffff8888Can't change talents in combat.|r") end
     -- a second apply mid-cast would cut the first one off
     if lastApply and not lastApply.timed and B.muteUntil and GetTime() < B.muteUntil then
@@ -514,25 +501,16 @@ function B.apply(b, staged)
     local d = TK.compare.diff(currentString(), b.text)
     if d and #d == 0 then
         TK.db.active[specID] = b.name
-        -- another build waiting as pending changes: undo it, you asked for what you already have
-        local tf = PlayerSpellsFrame and PlayerSpellsFrame.TalentsFrame
-        if B.staged and tf and tf.RollbackConfig then
-            TK.log("apply '%s': already your talents; dropped '%s' pending", b.name, B.staged.b.name)
-            B.staged = nil
-            tf:RollbackConfig()
-            return TK.changed()
-        end
         TK.log("apply '%s': already your talents", b.name)
         return TK.changed()
     end
     local prev = TK.db.active[specID]
-    if not staged then TK.db.active[specID] = b.name end
-    B.staged = nil
+    TK.db.active[specID] = b.name
     lastApply = { b = b, t0 = debugprofilestop(), prev = prev }
     B.muteUntil = GetTime() + 10
     local old = findSlot(specID)
     if old then C_ClassTalents.DeleteConfig(old) end
-    pending = { b = b, prev = prev, staged = staged }
+    pending = { b = b, prev = prev }
     local ok, importErr = C_ClassTalents.ImportLoadout(C_ClassTalents.GetActiveConfigID(), e, SLOT, strtrim(b.text))
     TK.log("apply '%s' (%s): import %s %s", b.name, B.specName(specID), tostring(ok), importErr or "")
     if not ok then
@@ -541,42 +519,6 @@ function B.apply(b, staged)
         TK.chat(("|cffff8888Couldn't apply %s.|r %s"):format(b.name, importErr or ""))
     end
 end
-
--- Is b waiting as pending changes in the talent window? Only while its loadout menu is still on
--- TalentKeeper's loadout and changes are pending: picking another loadout (Default Loadout,
--- say) stages that one instead, and Apply changes must never commit it as ours.
-function B.isStaged(b)
-    local st, tf = B.staged, PlayerSpellsFrame and PlayerSpellsFrame.TalentsFrame
-    if not st or (b and st.b ~= b) then return false end
-    local sel = tf and tf.LoadSystem and tf.LoadSystem.GetSelectionID and tf.LoadSystem:GetSelectionID()
-    if sel ~= st.id then return false end
-    return B.unsaved()
-end
-
--- A staged build: applied once the talent window's changes are committed and match it; forgotten
--- when the pending changes go away otherwise (undone, or another loadout picked).
-TK.on("TRAIT_CONFIG_UPDATED", function(id)
-    local st = B.staged
-    if not st or id ~= C_ClassTalents.GetActiveConfigID() then return end
-    if B.unsaved() then
-        if not B.isStaged() then -- another loadout's changes now
-            B.staged = nil
-            TK.log("apply '%s': pending changes replaced (another loadout picked)", st.b.name)
-            TK.changed()
-        end
-        return
-    end
-    B.staged = nil
-    local d = TK.compare.diff(currentString(), st.b.text)
-    if d and #d == 0 then
-        TK.db.active[B.specID()] = st.b.name
-        setPvp(st.b)
-        TK.log("apply '%s': applied from the talent window", st.b.name)
-    else
-        TK.log("apply '%s': pending changes dropped", st.b.name)
-    end
-    TK.changed()
-end)
 
 -- How long an apply took, click to talents committed (logged for comparing methods).
 TK.on("TRAIT_CONFIG_UPDATED", function(id)
