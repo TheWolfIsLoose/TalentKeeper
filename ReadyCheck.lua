@@ -136,7 +136,7 @@ local function makeStrip()
     strip.what:SetPoint("LEFT", mark, "RIGHT", 6, 0)
     strip.what.text = strip.what:CreateFontString(nil, "OVERLAY", "TalentKeeperFont")
     strip.what.text:SetPoint("LEFT")
-    strip.what:SetScript("OnEnter", function(self) if self.pick then self.text:SetTextColor(0.596, 1, 0.596) end end)
+    strip.what:SetScript("OnEnter", function(self) if self.pick then self.text:SetTextColor(1, 1, 1) end end)
     strip.what:SetScript("OnLeave", function(self) self.text:SetTextColor(1, 1, 1) end)
     strip.status = strip:CreateFontString(nil, "OVERLAY", "TalentKeeperFontSmall")
     strip.status:SetPoint("TOPLEFT", mark, "BOTTOMLEFT", 0, -6)
@@ -173,9 +173,9 @@ function R.show(check)
     local spec = B.specID()
     local status, one, two, what
     if mine and P.onBuild(mine, spec) then
-        status, what = "|cff98ff98On " .. mine.name .. "|r", "on '" .. mine.name .. "'"
+        status, what = "|cffffffffOn " .. mine.name .. "|r", "on '" .. mine.name .. "'"
     elseif mine then
-        status, what = "|cffffb84dNot on|r " .. mine.name .. ", tagged here", "tagged '" .. mine.name .. "'"
+        status, what = "|cffffd84aNot on|r " .. mine.name .. ", tagged here", "tagged '" .. mine.name .. "'"
         one = { "Switch", function() P.switch(mine, spec) R.hide() end }
     else
         if check and P.asked(here) then return TK.log("readycheck: %s, already asked this session", here.name) end

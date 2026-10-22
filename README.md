@@ -29,7 +29,7 @@ talent window becomes something you rarely need to open.
 - **PvP talents too.** Saved and applied with the build.
 - **Bring your builds over.** At your first login, TalentKeeper offers to copy your builds from Talent Loadout Ex, Talent Loadout Manager and your game loadouts, then to turn the other talent addon off. Ones it already has are skipped, and nothing is removed anywhere. Also in Options.
 - **Sim them.** Your builds go into the SimulationCraft addon's `/simc` text as saved loadouts, ready to pick on sim sites. Your other specs' builds too when SimulationCraft's Offspec Talent Loadouts box is ticked.
-- **Options.** Talent window size, whether to ask in delves, and whether to add builds to `/simc` (the gear in the pane's header).
+- **Options.** Talent window size, whether to ask in delves, and whether to add builds to `/simc` (the three-bar icon in the pane's header).
 
 ## Commands
 

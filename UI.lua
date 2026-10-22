@@ -317,7 +317,7 @@ local function makeDialog()
                 note = #d == 0 and "Same as your talents now." or ("%d changes marked on the tree."):format(#d)
             end
         elseif text ~= "" then
-            note = "|cffff8888That isn't a talent string.|r"
+            note = "|cffff6666That isn't a talent string.|r"
         end
         dlg.note:SetText(note)
         if TK.window then TK.window.preview(preview) end
@@ -412,7 +412,7 @@ local function pickRow(i)
     r.ring = ring(r.box, 0.4)
     r.mark = r.box:CreateTexture(nil, "ARTWORK")
     r.mark:SetPoint("TOPLEFT", 3, -3); r.mark:SetPoint("BOTTOMRIGHT", -3, 3)
-    r.mark:SetColorTexture(0.596, 1, 0.596, 1)
+    r.mark:SetColorTexture(1, 1, 1, 1)
     r.text = r:CreateFontString(nil, "OVERLAY", "TalentKeeperFontSmall")
     r.text:SetPoint("RIGHT", -8, 0)
     r.text:SetJustifyH("LEFT")
@@ -465,7 +465,7 @@ local function makePicker()
     pick.more = pick:CreateFontString(nil, "OVERLAY", "TalentKeeperFontSmall")
     pick.more:SetPoint("BOTTOM", 0, 3)
     pick.more:SetText("v  more below  v")
-    pick.more:SetTextColor(0.596, 1, 0.596)
+    pick.more:SetTextColor(1, 1, 1)
     pick.pulse = pick.more:CreateAnimationGroup()
     local a = pick.pulse:CreateAnimation("Alpha")
     a:SetFromAlpha(1); a:SetToAlpha(0.3); a:SetDuration(0.5)

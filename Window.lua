@@ -164,19 +164,19 @@ local function row(i)
     local r = CreateFrame("Button", nil, pane.list)
     r:SetHeight(ROW)
     r.stripe = UI.fill(r, "BACKGROUND", 1, 1, 1, 0.05)
-    r.sel = UI.fill(r, "BACKGROUND", 0.596, 1, 0.596, 0.12)
+    r.sel = UI.fill(r, "BACKGROUND", 1, 1, 1, 0.12)
     UI.fill(r, "HIGHLIGHT", 0.851, 0.851, 0.851, 0.15)
     r.status = r:CreateFontString(nil, "OVERLAY", "TalentKeeperFontSmall")
     r.status:SetPoint("RIGHT", -8, 0)
     r.bar = r:CreateTexture(nil, "OVERLAY")
-    r.bar:SetColorTexture(0.596, 1, 0.596, 1)
+    r.bar:SetColorTexture(1, 1, 1, 1)
     r.bar:SetPoint("TOPLEFT"); r.bar:SetPoint("BOTTOMLEFT"); r.bar:SetWidth(2)
     r.text = r:CreateFontString(nil, "OVERLAY", "TalentKeeperFont")
     r.text:SetPoint("LEFT", 8, 0)
     r.text:SetPoint("RIGHT", r.status, "LEFT", -6, 0)
     r.text:SetJustifyH("LEFT")
     r.text:SetWordWrap(false)
-    -- Shimmer: one soft mint band sweeps across the row (once, two seconds), clipped to it.
+    -- Shimmer: one soft white band sweeps across the row (once, two seconds), clipped to it.
     local clip = CreateFrame("Frame", nil, r)
     clip:SetAllPoints()
     clip:SetClipsChildren(true)
@@ -188,7 +188,7 @@ local function row(i)
         t:SetColorTexture(1, 1, 1, 1)
         t:SetSize(SHIMMER_W / 2, ROW)
         t:SetPoint(half == 1 and "LEFT" or "RIGHT")
-        local none, peak = CreateColor(0.596, 1, 0.596, 0), CreateColor(0.596, 1, 0.596, 0.22)
+        local none, peak = CreateColor(1, 1, 1, 0), CreateColor(1, 1, 1, 0.15)
         t:SetGradient("HORIZONTAL", half == 1 and none or peak, half == 1 and peak or none)
     end
     band:Hide()
@@ -217,7 +217,7 @@ local function row(i)
     r:SetScript("OnDragStart", function(self)
         self.dragged, W.dragging = true, self.b
         GameTooltip:Hide()
-        self:SetAlpha(0.4) -- the row you picked up dims; a mint line shows where it will land
+        self:SetAlpha(0.4) -- the row you picked up dims; a white line shows where it will land
         pane:SetScript("OnUpdate", TK.safe(W.dragLine))
     end)
     r:SetScript("OnDragStop", TK.safe(function() W.drop() end))
@@ -227,7 +227,7 @@ local function row(i)
         local hero = C.heroName(self.b.text)
         if hero then GameTooltip:AddLine(hero, 0.74, 0.74, 0.74) end
         local tags = B.tagNames(self.b)
-        if #tags > 0 then GameTooltip:AddLine("Tags: " .. table.concat(tags, ", "), 0.596, 1, 0.596, true) end
+        if #tags > 0 then GameTooltip:AddLine("Tags: " .. table.concat(tags, ", "), 1, 1, 1, true) end
         GameTooltip:AddLine("Click to preview on the tree, double-click to apply. Drag to reorder, or onto a group heading.", 0.55, 0.55, 0.55, true)
         GameTooltip:Show()
     end))
@@ -264,7 +264,7 @@ local function head(i)
                     TK.changed()
                 end },
                 { label = function()
-                    return armedGroup == g and ("|cffff8888Sure? Deletes %d build%s|r"):format(n, n == 1 and "" or "s") or "Delete it and its builds"
+                    return armedGroup == g and ("|cffff6666Sure? Deletes %d build%s|r"):format(n, n == 1 and "" or "s") or "Delete it and its builds"
                 end, onClick = function()
                     if armedGroup == g then armedGroup = nil B.deleteGroup(specID, g) return end
                     armedGroup = g
@@ -295,7 +295,7 @@ function W.dragLine()
     local line = pane.insertLine
     if not line then
         line = pane.list:CreateTexture(nil, "OVERLAY", nil, 7)
-        line:SetColorTexture(0.596, 1, 0.596, 1)
+        line:SetColorTexture(1, 1, 1, 1)
         line:SetHeight(2)
         pane.insertLine = line
     end
@@ -355,11 +355,11 @@ local function refreshDetail(specID, now)
     end
     local d = W.show(b)
     local what
-    if not d then what = "|cffff8888can't read it|r"
+    if not d then what = "|cffff6666can't read it|r"
     elseif #d == 0 then what = "what you have now"
     else what = ("%d change%s marked"):format(#d, #d == 1 and "" or "s") end
-    if b.outdated then what = what .. " · |cffffb84doutdated|r" end
-    detail.info:SetText(("|cff98ff98Preview:|r %s · %s"):format(b.name, what))
+    if b.outdated then what = what .. " · |cffffd84aoutdated|r" end
+    detail.info:SetText(("|cffffffffPreview:|r %s · %s"):format(b.name, what))
     detail.apply:SetEnabled(d ~= nil and #d > 0)
 end
 
@@ -376,7 +376,7 @@ local function moreItems(b, owner)
             UI.textWindow({ title = "Talent string: " .. b.name, text = b.text, readOnly = true })
         end },
         { label = "Update to my talents", onClick = function() B.updateToCurrent(b) end },
-        { label = function() return armedBuild == b and "|cffff8888Sure? Click again|r" or "|cffff8888Delete|r" end,
+        { label = function() return armedBuild == b and "|cffff6666Sure? Click again|r" or "|cffff6666Delete|r" end,
           onClick = function()
             if armedBuild == b then armedBuild = nil B.delete(specID, b) return end
             armedBuild = b
@@ -460,7 +460,7 @@ function W.refresh()
     local specID = B.specID()
     local now = specID and B.onNow(specID)
     local v = TK.version or ""
-    pane.version:SetText(((v:find("^dev") or v:find("%-alpha") or v:find("%-beta")) and "|cffffb84d" or "|cff8c8c8c") .. v .. "|r")
+    pane.version:SetText(((v:find("^dev") or v:find("%-alpha") or v:find("%-beta")) and "|cffffd84a" or "|cff8c8c8c") .. v .. "|r")
     -- lay out every line, then show the ones inside the list's window
     local lines, y = {}, 0
     for _, line in ipairs(B.ordered(specID)) do
@@ -502,7 +502,7 @@ function W.refresh()
             if TK.flashing[b] then r.Shimmer() end
             r.text:SetText(b.name)
             r.status:SetText(b.outdated and "Outdated" or UI.tagSummary(b) or "")
-            if b.outdated then r.status:SetTextColor(1, 0.722, 0.302) else r.status:SetTextColor(0.55, 0.55, 0.55) end
+            if b.outdated then r.status:SetTextColor(1, 0.847, 0.29) else r.status:SetTextColor(0.55, 0.55, 0.55) end
             r.stripe:SetShown(n % 2 == 0)
             r.sel:SetShown(b == TK.selected)
             local isOn = b == now
@@ -550,7 +550,7 @@ TK.on("ACTIVE_PLAYER_SPECIALIZATION_CHANGED", function() TK.selected = nil offse
 TK.on("TRAIT_CONFIG_UPDATED", function() TK.safe(W.refresh)() end)
 
 -- Spec tiles: one strip across the top, in the class's spec order (each spec always in the same
--- spot), the width shared out so three or four fill it alike; yours lit with the mint ring, the
+-- spot), the width shared out so three or four fill it alike; yours lit with the white ring, the
 -- others gray. Click one to change spec; it fills like a cast bar while the change casts.
 local specs = {}
 
@@ -586,14 +586,14 @@ local function specButtons()
         b.icon:SetTexture(icon)
         b.icon:SetTexCoord(0.08, 0.92, top, top + keep)
         b.fill = b:CreateTexture(nil, "OVERLAY")
-        b.fill:SetColorTexture(0.596, 1, 0.596, 0.35)
+        b.fill:SetColorTexture(1, 1, 1, 0.35)
         b.fill:SetPoint("BOTTOMLEFT", 1, 1); b.fill:SetPoint("BOTTOMRIGHT", -1, 1)
         b.fill:Hide()
         b.ring = UI.ring(b, 0.4)
         UI.fill(b, "HIGHLIGHT", 1, 1, 1, 0.15)
         b:SetScript("OnClick", TK.safe(function(self)
             if i == GetSpecialization() then return end
-            if InCombatLockdown() then return TK.chat("|cffff8888Can't change spec in combat.|r") end
+            if InCombatLockdown() then return TK.chat("|cffff6666Can't change spec in combat.|r") end
             TK.log("spec change to %s", name)
             C_SpecializationInfo.SetSpecialization(i)
             -- fill like a cast bar while the change casts; stop when it ends or never starts
@@ -839,7 +839,7 @@ local function makeSeason()
     season:Hide()
 end
 
--- Tabs under the spec buttons: muted text off, mint text and a 2px bar on.
+-- Tabs under the spec buttons: muted text off, white text and a 2px bar on.
 local tabs = {}
 local function showTab(which)
     if which == "season" and not season then makeSeason() end
@@ -864,7 +864,7 @@ local function makeTabs()
         t:SetSize(math.ceil(t.text:GetStringWidth()), 20) -- the bar spans the word, no overhang
         t:SetPoint("TOPLEFT", x, TABS)
         t.bar = t:CreateTexture(nil, "OVERLAY")
-        t.bar:SetColorTexture(0.596, 1, 0.596, 1)
+        t.bar:SetColorTexture(1, 1, 1, 1)
         t.bar:SetHeight(2)
         t.bar:SetPoint("BOTTOMLEFT"); t.bar:SetPoint("BOTTOMRIGHT")
         t:SetScript("OnEnter", function(self)
@@ -883,7 +883,7 @@ local function makeTabs()
     showTab("builds")
 end
 
--- Checkbox: 16px well and gray ring, mint square when on; the label is part of the 24px target.
+-- Checkbox: 16px well and gray ring, white square when on; the label is part of the 24px target.
 function W.checkbox(parent, label, tip, get, set)
     local cb = CreateFrame("Button", nil, parent)
     cb:SetSize(204, 24)
@@ -894,7 +894,7 @@ function W.checkbox(parent, label, tip, get, set)
     local boxRing = UI.ring(box, 0.4)
     local tick = box:CreateTexture(nil, "ARTWORK")
     tick:SetPoint("TOPLEFT", 4, -4); tick:SetPoint("BOTTOMRIGHT", -4, 4)
-    tick:SetColorTexture(0.596, 1, 0.596, 1)
+    tick:SetColorTexture(1, 1, 1, 1)
     cb.text = cb:CreateFontString(nil, "OVERLAY", "TalentKeeperFont")
     cb.text:SetPoint("LEFT", box, "RIGHT", 8, 0)
     cb.text:SetPoint("RIGHT")
@@ -966,11 +966,11 @@ local function makeBring()
     mark:SetTexture("Interface\\AddOns\\TalentKeeper\\icon.png")
     local name = head:CreateFontString(nil, "OVERLAY", "TalentKeeperFont")
     name:SetPoint("LEFT", mark, "RIGHT", 6, 0)
-    name:SetText("|cff98ff98Talent|rKeeper")
+    name:SetText("|cffffffffTalent|r|cffb3b3b3Keeper|r")
     local ver = head:CreateFontString(nil, "OVERLAY", "TalentKeeperFontSmall")
     ver:SetPoint("BOTTOMLEFT", name, "BOTTOMRIGHT", 6, 1)
     local v = TK.version or ""
-    ver:SetText(((v:find("^dev") or v:find("%-alpha") or v:find("%-beta")) and "|cffffb84d" or "|cff8c8c8c") .. v .. "|r")
+    ver:SetText(((v:find("^dev") or v:find("%-alpha") or v:find("%-beta")) and "|cffffd84a" or "|cff8c8c8c") .. v .. "|r")
     head:EnableMouse(true)
     head:RegisterForDrag("LeftButton")
     head:SetScript("OnDragStart", function() bring:StartMoving() end)
@@ -1159,7 +1159,7 @@ local function makeOptions()
     local label = opt:CreateFontString(nil, "OVERLAY", "TalentKeeperFont")
     label:SetPoint("TOPLEFT", head, "BOTTOMLEFT", 0, -8)
     label:SetText("Size")
-    -- the slider: a well-filled track with the gray ring, a light thumb (mint while dragging)
+    -- the slider: a well-filled track with the gray ring, a light thumb (white while dragging)
     local s = CreateFrame("Slider", nil, opt)
     s:SetOrientation("HORIZONTAL")
     s:SetPoint("TOPLEFT", label, "BOTTOMLEFT", 0, -8)
@@ -1188,11 +1188,11 @@ local function makeOptions()
     -- applied on release: resizing while dragging moves the slider (the pane hangs off the window)
     -- under the cursor, which fed back into the value
     local pending
-    s:SetScript("OnMouseDown", function() thumb:SetColorTexture(0.596, 1, 0.596, 1) end)
+    s:SetScript("OnMouseDown", function() thumb:SetColorTexture(1, 1, 1, 1) end)
     s:SetScript("OnMouseUp", TK.safe(function()
         thumb:SetColorTexture(0.851, 0.851, 0.851, 1)
         if not pending then return end
-        if InCombatLockdown() then pending = nil return TK.chat("|cffff8888Can't resize the talent window in combat.|r") end
+        if InCombatLockdown() then pending = nil return TK.chat("|cffff6666Can't resize the talent window in combat.|r") end
         TK.db.windowScale = math.abs(pending - 1) > 0.001 and pending or nil
         pending = nil
         applyScale(true)
@@ -1238,17 +1238,19 @@ local function makeOptions()
     opt:Hide()
 end
 
--- The gear: gray at rest, mint on hover and while the options are open.
+-- Settings & Activity: the suite's drawn three-bar icon in the pane's header. It shows or hides
+-- the options view (a toggle: white while open); light gray at rest, white on hover.
 local function gear()
     local g = CreateFrame("Button", nil, pane)
     g:SetSize(24, 24)
     g:SetPoint("TOPRIGHT", -2, -1)
-    g.icon = g:CreateTexture(nil, "ARTWORK")
-    g.icon:SetSize(16, 16)
-    g.icon:SetPoint("CENTER")
-    g.icon:SetTexture("Interface\\Buttons\\UI-OptionsButton")
-    g.icon:SetDesaturated(true)
-    local function tint(on) if on then g.icon:SetVertexColor(0.596, 1, 0.596) else g.icon:SetVertexColor(0.851, 0.851, 0.851) end end
+    local bars = {}
+    for i, y in ipairs({ 4, 0, -4 }) do
+        bars[i] = g:CreateTexture(nil, "ARTWORK")
+        bars[i]:SetSize(12, 2)
+        bars[i]:SetPoint("CENTER", 0, y)
+    end
+    local function tint(on) local c = on and 1 or 0.7 for _, t in ipairs(bars) do t:SetColorTexture(c, c, c, 1) end end
     tint(false)
     g:SetScript("OnClick", TK.safe(function()
         if not opt then makeOptions() end
@@ -1259,7 +1261,7 @@ local function gear()
     g:SetScript("OnEnter", function(self)
         tint(true)
         GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-        GameTooltip:SetText(opt and opt:IsShown() and "Back to your builds" or "Options")
+        GameTooltip:SetText("Settings & Activity")
         GameTooltip:Show()
     end)
     g:SetScript("OnLeave", function() tint(opt and opt:IsShown()) GameTooltip_Hide() end)
@@ -1282,11 +1284,11 @@ EventUtil.ContinueOnAddOnLoaded("Blizzard_PlayerSpells", TK.safe(function()
     mark:SetSize(16, 16)
     mark:SetPoint("LEFT", pane, "TOPLEFT", 8, -13)
     mark:SetTexture("Interface\\AddOns\\TalentKeeper\\icon.png")
-    -- name and version, as the suite's other headers: mint first half, version in Small,
-    -- amber while it's a dev, alpha or beta build
+    -- name and version, as the suite's other headers: white first half and gray second, version in Small,
+    -- yellow while it's a dev, alpha or beta build
     local title = pane:CreateFontString(nil, "OVERLAY", "TalentKeeperFont")
     title:SetPoint("LEFT", mark, "RIGHT", 6, 0)
-    title:SetText("|cff98ff98Talent|rKeeper")
+    title:SetText("|cffffffffTalent|r|cffb3b3b3Keeper|r")
     pane.version = pane:CreateFontString(nil, "OVERLAY", "TalentKeeperFontSmall")
     pane.version:SetPoint("BOTTOMLEFT", title, "BOTTOMRIGHT", 6, 1)
     local rule = pane:CreateTexture(nil, "OVERLAY")

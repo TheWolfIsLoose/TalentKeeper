@@ -9,12 +9,12 @@ TalentKeeper's specifics and wins only where it names an exception.
   separate management window.
 - **Pickers, not Blizzard menus.** Tags, groups and the quick build list open
   the suite's flat picker: a small panel with a 26px title, muted Small
-  headings, 24px rows with the 16px check well (mint square when on), and a
+  headings, 24px rows with the 16px check well (white square when on), and a
   "more below" mark instead of a scroll bar. No nested menus.
-- **Accent:** mint (suite default). The icon's gold `FFD84A` is never used
-  in the UI, since it sits near the `warn` amber.
-- **Badges** pair colour with a word: Active (mint), Duplicate (muted),
-  Outdated (amber).
+- **Colour:** monochrome (suite default): white for on / live / hover.
+  The icon is the white tree mark.
+- **Badges** pair colour with a word: Active (white), Duplicate (muted),
+  Outdated (yellow).
 - **Talent names, not IDs,** everywhere a player reads a difference
   ("Talent A → Talent B").
 - **Offers, not actions:** zone and boss awareness offer a switch; nothing
