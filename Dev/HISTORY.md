@@ -54,6 +54,23 @@ cast 384255) are reported honestly with the cause.
 - Smoke test runs again (Lua 5.1 built from source in the dev session);
   covers bring-in, asking once per session, hub rooms, the /simc checksum.
 
+Later on 2026-10-22, before the cut:
+- Apply does one thing every time (player): it changes your talents like
+  double-click. The staged "Apply, then Apply changes" path is gone; one
+  button changing meaning with state read as inconsistent.
+- Pane redone (player-led, several rounds): every control in one block at the
+  top (spec tiles in one strip in class order with the width shared out;
+  Apply / Tags... / More...; Save current / Import), then "Now:" (the saved
+  build committed in the tree, worked out from the tree; "winging it" when
+  unsaved; its row shimmers when it changes) and "Preview:" (the clicked
+  build), then Builds / Tag Config tabs and the list. Forms open in the pane.
+  Buttons 20px Small everywhere. Resave became More... > Update to my talents.
+  No swap animation on spec change: the game hangs as the spec lands.
+- /simc: TalentKeeper's builds in one block after SimulationCraft's own talent
+  lines, under "### TalentKeeper: <spec>" headings; other specs only with
+  SimulationCraft's Offspec Talent Loadouts box ticked; the game's
+  TalentKeeper slot left out (it only repeats a build).
+
 ## v0.3.0 (2026-10-20)
 
 First stable release (CurseForge lists a project only once it has one).
