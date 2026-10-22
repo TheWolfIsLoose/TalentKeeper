@@ -19,3 +19,7 @@ TalentKeeper's specifics and wins only where it names an exception.
   ("Talent A → Talent B").
 - **Offers, not actions:** zone and boss awareness offer a switch; nothing
   changes talents without a click.
+- **Accepted exception (suite guide):** the first-login bring-in / turn-off
+  prompt opens as its own window when the talent window isn't open, because
+  another talent addon's panel sits where the pane would be and would block
+  resolving the clash.
