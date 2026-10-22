@@ -80,6 +80,15 @@ Done on `dev` (2026-10-21, later):
   the log stays its own window. The hero tree name on a swap preview sits
   above the game's own hero tree name, clear of the eye button. Not done: the
   slide / grow animation (add if the swap feels abrupt).
+- Done 2026-10-22 (final pane layout, player happy with it): every control in
+  one block at the top: spec tiles in one strip (class order, width shared,
+  40px tall, current spec mint-ringed, fill like a cast bar while a change
+  casts; no swap animation: the game hangs as the spec lands), Apply / Tags...
+  / More..., Save current / Import; under it "Now:" (the saved build committed
+  in the tree, from the tree itself; "winging it" when unsaved; its row
+  shimmers when it changes) and "Preview:" (the clicked build, mint wash);
+  then Builds / Tag Config tabs and the list to the bottom. Apply does one
+  thing every time (no staging).
 - Done 2026-10-22 (pane polish, player's go on the mockup): spec icons sized
   so four fit (Druids) with Save / Import stacked beside them; the selected
   build's panel and a footer band (Apply, For..., More...) always there,
