@@ -861,7 +861,7 @@ local function makeTabs()
         t.text = t:CreateFontString(nil, "OVERLAY", "TalentKeeperFont")
         t.text:SetPoint("LEFT")
         t.text:SetText(def[2])
-        t:SetSize(math.ceil(t.text:GetStringWidth()) + 4, 20)
+        t:SetSize(math.ceil(t.text:GetStringWidth()), 20) -- the bar spans the word, no overhang
         t:SetPoint("TOPLEFT", x, TABS)
         t.bar = t:CreateTexture(nil, "OVERLAY")
         t.bar:SetColorTexture(0.596, 1, 0.596, 1)
