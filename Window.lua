@@ -746,10 +746,21 @@ local function seasonRow(i)
     return r
 end
 
+-- A heading folds its places away on click ("+" folded, "-" open); remembered across sessions.
 local function seasonHead(i)
     if seasonHeads[i] then return seasonHeads[i] end
-    local h = season.list:CreateFontString(nil, "OVERLAY", "TalentKeeperFontSmall")
-    h:SetTextColor(0.55, 0.55, 0.55)
+    local h = CreateFrame("Button", nil, season.list)
+    h:SetHeight(SHEAD)
+    h.text = h:CreateFontString(nil, "OVERLAY", "TalentKeeperFontSmall")
+    h.text:SetPoint("BOTTOMLEFT", 8, 3)
+    h.text:SetTextColor(0.55, 0.55, 0.55)
+    h:SetScript("OnEnter", function(self) self.text:SetTextColor(1, 1, 1) end)
+    h:SetScript("OnLeave", function(self) self.text:SetTextColor(0.55, 0.55, 0.55) end)
+    h:SetScript("OnClick", TK.safe(function(self)
+        TK.db.seasonClosed = TK.db.seasonClosed or {}
+        TK.db.seasonClosed[self.name] = not TK.db.seasonClosed[self.name] or nil
+        W.refreshSeason()
+    end))
     seasonHeads[i] = h
     return h
 end
@@ -761,30 +772,37 @@ function W.refreshSeason()
     local specs, cur = classSpecs(), B.specID()
     local places, total, counts = seasonPlaces(), 0, {}
     local height = season.list:GetHeight()
-    local y, nr, nh, n = 0, 0, 0, 0
-    for _, it in ipairs(places) do y = y + (it.heading and SHEAD or SROW) end
+    local closed = TK.db.seasonClosed or {}
+    local y, nr, nh, n, shut = 0, 0, 0, 0, false
+    for _, it in ipairs(places) do
+        if it.heading then shut = closed[it.heading] end
+        if it.heading or not shut then y = y + (it.heading and SHEAD or SROW) end
+    end
     seasonOffset = math.max(0, math.min(seasonOffset, y - height))
-    y = 0
+    y, shut = 0, false
     for idx, it in ipairs(places) do
-        local h = it.heading and SHEAD or SROW
+        if it.heading then shut = closed[it.heading] end
+        local h = (it.heading or not shut) and (it.heading and SHEAD or SROW) or 0
         local top = y - seasonOffset
         local inView = top >= 0 and top + h <= height
         if it.heading then
             if inView then
                 nh = nh + 1
-                local fs = seasonHead(nh)
-                fs:SetText(it.heading)
-                fs:ClearAllPoints()
-                fs:SetPoint("BOTTOMLEFT", season.list, "TOPLEFT", 8, -(top + h - 3))
-                fs:Show()
+                local hb = seasonHead(nh)
+                hb.name = it.heading
+                hb.text:SetText((shut and "+ " or "- ") .. it.heading)
+                hb:ClearAllPoints()
+                hb:SetPoint("TOPLEFT", 0, -top); hb:SetPoint("TOPRIGHT", 0, -top)
+                hb:Show()
             end
         else
-            total, n = total + 1, n + 1
+            total = total + 1
+            if not shut then n = n + 1 end -- stripes alternate over what shows
             local any = false
             for _, sp in ipairs(specs) do
                 if taggedFor(sp.id, it.key) then counts[sp.id] = (counts[sp.id] or 0) + 1 any = true end
             end
-            if inView then
+            if inView and not shut then
                 nr = nr + 1
                 local r = seasonRow(nr)
                 r.place = it
