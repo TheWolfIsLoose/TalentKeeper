@@ -1,8 +1,9 @@
 <!-- Holds only the release being cut, as short player-facing bullets under a
      `## vX.Y.Z` heading. Detailed notes go in Dev/HISTORY.md. -->
 
-## v0.5.0
+## v0.5.1
 
-- New look: a quieter, monochrome style shared across our addons. White marks what is live and selected; color only flags what needs attention.
-- Settings open from the three-bar icon in the pane's header.
-- Tag Config and the Tags menu list Delves under a Miscellaneous heading.
+- Tag Config is now Tag Overview: places hang from each heading on tree lines, and a click on a heading folds it (remembered).
+- The zone-in prompt's button and the ready check strip's Switch pulse when they appear; saved, tagged and newly live builds shimmer. Turn it off with Animate what changed in Settings & Activity.
+- A delete in the More... menu flashes while it waits for the second click.
+- Fixed: More... > Group... did nothing.

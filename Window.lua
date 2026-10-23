@@ -140,7 +140,7 @@ end
 -- class's spec order, so each sits in the same spot; the strip's width is shared out, so there's no
 -- gap for three specs or crowding for four), then Apply / Tags... / More... and Save current /
 -- Import across the full width; under it what's in the tree now and the build you're previewing;
--- then the Builds / Tag Config tabs and the list, which scrolls.
+-- then the Builds / Tag Overview tabs and the list, which scrolls.
 local pane, rows, heads = nil, {}, {}
 local PANE_W = 220
 local DECK_Y, TILE_H, GAP = -34, 40, 4 -- the spec strip
@@ -148,7 +148,7 @@ local COL_X, COL_W = 8, PANE_W - 16
 local ROW1 = DECK_Y - TILE_H - 6         -- Apply / Tags... / More...
 local ROW2 = ROW1 - 24                   -- Save current / Import
 local DETAIL_Y = ROW2 - 20 - 10          -- in the tree now / previewing
-local TABS = DETAIL_Y - 52               -- the Builds / Tag Config tabs
+local TABS = DETAIL_Y - 52               -- the Builds / Tag Overview tabs
 local ROW, HEAD, TOP = 24, 22, TABS - 24
 local SHIMMER_W = 90
 local offset = 0
@@ -200,6 +200,7 @@ local function row(i)
     sweep:SetScript("OnFinished", function() band:Hide() end)
     sweep:SetScript("OnStop", function() band:Hide() end)
     r.Shimmer = function()
+        if TK.db.noMotion then return end
         sweep:Stop()
         sweep.move:SetOffset(r:GetWidth() + SHIMMER_W, 0)
         sweep:Play()
@@ -263,7 +264,7 @@ local function head(i)
                     for _, b in ipairs(B.list(specID)) do if b.group == g then b.group = nil end end
                     TK.changed()
                 end },
-                { label = function()
+                { armed = function() return armedGroup == g end, label = function()
                     return armedGroup == g and ("|cffff6666Sure? Deletes %d build%s|r"):format(n, n == 1 and "" or "s") or "Delete it and its builds"
                 end, onClick = function()
                     if armedGroup == g then armedGroup = nil B.deleteGroup(specID, g) return end
@@ -376,7 +377,8 @@ local function moreItems(b, owner)
             UI.textWindow({ title = "Talent string: " .. b.name, text = b.text, readOnly = true })
         end },
         { label = "Update to my talents", onClick = function() B.updateToCurrent(b) end },
-        { label = function() return armedBuild == b and "|cffff6666Sure? Click again|r" or "|cffff6666Delete|r" end,
+        { armed = function() return armedBuild == b end,
+          label = function() return armedBuild == b and "|cffff6666Sure? Click again|r" or "|cffff6666Delete|r" end,
           onClick = function()
             if armedBuild == b then armedBuild = nil B.delete(specID, b) return end
             armedBuild = b
@@ -695,8 +697,17 @@ local function seasonRow(i)
         t:SetTexCoord(0.08, 0.92, 0.08, 0.92)
         r.icons[k] = t
     end
+    -- tree lines from the heading down to each place, as the suite's filter lists draw them
+    r.trunk = r:CreateTexture(nil, "ARTWORK")
+    r.trunk:SetColorTexture(0.3, 0.3, 0.3, 1)
+    r.trunk:SetWidth(1)
+    r.trunk:SetPoint("TOP", r, "TOPLEFT", 11, 3) -- up to the heading above
+    r.branch = r:CreateTexture(nil, "ARTWORK")
+    r.branch:SetColorTexture(0.3, 0.3, 0.3, 1)
+    r.branch:SetSize(5, 1)
+    r.branch:SetPoint("LEFT", 11, 0)
     r.text = r:CreateFontString(nil, "OVERLAY", "TalentKeeperFontSmall")
-    r.text:SetPoint("LEFT", 8, 0)
+    r.text:SetPoint("LEFT", 18, 0) -- indented under its heading
     r.text:SetJustifyH("LEFT")
     r.text:SetWordWrap(false)
     r:SetScript("OnEnter", function(self)
@@ -737,10 +748,21 @@ local function seasonRow(i)
     return r
 end
 
+-- A heading folds its places away on click ("+" folded, "-" open); remembered across sessions.
 local function seasonHead(i)
     if seasonHeads[i] then return seasonHeads[i] end
-    local h = season.list:CreateFontString(nil, "OVERLAY", "TalentKeeperFontSmall")
-    h:SetTextColor(0.55, 0.55, 0.55)
+    local h = CreateFrame("Button", nil, season.list)
+    h:SetHeight(SHEAD)
+    h.text = h:CreateFontString(nil, "OVERLAY", "TalentKeeperFontSmall")
+    h.text:SetPoint("BOTTOMLEFT", 8, 3)
+    h.text:SetTextColor(0.55, 0.55, 0.55)
+    h:SetScript("OnEnter", function(self) self.text:SetTextColor(1, 1, 1) end)
+    h:SetScript("OnLeave", function(self) self.text:SetTextColor(0.55, 0.55, 0.55) end)
+    h:SetScript("OnClick", TK.safe(function(self)
+        TK.db.seasonClosed = TK.db.seasonClosed or {}
+        TK.db.seasonClosed[self.name] = not TK.db.seasonClosed[self.name] or nil
+        W.refreshSeason()
+    end))
     seasonHeads[i] = h
     return h
 end
@@ -752,34 +774,43 @@ function W.refreshSeason()
     local specs, cur = classSpecs(), B.specID()
     local places, total, counts = seasonPlaces(), 0, {}
     local height = season.list:GetHeight()
-    local y, nr, nh, n = 0, 0, 0, 0
-    for _, it in ipairs(places) do y = y + (it.heading and SHEAD or SROW) end
-    seasonOffset = math.max(0, math.min(seasonOffset, y - height))
-    y = 0
+    local closed = TK.db.seasonClosed or {}
+    local y, nr, nh, n, shut = 0, 0, 0, 0, false
     for _, it in ipairs(places) do
-        local h = it.heading and SHEAD or SROW
+        if it.heading then shut = closed[it.heading] end
+        if it.heading or not shut then y = y + (it.heading and SHEAD or SROW) end
+    end
+    seasonOffset = math.max(0, math.min(seasonOffset, y - height))
+    y, shut = 0, false
+    for idx, it in ipairs(places) do
+        if it.heading then shut = closed[it.heading] end
+        local h = (it.heading or not shut) and (it.heading and SHEAD or SROW) or 0
         local top = y - seasonOffset
         local inView = top >= 0 and top + h <= height
         if it.heading then
             if inView then
                 nh = nh + 1
-                local fs = seasonHead(nh)
-                fs:SetText(it.heading)
-                fs:ClearAllPoints()
-                fs:SetPoint("BOTTOMLEFT", season.list, "TOPLEFT", 8, -(top + h - 3))
-                fs:Show()
+                local hb = seasonHead(nh)
+                hb.name = it.heading
+                hb.text:SetText((shut and "+ " or "- ") .. it.heading)
+                hb:ClearAllPoints()
+                hb:SetPoint("TOPLEFT", 0, -top); hb:SetPoint("TOPRIGHT", 0, -top)
+                hb:Show()
             end
         else
-            total, n = total + 1, n + 1
+            total = total + 1
+            if not shut then n = n + 1 end -- stripes alternate over what shows
             local any = false
             for _, sp in ipairs(specs) do
                 if taggedFor(sp.id, it.key) then counts[sp.id] = (counts[sp.id] or 0) + 1 any = true end
             end
-            if inView then
+            if inView and not shut then
                 nr = nr + 1
                 local r = seasonRow(nr)
                 r.place = it
                 r.stripe:SetShown(n % 2 == 0)
+                local last = not places[idx + 1] or places[idx + 1].heading -- the trunk ends at the last place
+                r.trunk:SetPoint("BOTTOM", r, last and "LEFT" or "BOTTOMLEFT", 11, 0)
                 -- places no spec has a build for read gray: the gaps; the icons say which specs have one
                 r.text:SetText(it.name)
                 if any then r.text:SetTextColor(1, 1, 1) else r.text:SetTextColor(0.55, 0.55, 0.55) end
@@ -846,7 +877,7 @@ end
 
 local function makeTabs()
     local x = 8
-    for _, def in ipairs({ { "builds", "Builds" }, { "season", "Tag Config" } }) do
+    for _, def in ipairs({ { "builds", "Builds" }, { "season", "Tag Overview" } }) do
         local t = CreateFrame("Button", nil, pane)
         t.which = def[1]
         t.text = t:CreateFontString(nil, "OVERLAY", "TalentKeeperFont")
@@ -862,7 +893,7 @@ local function makeTabs()
             if not self.bar:IsShown() then self.text:SetTextColor(1, 1, 1) end
             if self.which ~= "season" then return end
             GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-            GameTooltip:SetText("Tag Config")
+            GameTooltip:SetText("Tag Overview")
             GameTooltip:AddLine("This season's dungeons, delves and raid bosses, with the build tagged for each of your specs. The gaps stand out; click a place to tag one.", 0.74, 0.74, 0.74, true)
             GameTooltip:Show()
         end)
@@ -1186,9 +1217,14 @@ local function makeOptions()
         function() return not TK.db.noDelvePrompt end,
         function(on) TK.db.noDelvePrompt = not on or nil TK.log("option: ask in delves %s", on and "on" or "off") end)
     delve:SetPoint("TOPLEFT", head2, "BOTTOMLEFT", 0, -4)
+    local motion = W.checkbox(opt, "Animate what changed",
+        "The prompt's button and the ready check strip's Switch pulse when they appear; saved, tagged, moved and newly live builds shimmer once.",
+        function() return not TK.db.noMotion end,
+        function(on) TK.db.noMotion = not on or nil TK.log("option: animate what changed %s", on and "on" or "off") end)
+    motion:SetPoint("TOPLEFT", delve, "BOTTOMLEFT", 0, 0)
     -- Builds
     local head3 = opt:CreateFontString(nil, "OVERLAY", "TalentKeeperFontSmall")
-    head3:SetPoint("TOPLEFT", delve, "BOTTOMLEFT", 0, -14)
+    head3:SetPoint("TOPLEFT", motion, "BOTTOMLEFT", 0, -14)
     head3:SetTextColor(0.55, 0.55, 0.55)
     head3:SetText("Builds")
     local simc = W.checkbox(opt, "Add to /simc",
@@ -1198,7 +1234,7 @@ local function makeOptions()
     simc:SetPoint("TOPLEFT", head3, "BOTTOMLEFT", 0, -4)
     local bringBtn = UI.button(opt, "Bring builds in...", 140, function() opt:Hide() W.showBring(true) end)
     bringBtn:SetPoint("TOPLEFT", simc, "BOTTOMLEFT", 0, -6)
-    local function sync() delve.sync() simc.sync() end
+    local function sync() delve.sync() motion.sync() simc.sync() end
     opt.sync = sync
     opt:SetScript("OnShow", function() s:SetValue(TK.db.windowScale or 1) value:SetText(scaleLabel(TK.db.windowScale or 1)) sync() end)
     opt:Hide()

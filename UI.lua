@@ -111,6 +111,20 @@ function UI.footBand(f, h)
     return band
 end
 
+-- The suite's pulse ("this wants a click"): three 1 s fades, then it stops. UI.pulse(region)
+-- returns a function that plays it, unless motion is turned off.
+function UI.pulse(region)
+    local g = region:CreateAnimationGroup()
+    local a = g:CreateAnimation("Alpha")
+    a:SetFromAlpha(1); a:SetToAlpha(0.35); a:SetDuration(0.5); a:SetSmoothing("IN_OUT")
+    local b = g:CreateAnimation("Alpha")
+    b:SetFromAlpha(0.35); b:SetToAlpha(1); b:SetDuration(0.5); b:SetStartDelay(0.5); b:SetSmoothing("IN_OUT")
+    g:SetLooping("REPEAT")
+    g:SetScript("OnPlay", function(self) self.n = 0 end)
+    g:SetScript("OnLoop", function(self) self.n = self.n + 1 if self.n >= 3 then self:Stop() end end)
+    return function() if not TK.db.noMotion then g:Stop() g:Play() end end
+end
+
 -- The version as the suite shows it: yellow while it's a dev, alpha or beta build, else muted.
 function UI.versionText()
     local v = TK.version or ""
@@ -448,6 +462,15 @@ local function pickRow(i)
     r.text:SetPoint("RIGHT", -8, 0)
     r.text:SetJustifyH("LEFT")
     r.text:SetWordWrap(false)
+    -- an armed "Sure?" flashes: the suite's pulse, three 1 s pulses
+    r.flash = r.text:CreateAnimationGroup()
+    local fa = r.flash:CreateAnimation("Alpha")
+    fa:SetFromAlpha(1); fa:SetToAlpha(0.35); fa:SetDuration(0.5); fa:SetSmoothing("IN_OUT")
+    local fb = r.flash:CreateAnimation("Alpha")
+    fb:SetFromAlpha(0.35); fb:SetToAlpha(1); fb:SetDuration(0.5); fb:SetStartDelay(0.5); fb:SetSmoothing("IN_OUT")
+    r.flash:SetLooping("REPEAT")
+    r.flash:SetScript("OnPlay", function(self) self.n = 0 end)
+    r.flash:SetScript("OnLoop", function(self) self.n = self.n + 1 if self.n >= 3 then self:Stop() end end)
     r:SetScript("OnEnter", function(self) self.ring(0.7) end)
     r:SetScript("OnLeave", function(self) self.ring(0.4) end)
     r:SetScript("OnClick", TK.safe(function(self)
@@ -594,6 +617,9 @@ function UI.refreshPicker()
                     r.text:SetPoint("LEFT", check and (PPAD + 18) or PPAD, 0); r.text:SetPoint("RIGHT", -PPAD, 0)
                     local label = type(it.label) == "function" and it.label() or it.label
                     r.text:SetText(label)
+                    local armed = it.armed and it.armed()
+                    if armed and not r.wasArmed then r.flash:Play() elseif not armed then r.flash:Stop() r.text:SetAlpha(1) end
+                    r.wasArmed = armed
                     if it.disabled then r.text:SetTextColor(0.55, 0.55, 0.55) else r.text:SetTextColor(1, 1, 1) end
                     r:EnableMouse(not it.disabled)
                     r:ClearAllPoints()
@@ -679,6 +705,8 @@ function UI.groupItems(specID, b)
 end
 
 function UI.groupMenu(owner, specID, b)
+    -- From More...: swap the open picker's list instead of the same-owner toggle closing it.
+    if pick then pick.owner = nil end
     UI.picker(owner, "Move " .. b.name .. " to", function() return UI.groupItems(specID, b) end)
 end
 

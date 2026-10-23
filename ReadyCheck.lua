@@ -141,6 +141,7 @@ local function makeStrip()
     strip.status = strip:CreateFontString(nil, "OVERLAY", "TalentKeeperFontSmall")
     strip.status:SetPoint("TOPLEFT", mark, "BOTTOMLEFT", 0, -6)
     strip.btn = UI.button(strip, "", 70, function() end)
+    strip.btn.pulse = UI.pulse(strip.btn)
     strip.btn:SetPoint("RIGHT", -8, 0)
     strip.btn2 = UI.button(strip, "", 70, function() end)
     strip.btn2:SetPoint("RIGHT", strip.btn, "LEFT", -4, 0)
@@ -206,6 +207,7 @@ function R.show(check)
     strip:SetWidth(math.ceil(math.max(200, w)))
     place()
     strip:Show()
+    if mine and not P.onBuild(mine, spec) then strip.btn.pulse() end -- on the wrong build: Switch pulses
     -- answering the ready check (or it timing out) closes Blizzard's popup: the strip goes with it
     if ReadyCheckFrame and not hooked then
         hooked = true

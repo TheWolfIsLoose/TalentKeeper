@@ -43,6 +43,7 @@ local function makeBar()
     bar.b2 = UI.button(bar, "", 70, function() end)
     bar.b2:SetPoint("RIGHT", bar.close, "LEFT", -4, 0)
     bar.b1 = UI.button(bar, "", 70, function() end)
+    bar.b1.pulse = UI.pulse(bar.b1)
     bar.b1:SetPoint("RIGHT", bar.b2, "LEFT", -4, 0)
 end
 
@@ -65,6 +66,7 @@ local function show(text, one, two)
     local w = 8 + 16 + 6 + bar.text:GetStringWidth() + 12 + bar.b1:GetWidth() + (two and bar.b2:GetWidth() + 4 or 0) + 4 + 24 + 4
     bar:SetWidth(math.ceil(w))
     bar:Show()
+    bar.b1.pulse() -- the main choice pulses as the bar appears
 end
 
 function P.hide() if bar then bar:Hide() end end
