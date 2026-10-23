@@ -4,6 +4,13 @@ Full notes for every release, newest first. Dev-only (the `Dev/` folder
 never ships); the player-facing summary for the release being cut lives in
 CHANGELOG.md. Add each release's detailed notes here when you cut it.
 
+## Next (on `dev`, tested 2026-10-22, not released)
+
+- Tag Config renamed Tag Overview (tab, tooltip, README, CurseForge copy).
+- Tag Overview places indent 10px and hang from their heading on tree lines (1px 0.3 gray trunk, 5px branch, trunk ends at the last place), as the suite's filter lists.
+- Headings fold on click ("- Name" open, "+ Name" folded), remembered in `TK.db.seasonClosed`; the summary still counts every place; stripes alternate over visible rows.
+- Suggested CHANGELOG: "Tag Config is now Tag Overview, with its places hanging from each heading; click a heading to fold it."
+
 ## v0.5.0 (2026-10-22)
 
 Suite style pass (`Dev/SUITE-STYLE.md`): mint replaced by white everywhere (selection wash, live build text and edge bar, tabs, spec ring, checkbox squares, slider thumb, cast fill, shimmer at peak 0.15, focus rings); yellow `FFD84A` / red `FF6666`; two-tone name; the game-texture gear became the drawn three-bar Settings & Activity icon (a toggle, white while open); white icon. One `UI.header` for the pane and the bring-in window (`UI.versionText`), `UI.footBand` for its footer. Tags: Miscellaneous heading over Delves (an Open world place was tried and dropped: no reliable moment to check the spec there). Removed the unused import preview (`W.preview`) and `Compare.sameAsEarlier`. Roadmap: PvP under Miscellaneous, not scheduled.
