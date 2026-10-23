@@ -9,6 +9,19 @@ disagree), **Open** (needs an answer before build).
 
 ---
 
+## Next session: start here
+
+**2026-10-22: v0.5.0 released** (suite style pass: monochrome palette, drawn Settings & Activity icon, Delves under a Miscellaneous heading; tidy pass). Notes in `Dev/HISTORY.md`.
+
+On `dev` for the next scheduled release (cosmetic, tested 2026-10-22): Tag Config renamed Tag Overview, its places hang from each heading on tree lines, headings fold (remembered).
+
+Open:
+1. **More... menu:** the player's verdict on friction (Group, Rename, Copy, Update to my talents, Delete).
+2. **Not yet seen in the wild:** bringing builds in for real, and converting the second talent addon's builds.
+3. **Raid rooms:** Vashnik and The Twin Fangs still need their rooms (learned passively from pulls; ship them once known).
+4. **Delete confirms in the More... menu** read red but don't flash like the suite's buttons yet.
+5. **PvP:** see Future: PvP.
+
 ## Back to basics (player, 2026-10-18)
 
 The goal: a competent, easy to manage build manager that knows dungeons,
@@ -53,7 +66,7 @@ Done on `dev` (2026-10-21):
 - A cancelled talent change is reported (no false "applied"), with what
   cancelled it and how long swaps take in the log.
 
-To do:
+Done (2026-10-22, now Tag Overview):
 - **This season view** (player, 2026-10-21): every dungeon, delve and raid
   boss with the build tagged for it per spec, gaps highlighted; tag from
   there. The fast path for someone arriving with a pile of builds from
@@ -116,26 +129,7 @@ Done on `dev` (2026-10-21, later):
   check in arenas), and how PvP talent slots are saved and applied alongside
   the tree.
 
-## Parked 2026-10-22 13:30 ET (v0.4.0 released, installed locally)
-
-v0.4.0 shipped (GitHub release + CurseForge). The player's game runs the
-release build. `dev` = v0.4.0 plus doc fixes (update.bat removed, Build.lua
-note). Untested in the wild: bringing builds in for real, Talent Loadout
-Manager conversion. Next effort is suite-level (style guide reconcile, then
-the palette; see the project's style guide review doc), in another
-conversation. After that: TalentKeeper's own follow-ups (the More... menu
-for friction, the Tag Config name, any v0.4.0 reports).
-
-## Parked 2026-10-22 ~01:20 ET (build 52a5cfe installed, not released)
-
-v0.4.0 is written up on `dev` (CHANGELOG, HISTORY, README, CurseForge text).
-Morning: run the DevChecklist round (bring builds in with TLM / TLE turned
-on, TLM builds preview and apply cleanly, Options entries, /simc lines and
-no edited-profile warning, drag to reorder), then merge `dev` to `main` and
-confirm the v0.4.0 tag and GitHub release. After that: GUI pass (one
-footprint), style guide reconcile and palette review (project doc).
-
-## Next: bring builds in, SimulationCraft (decided 2026-10-22)
+## Done in v0.4.0: bring builds in, SimulationCraft (decided 2026-10-22)
 
 - **First-run import becomes a prompt** in the pane ("Bring your builds in"):
   each source found with counts, tick and import; once, and from Options
@@ -172,7 +166,7 @@ talent-by-talent in-place apply is gone: it froze the game 0.3-1.4 s with the
 window open (every staged click redraws the tree) and had to handle
 dependencies and point limits itself, which the game does in one call.
 
-## Next session: start here
+## Notes from the 0.2-0.3 cycle (2026-10-18 to 10-20)
 
 **v0.3.0-beta1 published 2026-10-20** (public beta from `dev`; notes in `Dev/HISTORY.md`).
 
