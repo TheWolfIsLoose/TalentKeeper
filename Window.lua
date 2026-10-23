@@ -200,6 +200,7 @@ local function row(i)
     sweep:SetScript("OnFinished", function() band:Hide() end)
     sweep:SetScript("OnStop", function() band:Hide() end)
     r.Shimmer = function()
+        if TK.db.noMotion then return end
         sweep:Stop()
         sweep.move:SetOffset(r:GetWidth() + SHIMMER_W, 0)
         sweep:Play()
@@ -1216,9 +1217,14 @@ local function makeOptions()
         function() return not TK.db.noDelvePrompt end,
         function(on) TK.db.noDelvePrompt = not on or nil TK.log("option: ask in delves %s", on and "on" or "off") end)
     delve:SetPoint("TOPLEFT", head2, "BOTTOMLEFT", 0, -4)
+    local motion = W.checkbox(opt, "Animate what changed",
+        "The prompt's button and the ready check strip's Switch pulse when they appear; saved, tagged, moved and newly live builds shimmer once.",
+        function() return not TK.db.noMotion end,
+        function(on) TK.db.noMotion = not on or nil TK.log("option: animate what changed %s", on and "on" or "off") end)
+    motion:SetPoint("TOPLEFT", delve, "BOTTOMLEFT", 0, 0)
     -- Builds
     local head3 = opt:CreateFontString(nil, "OVERLAY", "TalentKeeperFontSmall")
-    head3:SetPoint("TOPLEFT", delve, "BOTTOMLEFT", 0, -14)
+    head3:SetPoint("TOPLEFT", motion, "BOTTOMLEFT", 0, -14)
     head3:SetTextColor(0.55, 0.55, 0.55)
     head3:SetText("Builds")
     local simc = W.checkbox(opt, "Add to /simc",
@@ -1228,7 +1234,7 @@ local function makeOptions()
     simc:SetPoint("TOPLEFT", head3, "BOTTOMLEFT", 0, -4)
     local bringBtn = UI.button(opt, "Bring builds in...", 140, function() opt:Hide() W.showBring(true) end)
     bringBtn:SetPoint("TOPLEFT", simc, "BOTTOMLEFT", 0, -6)
-    local function sync() delve.sync() simc.sync() end
+    local function sync() delve.sync() motion.sync() simc.sync() end
     opt.sync = sync
     opt:SetScript("OnShow", function() s:SetValue(TK.db.windowScale or 1) value:SetText(scaleLabel(TK.db.windowScale or 1)) sync() end)
     opt:Hide()

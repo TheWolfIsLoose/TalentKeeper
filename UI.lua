@@ -111,6 +111,20 @@ function UI.footBand(f, h)
     return band
 end
 
+-- The suite's pulse ("this wants a click"): three 1 s fades, then it stops. UI.pulse(region)
+-- returns a function that plays it, unless motion is turned off.
+function UI.pulse(region)
+    local g = region:CreateAnimationGroup()
+    local a = g:CreateAnimation("Alpha")
+    a:SetFromAlpha(1); a:SetToAlpha(0.35); a:SetDuration(0.5); a:SetSmoothing("IN_OUT")
+    local b = g:CreateAnimation("Alpha")
+    b:SetFromAlpha(0.35); b:SetToAlpha(1); b:SetDuration(0.5); b:SetStartDelay(0.5); b:SetSmoothing("IN_OUT")
+    g:SetLooping("REPEAT")
+    g:SetScript("OnPlay", function(self) self.n = 0 end)
+    g:SetScript("OnLoop", function(self) self.n = self.n + 1 if self.n >= 3 then self:Stop() end end)
+    return function() if not TK.db.noMotion then g:Stop() g:Play() end end
+end
+
 -- The version as the suite shows it: yellow while it's a dev, alpha or beta build, else muted.
 function UI.versionText()
     local v = TK.version or ""
