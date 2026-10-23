@@ -10,6 +10,7 @@ CHANGELOG.md. Add each release's detailed notes here when you cut it.
 - Tag Overview places indent 10px and hang from their heading on tree lines (1px 0.3 gray trunk, 5px branch, trunk ends at the last place), as the suite's filter lists.
 - Headings fold on click ("- Name" open, "+ Name" folded), remembered in `TK.db.seasonClosed`; the summary still counts every place; stripes alternate over visible rows.
 - More... menu: an armed delete (build or group) flashes three times like the suite's button confirms (`armed` on picker items).
+- Fixed: More... > Group... did nothing: it reopened the picker on the same owner, which the toggle read as "close". `UI.groupMenu` now swaps the open list.
 - Suggested CHANGELOG: "Tag Config is now Tag Overview, with its places hanging from each heading; click a heading to fold it."
 
 ## v0.5.0 (2026-10-22)
