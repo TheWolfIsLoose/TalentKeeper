@@ -140,7 +140,7 @@ end
 -- class's spec order, so each sits in the same spot; the strip's width is shared out, so there's no
 -- gap for three specs or crowding for four), then Apply / Tags... / More... and Save current /
 -- Import across the full width; under it what's in the tree now and the build you're previewing;
--- then the Builds / Tag Config tabs and the list, which scrolls.
+-- then the Builds / Tag Overview tabs and the list, which scrolls.
 local pane, rows, heads = nil, {}, {}
 local PANE_W = 220
 local DECK_Y, TILE_H, GAP = -34, 40, 4 -- the spec strip
@@ -148,7 +148,7 @@ local COL_X, COL_W = 8, PANE_W - 16
 local ROW1 = DECK_Y - TILE_H - 6         -- Apply / Tags... / More...
 local ROW2 = ROW1 - 24                   -- Save current / Import
 local DETAIL_Y = ROW2 - 20 - 10          -- in the tree now / previewing
-local TABS = DETAIL_Y - 52               -- the Builds / Tag Config tabs
+local TABS = DETAIL_Y - 52               -- the Builds / Tag Overview tabs
 local ROW, HEAD, TOP = 24, 22, TABS - 24
 local SHIMMER_W = 90
 local offset = 0
@@ -695,6 +695,15 @@ local function seasonRow(i)
         t:SetTexCoord(0.08, 0.92, 0.08, 0.92)
         r.icons[k] = t
     end
+    -- tree lines from the heading down to each place, as the suite's filter lists draw them
+    r.trunk = r:CreateTexture(nil, "ARTWORK")
+    r.trunk:SetColorTexture(0.3, 0.3, 0.3, 1)
+    r.trunk:SetWidth(1)
+    r.trunk:SetPoint("TOP", r, "TOPLEFT", 11, 3) -- up to the heading above
+    r.branch = r:CreateTexture(nil, "ARTWORK")
+    r.branch:SetColorTexture(0.3, 0.3, 0.3, 1)
+    r.branch:SetSize(5, 1)
+    r.branch:SetPoint("LEFT", 11, 0)
     r.text = r:CreateFontString(nil, "OVERLAY", "TalentKeeperFontSmall")
     r.text:SetPoint("LEFT", 18, 0) -- indented under its heading
     r.text:SetJustifyH("LEFT")
@@ -756,7 +765,7 @@ function W.refreshSeason()
     for _, it in ipairs(places) do y = y + (it.heading and SHEAD or SROW) end
     seasonOffset = math.max(0, math.min(seasonOffset, y - height))
     y = 0
-    for _, it in ipairs(places) do
+    for idx, it in ipairs(places) do
         local h = it.heading and SHEAD or SROW
         local top = y - seasonOffset
         local inView = top >= 0 and top + h <= height
@@ -780,6 +789,8 @@ function W.refreshSeason()
                 local r = seasonRow(nr)
                 r.place = it
                 r.stripe:SetShown(n % 2 == 0)
+                local last = not places[idx + 1] or places[idx + 1].heading -- the trunk ends at the last place
+                r.trunk:SetPoint("BOTTOM", r, last and "LEFT" or "BOTTOMLEFT", 11, 0)
                 -- places no spec has a build for read gray: the gaps; the icons say which specs have one
                 r.text:SetText(it.name)
                 if any then r.text:SetTextColor(1, 1, 1) else r.text:SetTextColor(0.55, 0.55, 0.55) end
@@ -846,7 +857,7 @@ end
 
 local function makeTabs()
     local x = 8
-    for _, def in ipairs({ { "builds", "Builds" }, { "season", "Tag Config" } }) do
+    for _, def in ipairs({ { "builds", "Builds" }, { "season", "Tag Overview" } }) do
         local t = CreateFrame("Button", nil, pane)
         t.which = def[1]
         t.text = t:CreateFontString(nil, "OVERLAY", "TalentKeeperFont")
@@ -862,7 +873,7 @@ local function makeTabs()
             if not self.bar:IsShown() then self.text:SetTextColor(1, 1, 1) end
             if self.which ~= "season" then return end
             GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-            GameTooltip:SetText("Tag Config")
+            GameTooltip:SetText("Tag Overview")
             GameTooltip:AddLine("This season's dungeons, delves and raid bosses, with the build tagged for each of your specs. The gaps stand out; click a place to tag one.", 0.74, 0.74, 0.74, true)
             GameTooltip:Show()
         end)
