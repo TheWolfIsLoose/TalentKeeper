@@ -448,6 +448,15 @@ local function pickRow(i)
     r.text:SetPoint("RIGHT", -8, 0)
     r.text:SetJustifyH("LEFT")
     r.text:SetWordWrap(false)
+    -- an armed "Sure?" flashes: the suite's pulse, three 1 s pulses
+    r.flash = r.text:CreateAnimationGroup()
+    local fa = r.flash:CreateAnimation("Alpha")
+    fa:SetFromAlpha(1); fa:SetToAlpha(0.35); fa:SetDuration(0.5); fa:SetSmoothing("IN_OUT")
+    local fb = r.flash:CreateAnimation("Alpha")
+    fb:SetFromAlpha(0.35); fb:SetToAlpha(1); fb:SetDuration(0.5); fb:SetStartDelay(0.5); fb:SetSmoothing("IN_OUT")
+    r.flash:SetLooping("REPEAT")
+    r.flash:SetScript("OnPlay", function(self) self.n = 0 end)
+    r.flash:SetScript("OnLoop", function(self) self.n = self.n + 1 if self.n >= 3 then self:Stop() end end)
     r:SetScript("OnEnter", function(self) self.ring(0.7) end)
     r:SetScript("OnLeave", function(self) self.ring(0.4) end)
     r:SetScript("OnClick", TK.safe(function(self)
@@ -594,6 +603,9 @@ function UI.refreshPicker()
                     r.text:SetPoint("LEFT", check and (PPAD + 18) or PPAD, 0); r.text:SetPoint("RIGHT", -PPAD, 0)
                     local label = type(it.label) == "function" and it.label() or it.label
                     r.text:SetText(label)
+                    local armed = it.armed and it.armed()
+                    if armed and not r.wasArmed then r.flash:Play() elseif not armed then r.flash:Stop() r.text:SetAlpha(1) end
+                    r.wasArmed = armed
                     if it.disabled then r.text:SetTextColor(0.55, 0.55, 0.55) else r.text:SetTextColor(1, 1, 1) end
                     r:EnableMouse(not it.disabled)
                     r:ClearAllPoints()

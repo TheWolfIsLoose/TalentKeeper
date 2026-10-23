@@ -263,7 +263,7 @@ local function head(i)
                     for _, b in ipairs(B.list(specID)) do if b.group == g then b.group = nil end end
                     TK.changed()
                 end },
-                { label = function()
+                { armed = function() return armedGroup == g end, label = function()
                     return armedGroup == g and ("|cffff6666Sure? Deletes %d build%s|r"):format(n, n == 1 and "" or "s") or "Delete it and its builds"
                 end, onClick = function()
                     if armedGroup == g then armedGroup = nil B.deleteGroup(specID, g) return end
@@ -376,7 +376,8 @@ local function moreItems(b, owner)
             UI.textWindow({ title = "Talent string: " .. b.name, text = b.text, readOnly = true })
         end },
         { label = "Update to my talents", onClick = function() B.updateToCurrent(b) end },
-        { label = function() return armedBuild == b and "|cffff6666Sure? Click again|r" or "|cffff6666Delete|r" end,
+        { armed = function() return armedBuild == b end,
+          label = function() return armedBuild == b and "|cffff6666Sure? Click again|r" or "|cffff6666Delete|r" end,
           onClick = function()
             if armedBuild == b then armedBuild = nil B.delete(specID, b) return end
             armedBuild = b
