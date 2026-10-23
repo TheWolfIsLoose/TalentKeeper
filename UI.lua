@@ -691,6 +691,8 @@ function UI.groupItems(specID, b)
 end
 
 function UI.groupMenu(owner, specID, b)
+    -- From More...: swap the open picker's list instead of the same-owner toggle closing it.
+    if pick then pick.owner = nil end
     UI.picker(owner, "Move " .. b.name .. " to", function() return UI.groupItems(specID, b) end)
 end
 
