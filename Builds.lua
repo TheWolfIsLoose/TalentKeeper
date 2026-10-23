@@ -197,9 +197,32 @@ function B.setGear(b, name)
     TK.changed()
 end
 
+-- The game's own gear set for a spec (Equipment Manager > assign to spec), or nil. When a
+-- spec has one, the game swaps gear itself on spec change and TalentKeeper leaves gear alone.
+function B.specGearSet(specID)
+    if not (C_EquipmentSet and C_EquipmentSet.GetEquipmentSetForSpec) then return end
+    for i = 1, GetNumSpecializations() do
+        if GetSpecializationInfo(i) == specID then
+            local id = C_EquipmentSet.GetEquipmentSetForSpec(i)
+            return id and (C_EquipmentSet.GetEquipmentSetInfo(id)) or nil
+        end
+    end
+end
+
 -- Put on the build's gear set unless it's already worn. Out of combat only (applies are too).
+local toldSpecSet = {} -- spec -> said once this session that its own gear set wins
 function B.equipGear(b)
     if not b.gear or not C_EquipmentSet then return end
+    local specID = B.findSpec(b) or B.specID()
+    local own = B.specGearSet(specID)
+    if own then
+        TK.log("gear set '%s' for '%s': skipped, the spec has '%s' assigned in the Equipment Manager", b.gear, b.name, own)
+        if not toldSpecSet[specID] then
+            toldSpecSet[specID] = true
+            TK.chat(("|cffffd84aGear set not changed:|r %s has %s assigned in the Equipment Manager, so TalentKeeper leaves its gear alone."):format(B.specName(specID), own))
+        end
+        return
+    end
     local id = C_EquipmentSet.GetEquipmentSetID(b.gear)
     if not id then
         TK.log("gear set '%s' for '%s' not found", b.gear, b.name)

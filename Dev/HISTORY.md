@@ -7,6 +7,7 @@ CHANGELOG.md. Add each release's detailed notes here when you cut it.
 ## Next (on `dev`, not released)
 
 - Gear set per build (back, player 2026-10-23): `b.gear` holds an Equipment Manager set's name; More... > Gear set... picks None or a set (with its icon; a hint when there are none). `B.equipGear` puts it on after every apply (`finish`) and when the talents already match, skips a set already worn, skips in combat, and reports a renamed / deleted set in chat. Build tooltip shows it. README / CurseForge gain a Gear sets line. Smoke test: gear sets section.
+- A spec with its own gear set assigned in the Equipment Manager: the game swaps gear itself on spec change (client-side, nothing to hook), so TalentKeeper leaves gear alone for that spec (`B.specGearSet`), says so once per session in chat, and the Gear set... menu shows two warning lines.
 - Suggested CHANGELOG: "New: link a gear set to a build (More... > Gear set...); it goes on when you apply the build."
 
 ## v0.5.1 (2026-10-23)

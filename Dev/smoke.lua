@@ -516,6 +516,13 @@ do
     ok(used == nil and said("Gear set Gone not found"), "missing set: reported, nothing equipped")
     local gi = TK.ui.gearItems(gb)
     ok(#gi == 2 and gi[1].label == "None", "gear menu: None plus each set")
+    -- The spec has its own set in the Equipment Manager: the game swaps on spec change, we stay out.
+    C_EquipmentSet.GetEquipmentSetForSpec = function() return 7 end
+    B.setGear(gb, "Raid"); used, worn = nil, false
+    B.equipGear(gb)
+    ok(used == nil and said("Gear set not changed"), "spec-assigned set: no swap, said once")
+    ok(TK.ui.gearItems(gb)[1].disabled and TK.ui.gearItems(gb)[3].label == "None", "gear menu: two warning lines first")
+    C_EquipmentSet.GetEquipmentSetForSpec = nil
     B.setGear(gb, nil)
 end
 section("gear sets")

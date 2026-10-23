@@ -712,7 +712,15 @@ end
 
 -- Gear set: none, or one of the game's equipment sets (Blizzard's Equipment Manager makes them).
 function UI.gearItems(b)
-    local items = { { label = "None", checked = function() return not b.gear end, onClick = function() B.setGear(b, nil) end } }
+    local items = {}
+    local specID = B.findSpec(b)
+    local own = specID and B.specGearSet(specID)
+    if own then
+        -- two short lines: the picker grows to its widest row
+        items[1] = { label = ("|cffffd84a%s uses %s (Equipment Manager)|r"):format(B.specName(specID), own), disabled = true }
+        items[2] = { label = "so TalentKeeper won't swap its gear.", disabled = true }
+    end
+    items[#items + 1] = { label = "None", checked = function() return not b.gear end, onClick = function() B.setGear(b, nil) end }
     for _, id in ipairs(C_EquipmentSet and C_EquipmentSet.GetEquipmentSetIDs() or {}) do
         local name, icon = C_EquipmentSet.GetEquipmentSetInfo(id)
         if name then
@@ -720,7 +728,7 @@ function UI.gearItems(b)
                 checked = function() return b.gear == name end, onClick = function() B.setGear(b, name) end }
         end
     end
-    if #items == 1 then items[2] = { label = "No gear sets yet: make one in the character window's Equipment Manager.", disabled = true } end
+    if not C_EquipmentSet or #C_EquipmentSet.GetEquipmentSetIDs() == 0 then items[#items + 1] = { label = "No gear sets yet: make one in the character window's Equipment Manager.", disabled = true } end
     return items
 end
 
