@@ -11,6 +11,8 @@ disagree), **Open** (needs an answer before build).
 
 ## Next session: start here
 
+**Parked 2026-10-22 ~23:45 ET:** on `dev` and installed (dev 47094c6), test round set: More... > Group... fix, the More... delete flash, motion (prompt button and ready check Switch pulse; "Animate what changed" option). Read the DevChecklist ticks and log first.
+
 **2026-10-22: v0.5.0 released** (suite style pass: monochrome palette, drawn Settings & Activity icon, Delves under a Miscellaneous heading; tidy pass). Notes in `Dev/HISTORY.md`.
 
 On `dev` for the next scheduled release (cosmetic, tested 2026-10-22): Tag Config renamed Tag Overview, its places hang from each heading on tree lines, headings fold (remembered).
