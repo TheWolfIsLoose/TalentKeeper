@@ -710,6 +710,25 @@ function UI.groupMenu(owner, specID, b)
     UI.picker(owner, "Move " .. b.name .. " to", function() return UI.groupItems(specID, b) end)
 end
 
+-- Gear set: none, or one of the game's equipment sets (Blizzard's Equipment Manager makes them).
+function UI.gearItems(b)
+    local items = { { label = "None", checked = function() return not b.gear end, onClick = function() B.setGear(b, nil) end } }
+    for _, id in ipairs(C_EquipmentSet and C_EquipmentSet.GetEquipmentSetIDs() or {}) do
+        local name, icon = C_EquipmentSet.GetEquipmentSetInfo(id)
+        if name then
+            items[#items + 1] = { label = (icon and ("|T%s:14:14:0:0:64:64:5:59:5:59|t "):format(icon) or "") .. name,
+                checked = function() return b.gear == name end, onClick = function() B.setGear(b, name) end }
+        end
+    end
+    if #items == 1 then items[2] = { label = "No gear sets yet: make one in the character window's Equipment Manager.", disabled = true } end
+    return items
+end
+
+function UI.gearMenu(owner, b)
+    if pick then pick.owner = nil end -- from More...: swap the open list
+    UI.picker(owner, "Gear set for " .. b.name, function() return UI.gearItems(b) end)
+end
+
 -- Quick menu (key binding, /tk): this spec's builds; click one to apply it -------------------
 function UI.quickItems(specID)
     local items = {}

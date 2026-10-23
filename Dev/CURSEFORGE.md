@@ -15,6 +15,7 @@ TalentKeeper keeps a few talent builds per spec and knows which one goes where. 
 - **The right build when you arrive.** Entering one of this season's dungeons or a delve offers the build tagged for it. Nothing tagged for your spec yet: it asks once what to use there, with your other spec's build one click away. Nothing changes your talents without a click.
 - **Ready check reminder.** On a ready check, a small strip confirms you're on the build tagged for what's next, or offers Switch. In raids it names the boss it expects from the room you're in, and you can correct it. Shift-drag to move it.
 - **No duplicates.** Builds are compared by their talents, not their import strings. Importing one you already have points you at it, and gives it any tags you picked. Import shows the build on the tree before you save it.
+- **Gear sets.** Link one of your Equipment Manager sets to a build (More... > Gear set...) and it goes on whenever the build is applied, unless it's already on.
 - **PvP talents too.** Saved and applied with the build.
 - **Bring your builds over.** At your first login, TalentKeeper offers to copy your builds from Talent Loadout Ex, Talent Loadout Manager and your game loadouts, then to turn the other talent addon off. Ones it already has are skipped, and nothing is removed anywhere. Also in Options.
 - **Sim them.** Your builds go into the SimulationCraft addon's `/simc` text as saved loadouts, ready to pick on sim sites. Your other specs' builds too when SimulationCraft's Offspec Talent Loadouts box is ticked.

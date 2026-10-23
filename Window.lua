@@ -229,6 +229,7 @@ local function row(i)
         if hero then GameTooltip:AddLine(hero, 0.74, 0.74, 0.74) end
         local tags = B.tagNames(self.b)
         if #tags > 0 then GameTooltip:AddLine("Tags: " .. table.concat(tags, ", "), 1, 1, 1, true) end
+        if self.b.gear then GameTooltip:AddLine("Gear set: " .. self.b.gear, 1, 1, 1) end
         GameTooltip:AddLine("Click to preview on the tree, double-click to apply. Drag to reorder, or onto a group heading.", 0.55, 0.55, 0.55, true)
         GameTooltip:Show()
     end))
@@ -369,6 +370,7 @@ local function moreItems(b, owner)
     local specID = B.specID()
     return {
         { label = "Group...", onClick = function() UI.groupMenu(owner, specID, b) return "keep" end },
+        { label = "Gear set...", onClick = function() UI.gearMenu(owner, b) return "keep" end },
         { label = "Rename...", onClick = function()
             UI.textWindow({ title = "Rename build", text = b.name, singleLine = true, okText = "Rename",
                 onOK = function(name) B.rename(specID, b, name) end })

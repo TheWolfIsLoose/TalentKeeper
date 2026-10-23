@@ -4,6 +4,11 @@ Full notes for every release, newest first. Dev-only (the `Dev/` folder
 never ships); the player-facing summary for the release being cut lives in
 CHANGELOG.md. Add each release's detailed notes here when you cut it.
 
+## Next (on `dev`, not released)
+
+- Gear set per build (back, player 2026-10-23): `b.gear` holds an Equipment Manager set's name; More... > Gear set... picks None or a set (with its icon; a hint when there are none). `B.equipGear` puts it on after every apply (`finish`) and when the talents already match, skips a set already worn, skips in combat, and reports a renamed / deleted set in chat. Build tooltip shows it. README / CurseForge gain a Gear sets line. Smoke test: gear sets section.
+- Suggested CHANGELOG: "New: link a gear set to a build (More... > Gear set...); it goes on when you apply the build."
+
 ## v0.5.1 (2026-10-23)
 
 - Tag Config renamed Tag Overview; places indent 10px and hang from their heading on tree lines (1px 0.3 gray trunk, 5px branch, trunk ends at the last place); headings fold on click ("- Name" / "+ Name", `TK.db.seasonClosed`), the summary still counts every place.

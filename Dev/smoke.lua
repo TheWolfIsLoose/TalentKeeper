@@ -494,4 +494,30 @@ ok(B.addToSimc(prof) == prof, "option off: untouched")
 TK.db.noSimc = nil
 section("simc")
 
+-- Gear sets: put on when applying, skipped when already worn, reported when missing.
+do
+    local worn, used = false, nil
+    C_EquipmentSet = {
+        GetEquipmentSetID = function(name) return name == "Raid" and 7 or nil end,
+        GetEquipmentSetInfo = function(id) return "Raid", 1, id, worn end,
+        GetEquipmentSetIDs = function() return { 7 } end,
+        UseEquipmentSet = function(id) used = id end,
+    }
+    local gb = B.list(267)[1]
+    B.setGear(gb, "Raid")
+    ok(gb.gear == "Raid", "gear set saved on the build")
+    B.equipGear(gb)
+    ok(used == 7, "applying puts the set on")
+    used, worn = nil, true
+    B.equipGear(gb)
+    ok(used == nil, "already worn: no swap")
+    B.setGear(gb, "Gone")
+    B.equipGear(gb)
+    ok(used == nil and said("Gear set Gone not found"), "missing set: reported, nothing equipped")
+    local gi = TK.ui.gearItems(gb)
+    ok(#gi == 2 and gi[1].label == "None", "gear menu: None plus each set")
+    B.setGear(gb, nil)
+end
+section("gear sets")
+
 print_("smoke: all passed")

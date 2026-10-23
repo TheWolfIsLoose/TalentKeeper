@@ -189,6 +189,29 @@ function B.move(specID, b, target, after)
 end
 
 -- Move a build into a group (nil = no group).
+-- Gear set: the name of one of the game's equipment sets, put on whenever the build is applied
+-- (nil: none). Stored by name, as the game's sets are; a renamed or deleted set is reported.
+function B.setGear(b, name)
+    b.gear = name
+    TK.log("'%s' gear set: %s", b.name, name or "none")
+    TK.changed()
+end
+
+-- Put on the build's gear set unless it's already worn. Out of combat only (applies are too).
+function B.equipGear(b)
+    if not b.gear or not C_EquipmentSet then return end
+    local id = C_EquipmentSet.GetEquipmentSetID(b.gear)
+    if not id then
+        TK.log("gear set '%s' for '%s' not found", b.gear, b.name)
+        return TK.chat(("|cffffd84aGear set %s not found|r (renamed or deleted?)."):format(b.gear))
+    end
+    local isEquipped = select(4, C_EquipmentSet.GetEquipmentSetInfo(id))
+    if isEquipped then return TK.log("gear set '%s': already on", b.gear) end
+    if InCombatLockdown() then return TK.log("gear set '%s': skipped, in combat", b.gear) end
+    C_EquipmentSet.UseEquipmentSet(id)
+    TK.log("gear set '%s' put on for '%s'", b.gear, b.name)
+end
+
 function B.setGroup(b, group)
     group = group and strtrim(group) or nil
     b.group = group ~= "" and group or nil
@@ -456,6 +479,7 @@ local function finish(b, specID)
     if lastApply and lastApply.b == b then lastApply.committed = true end -- the next config update times the apply
     TK.changed()
     setPvp(b)
+    B.equipGear(b)
     C_Timer.After(5, TK.safe(function() verify(b) end))
 end
 
@@ -513,6 +537,7 @@ function B.apply(b)
     if d and #d == 0 then
         TK.db.active[specID] = b.name
         TK.log("apply '%s': already your talents", b.name)
+        B.equipGear(b) -- the gear may still differ
         return TK.changed()
     end
     local prev = TK.db.active[specID]
