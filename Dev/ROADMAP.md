@@ -19,7 +19,7 @@ Open:
 1. **More... menu:** the player's verdict on friction (Group, Rename, Copy, Update to my talents, Delete).
 2. **Not yet seen in the wild:** bringing builds in for real, and converting the second talent addon's builds.
 3. **Raid rooms:** Vashnik and The Twin Fangs still need their rooms (learned passively from pulls; ship them once known).
-4. **Delete confirms in the More... menu** read red but don't flash like the suite's buttons yet.
+4. **Done on `dev`:** More... delete confirms flash like the suite's buttons.
 5. **PvP:** see Future: PvP.
 
 ## Back to basics (player, 2026-10-18)
