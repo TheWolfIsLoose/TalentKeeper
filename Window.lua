@@ -140,9 +140,8 @@ function W.preview(text)
 end
 
 -- The side pane of builds -----------------------------------------------------------------
--- Docked to the window's right edge and parented to it, so it shares the window's strata and
--- level (other windows overlap both alike), but at our own scale (the UI scale, not the window's
--- slider). Shown with the talent window. Every control in one block at the top: a strip of spec tiles (always in the
+-- Docked to the window's right edge, at our own scale (parented to UIParent, in the window's strata
+-- and level, shown with the talent window). Every control in one block at the top: a strip of spec tiles (always in the
 -- class's spec order, so each sits in the same spot; the strip's width is shared out, so there's no
 -- gap for three specs or crowding for four), then Apply / Tags... / More... and Save current /
 -- Import across the full width; under it what's in the tree now and the build you're previewing;
@@ -1280,12 +1279,15 @@ end
 EventUtil.ContinueOnAddOnLoaded("Blizzard_PlayerSpells", TK.safe(function()
     tf = PlayerSpellsFrame and PlayerSpellsFrame.TalentsFrame
     if not tf or not tf.GetTalentButtonByNodeID then return TK.log("talent window: no talent buttons found") end
-    pane = CreateFrame("Frame", nil, PlayerSpellsFrame)
-    pane:SetIgnoreParentScale(true)
-    local function uiScale() pane:SetScale(UIParent:GetScale()) end
-    uiScale()
-    TK.on("UI_SCALE_CHANGED", uiScale)
-    TK.on("DISPLAY_SIZE_CHANGED", uiScale)
+    pane = CreateFrame("Frame", nil, UIParent)
+    -- follow the window's strata and level (it's raised on click, another addon may restack it), so
+    -- other windows overlap both alike. Not parented to it: that joins Blizzard's anchor family and
+    -- breaks the hero talent layout.
+    pane:SetScript("OnUpdate", function()
+        local f = PlayerSpellsFrame
+        if pane:GetFrameStrata() ~= f:GetFrameStrata() then pane:SetFrameStrata(f:GetFrameStrata()) end
+        if pane:GetFrameLevel() ~= f:GetFrameLevel() then pane:SetFrameLevel(f:GetFrameLevel()) end
+    end)
     -- the suite's side panel: opaque panel fill, black edge, a 26px header over a black rule
     pane:SetWidth(PANE_W)
     pane:SetPoint("TOPLEFT", PlayerSpellsFrame, "TOPRIGHT", 1, 0)
