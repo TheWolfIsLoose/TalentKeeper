@@ -147,6 +147,7 @@ end
 -- Import across the full width; under it what's in the tree now and the build you're previewing;
 -- then the Builds / Tag Overview tabs and the list, which scrolls.
 local pane, rows, heads = nil, {}, {}
+local openStart -- when the talent window began opening (timing a slow open)
 local PANE_W = 220
 local DECK_Y, TILE_H, GAP = -34, 40, 4 -- the spec strip
 local COL_X, COL_W = 8, PANE_W - 16
@@ -1316,17 +1317,26 @@ EventUtil.ContinueOnAddOnLoaded("Blizzard_PlayerSpells", TK.safe(function()
     makeTabs()
     pane:Hide()
     tf:HookScript("OnShow", function()
+        local t0, start = debugprofilestop(), openStart
+        if start and t0 - start > 1000 then start = nil end -- opened on another tab earlier
+        openStart = nil
         pane:Show()
         TK.safe(W.refresh)()
         if not TK.db.imported.offered then
             TK.safe(function() if W.showBring() == 0 then TK.db.imported.offered = true bring:Hide() end end)()
         end
+        -- a slow open: ours vs the whole frame (the game's own window build included)
+        local ours = debugprofilestop() - t0
+        C_Timer.After(0, function()
+            local frame = debugprofilestop() - (start or t0)
+            if ours >= 5 or frame >= 50 then TK.log("talent window open: TalentKeeper %d ms, frame %d ms", ours, frame) end
+        end)
     end)
     tf:HookScript("OnHide", function()
         W.hide() UI.hidePicker() pane:Hide()
         if bring and bring.inPane then bring:Hide() end -- it sits in the pane: goes with it
     end)
-    PlayerSpellsFrame:HookScript("OnShow", function() applyScale() end)
+    PlayerSpellsFrame:HookScript("OnShow", function() openStart = debugprofilestop() applyScale() end)
     hooksecurefunc("UpdateUIPanelPositions", function() TK.safe(recenter)() end) -- another panel moved it
     gear()
     applyScale()
