@@ -1,20 +1,13 @@
 <!-- Paste below this line into the CurseForge description (Markdown). Dev-only.
-     Mirrors README.md without the HTML. -->
+     Mirrors README.md without the HTML.
+     Gallery (upload in this order, talent-pane first as the featured image):
+     .assets/screenshots/talent-pane.png, preview.png, tag-overview.png -->
 
 **Keep your talent builds tidy, and the right one wherever you go.**
 
 TalentKeeper keeps a few talent builds per spec and knows which one goes where. Tag a build with the dungeons, delves and raid bosses it's for, and TalentKeeper offers the right spec and build when you get there, so the talent window becomes something you rarely need to open.
 
-### Screenshots
-
-![Your builds in the side pane, beside the talent window](https://raw.githubusercontent.com/TheWolfIsLoose/TalentKeeper/main/.assets/screenshots/01-builds.jpg)
-*Your builds in the side pane, beside the talent window.*
-
-![Click a build to preview it: talents it takes glow green, talents it drops glow red](https://raw.githubusercontent.com/TheWolfIsLoose/TalentKeeper/main/.assets/screenshots/02-preview.jpg)
-*Click a build to preview it: talents it takes glow green, talents it drops glow red.*
-
-![Tag Overview: every place this season and which of your specs has a build there](https://raw.githubusercontent.com/TheWolfIsLoose/TalentKeeper/main/.assets/screenshots/03-tag-overview.jpg)
-*Tag Overview: every place this season and which of your specs has a build there.*
+![TalentKeeper beside the talent window](https://raw.githubusercontent.com/TheWolfIsLoose/TalentKeeper/main/.assets/screenshots/talent-pane.png)
 
 ### Features
 
@@ -26,11 +19,14 @@ TalentKeeper keeps a few talent builds per spec and knows which one goes where. 
 - **The right build when you arrive.** Entering one of this season's dungeons or a delve offers the build tagged for it. Nothing tagged for your spec yet: it asks once what to use there, with your other spec's build one click away. Nothing changes your talents without a click.
 - **Ready check reminder.** On a ready check, a small strip confirms you're on the build tagged for what's next, or offers Switch. In raids it names the boss it expects from the room you're in, and you can correct it. Shift-drag to move it.
 - **No duplicates.** Builds are compared by their talents, not their import strings. Importing one you already have points you at it, and gives it any tags you picked. Import shows the build on the tree before you save it.
-- **Gear sets.** Link one of your Equipment Manager sets to a build (More... > Gear set...) and it goes on whenever the build is applied, unless it's already on.
 - **PvP talents too.** Saved and applied with the build.
 - **Bring your builds over.** At your first login, TalentKeeper offers to copy your builds from Talent Loadout Ex, Talent Loadout Manager and your game loadouts, then to turn the other talent addon off. Ones it already has are skipped, and nothing is removed anywhere. Also in Options.
 - **Sim them.** Your builds go into the SimulationCraft addon's `/simc` text as saved loadouts, ready to pick on sim sites. Your other specs' builds too when SimulationCraft's Offspec Talent Loadouts box is ticked.
 - **Options.** Talent window size, whether to ask in delves, and whether to add builds to `/simc` (the three-bar icon in the pane's header).
+
+![Previewing a build on the tree](https://raw.githubusercontent.com/TheWolfIsLoose/TalentKeeper/main/.assets/screenshots/preview.png)
+
+![Tag Overview](https://raw.githubusercontent.com/TheWolfIsLoose/TalentKeeper/main/.assets/screenshots/tag-overview.png)
 
 ### Commands
 
