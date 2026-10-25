@@ -4,6 +4,17 @@ Full notes for every release, newest first. Dev-only (the `Dev/` folder
 never ships); the player-facing summary for the release being cut lives in
 CHANGELOG.md. Add each release's detailed notes here when you cut it.
 
+## Next (on `dev`, not released)
+
+## v0.5.2 (2026-10-25)
+
+- Gear set per build: `b.gear` holds an Equipment Manager set's name; More... > Gear set... picks None or a set (with its icon). `B.equipGear` puts it on once the talents are in, and when the talents already match; skips a set already worn and combat; reports a renamed / deleted set. Build tooltip shows it. A spec with its own set assigned in the Equipment Manager (the game swaps that gear itself on spec change) is left alone (`B.specGearSet`), said once per session in chat and in the menu.
+- Import preview restored (`W.preview`, removed in v0.5.0 while UI.lua still called it: "attempt to call a nil value" on every keystroke in Import). The form clears its marks on close.
+- Side pane layering: follows `PlayerSpellsFrame`'s strata and level every frame (OnUpdate while shown). Parenting the pane to the window was tried and backed out: it joined Blizzard's anchor family and broke the hero talent layout ("SetPoint would result in anchor family connection").
+- Apply: PvP talents, gear and the check now run on the commit's TRAIT_CONFIG_UPDATED (`landed`), not when the load is accepted. A LoadConfig Error with the change's cast running is left to finish ("going through despite the error"); without a cast, staged leftovers are rolled back before judging or retrying. Before, a load the game cancelled left the build staged in the tree, which read as landed (gear swapped, check passed) until the cancel surfaced seconds later.
+- Talent window open: `B.currentString` caches the export for the frame (no measurable gain); the open is timed (TalentKeeper ~10 ms of a ~300 ms frame, the rest is the game rebuilding its tree) and logged only past 25 ms.
+- README / CurseForge: screenshots (talent pane, preview, Tag Overview) in `.assets/screenshots/`.
+
 ## v0.5.1 (2026-10-23)
 
 - Tag Config renamed Tag Overview; places indent 10px and hang from their heading on tree lines (1px 0.3 gray trunk, 5px branch, trunk ends at the last place); headings fold on click ("- Name" / "+ Name", `TK.db.seasonClosed`), the summary still counts every place.

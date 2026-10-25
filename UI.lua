@@ -339,6 +339,7 @@ local function makeDialog()
     end
     dlg:SetScript("OnHide", function()
         dlg.text.edit:ClearFocus() dlg.name.edit:ClearFocus() dlg.group.edit:ClearFocus()
+        if dlg.import and TK.window then TK.safe(TK.window.preview)(nil) end -- drop the pasted build's marks
     end)
     -- Import: the pasted string shows on the tree before it's saved; the note says what you see
     dlg.note = dlg:CreateFontString(nil, "OVERLAY", "TalentKeeperFontSmall")
@@ -708,6 +709,33 @@ function UI.groupMenu(owner, specID, b)
     -- From More...: swap the open picker's list instead of the same-owner toggle closing it.
     if pick then pick.owner = nil end
     UI.picker(owner, "Move " .. b.name .. " to", function() return UI.groupItems(specID, b) end)
+end
+
+-- Gear set: none, or one of the game's equipment sets (Blizzard's Equipment Manager makes them).
+function UI.gearItems(b)
+    local items = {}
+    local specID = B.findSpec(b)
+    local own = specID and B.specGearSet(specID)
+    if own then
+        -- two short lines: the picker grows to its widest row
+        items[1] = { label = ("|cffffd84a%s uses %s (Equipment Manager)|r"):format(B.specName(specID), own), disabled = true }
+        items[2] = { label = "so TalentKeeper won't swap its gear.", disabled = true }
+    end
+    items[#items + 1] = { label = "None", checked = function() return not b.gear end, onClick = function() B.setGear(b, nil) end }
+    for _, id in ipairs(C_EquipmentSet and C_EquipmentSet.GetEquipmentSetIDs() or {}) do
+        local name, icon = C_EquipmentSet.GetEquipmentSetInfo(id)
+        if name then
+            items[#items + 1] = { label = (icon and ("|T%s:14:14:0:0:64:64:5:59:5:59|t "):format(icon) or "") .. name,
+                checked = function() return b.gear == name end, onClick = function() B.setGear(b, name) end }
+        end
+    end
+    if not C_EquipmentSet or #C_EquipmentSet.GetEquipmentSetIDs() == 0 then items[#items + 1] = { label = "No gear sets yet: make one in the character window's Equipment Manager.", disabled = true } end
+    return items
+end
+
+function UI.gearMenu(owner, b)
+    if pick then pick.owner = nil end -- from More...: swap the open list
+    UI.picker(owner, "Gear set for " .. b.name, function() return UI.gearItems(b) end)
 end
 
 -- Quick menu (key binding, /tk): this spec's builds; click one to apply it -------------------

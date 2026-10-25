@@ -93,8 +93,15 @@ local function entries(text)
     return M:ConvertToImportLoadoutEntryInfo(C_ClassTalents.GetActiveConfigID(), treeID, M:ReadLoadoutContent(stream, treeID))
 end
 
+-- The game's export is slow and comparing calls it once per build: keep it for the frame
+-- (GetTime() is fixed within a frame, so a change shows up on the next one).
+local curText, curAt, curCfg
 local function currentString()
-    return C_Traits.GenerateImportString(C_ClassTalents.GetActiveConfigID())
+    local cfg, now = C_ClassTalents.GetActiveConfigID(), GetTime()
+    if curAt ~= now or curCfg ~= cfg then
+        curText, curAt, curCfg = C_Traits.GenerateImportString(cfg), now, cfg
+    end
+    return curText
 end
 B.currentString = currentString
 
@@ -189,6 +196,52 @@ function B.move(specID, b, target, after)
 end
 
 -- Move a build into a group (nil = no group).
+-- Gear set: the name of one of the game's equipment sets, put on whenever the build is applied
+-- (nil: none). Stored by name, as the game's sets are; a renamed or deleted set is reported.
+function B.setGear(b, name)
+    b.gear = name
+    TK.log("'%s' gear set: %s", b.name, name or "none")
+    TK.changed()
+end
+
+-- The game's own gear set for a spec (Equipment Manager > assign to spec), or nil. When a
+-- spec has one, the game swaps gear itself on spec change and TalentKeeper leaves gear alone.
+function B.specGearSet(specID)
+    if not (C_EquipmentSet and C_EquipmentSet.GetEquipmentSetForSpec) then return end
+    for i = 1, GetNumSpecializations() do
+        if GetSpecializationInfo(i) == specID then
+            local id = C_EquipmentSet.GetEquipmentSetForSpec(i)
+            return id and (C_EquipmentSet.GetEquipmentSetInfo(id)) or nil
+        end
+    end
+end
+
+-- Put on the build's gear set unless it's already worn. Out of combat only (applies are too).
+local toldSpecSet = {} -- spec -> said once this session that its own gear set wins
+function B.equipGear(b)
+    if not b.gear or not C_EquipmentSet then return end
+    local specID = B.findSpec(b) or B.specID()
+    local own = B.specGearSet(specID)
+    if own then
+        TK.log("gear set '%s' for '%s': skipped, the spec has '%s' assigned in the Equipment Manager", b.gear, b.name, own)
+        if not toldSpecSet[specID] then
+            toldSpecSet[specID] = true
+            TK.chat(("|cffffd84aGear set not changed:|r %s has %s assigned in the Equipment Manager, so TalentKeeper leaves its gear alone."):format(B.specName(specID), own))
+        end
+        return
+    end
+    local id = C_EquipmentSet.GetEquipmentSetID(b.gear)
+    if not id then
+        TK.log("gear set '%s' for '%s' not found", b.gear, b.name)
+        return TK.chat(("|cffffd84aGear set %s not found|r (renamed or deleted?)."):format(b.gear))
+    end
+    local isEquipped = select(4, C_EquipmentSet.GetEquipmentSetInfo(id))
+    if isEquipped then return TK.log("gear set '%s': already on", b.gear) end
+    if InCombatLockdown() then return TK.log("gear set '%s': skipped, in combat", b.gear) end
+    C_EquipmentSet.UseEquipmentSet(id)
+    TK.log("gear set '%s' put on for '%s'", b.gear, b.name)
+end
+
 function B.setGroup(b, group)
     group = group and strtrim(group) or nil
     b.group = group ~= "" and group or nil
@@ -451,12 +504,19 @@ TK.on("UNIT_SPELLCAST_INTERRUPTED", function(unit, _, spellID)
     end
 end)
 
--- After the talents are in: PvP talents, and the check 5 s later.
-local function finish(b, specID)
+-- Once the talents are in (the change's cast finished): PvP talents, gear, and the check.
+-- Not before: a cast cut short leaves you on the old talents.
+local function landed(b)
+    setPvp(b)
+    B.equipGear(b)
+    C_Timer.After(1, TK.safe(function() verify(b) end))
+end
+
+-- The game took the load: its cast is under way (or nothing needed changing).
+local function finish(b, specID, now)
     if lastApply and lastApply.b == b then lastApply.committed = true end -- the next config update times the apply
     TK.changed()
-    setPvp(b)
-    C_Timer.After(5, TK.safe(function() verify(b) end))
+    if now then landed(b) end
 end
 
 -- Load the freshly imported loadout. A load error right after import is usually timing,
@@ -471,11 +531,19 @@ local function load(id, p)
             -- the game often loads it anyway; only load again if the talents didn't land
             p.retried = true
             return C_Timer.After(1.5, TK.safe(function() -- sooner can cut off a load the game did start
+                -- the change's cast running means the game took it after all. The tree alone
+                -- can't tell: a load the game cancelled leaves the build staged there.
+                if UnitCastingInfo("player") then
+                    TK.log("apply '%s': going through despite the error", p.b.name)
+                    C_ClassTalents.UpdateLastSelectedSavedConfigID(specID, id)
+                    return finish(p.b, specID)
+                end
+                if B.unsaved() then C_Traits.RollbackConfig(C_ClassTalents.GetActiveConfigID()) end
                 local d = TK.compare.diff(p.b.text, currentString())
                 if d and #d == 0 then
                     TK.log("apply '%s': landed despite the error", p.b.name)
                     C_ClassTalents.UpdateLastSelectedSavedConfigID(specID, id)
-                    return finish(p.b, specID)
+                    return finish(p.b, specID, true)
                 end
                 load(id, p)
             end))
@@ -484,7 +552,7 @@ local function load(id, p)
         return TK.chat(("|cffff6666Couldn't apply %s.|r %s"):format(p.b.name, changeError or "Try again in a moment."))
     end
     C_ClassTalents.UpdateLastSelectedSavedConfigID(specID, id)
-    finish(p.b, specID)
+    finish(p.b, specID, r == Enum.LoadConfigResult.NoChangesNecessary)
 end
 
 
@@ -513,6 +581,7 @@ function B.apply(b)
     if d and #d == 0 then
         TK.db.active[specID] = b.name
         TK.log("apply '%s': already your talents", b.name)
+        B.equipGear(b) -- the gear may still differ
         return TK.changed()
     end
     local prev = TK.db.active[specID]
@@ -533,9 +602,11 @@ end
 
 -- How long an apply took, click to talents committed (logged for comparing methods).
 TK.on("TRAIT_CONFIG_UPDATED", function(id)
-    if lastApply and lastApply.committed and not lastApply.logged and id == C_ClassTalents.GetActiveConfigID() then
+    if lastApply and lastApply.committed and not lastApply.logged and not lastApply.failed
+        and id == C_ClassTalents.GetActiveConfigID() then
         lastApply.logged = true
         TK.log("apply '%s': talents in after %d ms", lastApply.b.name, debugprofilestop() - lastApply.t0)
+        landed(lastApply.b)
     end
 end)
 

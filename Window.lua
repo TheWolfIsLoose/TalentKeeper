@@ -134,14 +134,20 @@ function W.show(b)
     return d, hidden
 end
 
+-- A talent string on the tree before it's saved (the import form); nil puts back the selected build.
+function W.preview(text)
+    if text then W.show({ text = text }) else W.refresh() end
+end
+
 -- The side pane of builds -----------------------------------------------------------------
--- Docked to the window's right edge, at our own scale (parented to UIParent, shown with the
--- talent window). Every control in one block at the top: a strip of spec tiles (always in the
+-- Docked to the window's right edge, at our own scale (parented to UIParent, in the window's strata
+-- and level, shown with the talent window). Every control in one block at the top: a strip of spec tiles (always in the
 -- class's spec order, so each sits in the same spot; the strip's width is shared out, so there's no
 -- gap for three specs or crowding for four), then Apply / Tags... / More... and Save current /
 -- Import across the full width; under it what's in the tree now and the build you're previewing;
 -- then the Builds / Tag Overview tabs and the list, which scrolls.
 local pane, rows, heads = nil, {}, {}
+local openStart -- when the talent window began opening (timing a slow open)
 local PANE_W = 220
 local DECK_Y, TILE_H, GAP = -34, 40, 4 -- the spec strip
 local COL_X, COL_W = 8, PANE_W - 16
@@ -229,6 +235,7 @@ local function row(i)
         if hero then GameTooltip:AddLine(hero, 0.74, 0.74, 0.74) end
         local tags = B.tagNames(self.b)
         if #tags > 0 then GameTooltip:AddLine("Tags: " .. table.concat(tags, ", "), 1, 1, 1, true) end
+        if self.b.gear then GameTooltip:AddLine("Gear set: " .. self.b.gear, 1, 1, 1) end
         GameTooltip:AddLine("Click to preview on the tree, double-click to apply. Drag to reorder, or onto a group heading.", 0.55, 0.55, 0.55, true)
         GameTooltip:Show()
     end))
@@ -369,6 +376,7 @@ local function moreItems(b, owner)
     local specID = B.specID()
     return {
         { label = "Group...", onClick = function() UI.groupMenu(owner, specID, b) return "keep" end },
+        { label = "Gear set...", onClick = function() UI.gearMenu(owner, b) return "keep" end },
         { label = "Rename...", onClick = function()
             UI.textWindow({ title = "Rename build", text = b.name, singleLine = true, okText = "Rename",
                 onOK = function(name) B.rename(specID, b, name) end })
@@ -460,7 +468,9 @@ function W.refresh()
     for _, r in ipairs(rows) do r:Hide() end
     for _, h in ipairs(heads) do h:Hide() end
     local specID = B.specID()
+    local t = debugprofilestop()
     local now = specID and B.onNow(specID)
+    W.cost = { match = debugprofilestop() - t }
     pane.head.version:SetText(UI.versionText())
     -- lay out every line, then show the ones inside the list's window
     local lines, y = {}, 0
@@ -527,7 +537,9 @@ function W.refresh()
         h:SetPoint("TOPLEFT", 0, 0); h:SetPoint("TOPRIGHT", 0, 0)
         h:Show()
     end
+    t = debugprofilestop()
     refreshDetail(specID, now)
+    W.cost.preview = debugprofilestop() - t
     if lastNow ~= nil and lastNow ~= (now or false) then UIFrameFadeIn(detail.name, 0.4, 0, 1) end
     lastNow = now or false
 end
@@ -1273,11 +1285,18 @@ EventUtil.ContinueOnAddOnLoaded("Blizzard_PlayerSpells", TK.safe(function()
     tf = PlayerSpellsFrame and PlayerSpellsFrame.TalentsFrame
     if not tf or not tf.GetTalentButtonByNodeID then return TK.log("talent window: no talent buttons found") end
     pane = CreateFrame("Frame", nil, UIParent)
+    -- follow the window's strata and level (it's raised on click, another addon may restack it), so
+    -- other windows overlap both alike. Not parented to it: that joins Blizzard's anchor family and
+    -- breaks the hero talent layout.
+    pane:SetScript("OnUpdate", function()
+        local f = PlayerSpellsFrame
+        if pane:GetFrameStrata() ~= f:GetFrameStrata() then pane:SetFrameStrata(f:GetFrameStrata()) end
+        if pane:GetFrameLevel() ~= f:GetFrameLevel() then pane:SetFrameLevel(f:GetFrameLevel()) end
+    end)
     -- the suite's side panel: opaque panel fill, black edge, a 26px header over a black rule
     pane:SetWidth(PANE_W)
     pane:SetPoint("TOPLEFT", PlayerSpellsFrame, "TOPRIGHT", 1, 0)
     pane:SetPoint("BOTTOMLEFT", PlayerSpellsFrame, "BOTTOMRIGHT", 1, 0)
-    pane:SetFrameStrata(PlayerSpellsFrame:GetFrameStrata())
     UI.pane = pane
     pane:EnableMouse(true)
     UI.fill(pane, "BACKGROUND", 0.06, 0.06, 0.06, 1)
@@ -1302,17 +1321,29 @@ EventUtil.ContinueOnAddOnLoaded("Blizzard_PlayerSpells", TK.safe(function()
     makeTabs()
     pane:Hide()
     tf:HookScript("OnShow", function()
+        local t0, start = debugprofilestop(), openStart
+        if start and t0 - start > 1000 then start = nil end -- opened on another tab earlier
+        openStart = nil
         pane:Show()
         TK.safe(W.refresh)()
         if not TK.db.imported.offered then
             TK.safe(function() if W.showBring() == 0 then TK.db.imported.offered = true bring:Hide() end end)()
         end
+        -- a slow open on our side: ours vs the whole frame (the game rebuilds its tree on every open)
+        local ours = debugprofilestop() - t0
+        C_Timer.After(0, function()
+            local frame = debugprofilestop() - (start or t0)
+            local c = W.cost or {}
+            if ours >= 25 then
+                TK.log("talent window open: TalentKeeper %d ms (match %d, preview %d), frame %d ms", ours, c.match or -1, c.preview or -1, frame)
+            end
+        end)
     end)
     tf:HookScript("OnHide", function()
         W.hide() UI.hidePicker() pane:Hide()
         if bring and bring.inPane then bring:Hide() end -- it sits in the pane: goes with it
     end)
-    PlayerSpellsFrame:HookScript("OnShow", function() applyScale() end)
+    PlayerSpellsFrame:HookScript("OnShow", function() openStart = debugprofilestop() applyScale() end)
     hooksecurefunc("UpdateUIPanelPositions", function() TK.safe(recenter)() end) -- another panel moved it
     gear()
     applyScale()

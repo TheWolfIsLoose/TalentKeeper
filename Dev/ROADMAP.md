@@ -11,7 +11,9 @@ disagree), **Open** (needs an answer before build).
 
 ## Next session: start here
 
-**Parked 2026-10-22 ~23:45 ET:** on `dev` and installed (dev 47094c6), test round set: More... > Group... fix, the More... delete flash, motion (prompt button and ready check Switch pulse; "Animate what changed" option). Read the DevChecklist ticks and log first.
+**On `dev` (2026-10-23):** gear set per build (More... > Gear set...), test round set.
+
+**2026-10-23: v0.5.1 released** (Tag Overview with tree lines and folding, motion, More... delete flash, Group... fix).
 
 **2026-10-22: v0.5.0 released** (suite style pass: monochrome palette, drawn Settings & Activity icon, Delves under a Miscellaneous heading; tidy pass). Notes in `Dev/HISTORY.md`.
 
