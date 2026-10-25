@@ -1,9 +1,9 @@
 <!-- Holds only the release being cut, as short player-facing bullets under a
      `## vX.Y.Z` heading. Detailed notes go in Dev/HISTORY.md. -->
 
-## v0.5.1
+## v0.5.2
 
-- Tag Config is now Tag Overview: places hang from each heading on tree lines, and a click on a heading folds it (remembered).
-- The zone-in prompt's button and the ready check strip's Switch pulse when they appear; saved, tagged and newly live builds shimmer. Turn it off with Animate what changed in Settings & Activity.
-- A delete in the More... menu flashes while it waits for the second click.
-- Fixed: More... > Group... did nothing.
+- New: link a gear set to a build (More... > Gear set...); it goes on once the build's talents are in. A spec with its own gear set in the Equipment Manager keeps it.
+- Fixed: pasting a talent string into Import threw an error; it shows the build on the tree again before you save it.
+- Fixed: a talent change cancelled partway (moving, combat) could count as applied and swap your gear.
+- The side pane sits in the same layer as the talent window, so other windows overlap both alike.
