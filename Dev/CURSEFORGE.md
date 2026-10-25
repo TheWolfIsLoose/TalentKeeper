@@ -5,6 +5,17 @@
 
 TalentKeeper keeps a few talent builds per spec and knows which one goes where. Tag a build with the dungeons, delves and raid bosses it's for, and TalentKeeper offers the right spec and build when you get there, so the talent window becomes something you rarely need to open.
 
+### Screenshots
+
+![Your builds in the side pane, beside the talent window](https://raw.githubusercontent.com/TheWolfIsLoose/TalentKeeper/main/.assets/screenshots/01-builds.jpg)
+*Your builds in the side pane, beside the talent window.*
+
+![Click a build to preview it: talents it takes glow green, talents it drops glow red](https://raw.githubusercontent.com/TheWolfIsLoose/TalentKeeper/main/.assets/screenshots/02-preview.jpg)
+*Click a build to preview it: talents it takes glow green, talents it drops glow red.*
+
+![Tag Overview: every place this season and which of your specs has a build there](https://raw.githubusercontent.com/TheWolfIsLoose/TalentKeeper/main/.assets/screenshots/03-tag-overview.jpg)
+*Tag Overview: every place this season and which of your specs has a build there.*
+
 ### Features
 
 - **Right beside your talents.** A side pane on the talent window holds everything: your specs (click one to change spec), Apply, Tags, More, Save current and Import in one block at the top, then your builds in groups you can drag them between.
