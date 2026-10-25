@@ -504,13 +504,19 @@ TK.on("UNIT_SPELLCAST_INTERRUPTED", function(unit, _, spellID)
     end
 end)
 
--- After the talents are in: PvP talents, and the check 5 s later.
-local function finish(b, specID)
-    if lastApply and lastApply.b == b then lastApply.committed = true end -- the next config update times the apply
-    TK.changed()
+-- Once the talents are in (the change's cast finished): PvP talents, gear, and the check.
+-- Not before: a cast cut short leaves you on the old talents.
+local function landed(b)
     setPvp(b)
     B.equipGear(b)
-    C_Timer.After(5, TK.safe(function() verify(b) end))
+    C_Timer.After(1, TK.safe(function() verify(b) end))
+end
+
+-- The game took the load: its cast is under way (or nothing needed changing).
+local function finish(b, specID, now)
+    if lastApply and lastApply.b == b then lastApply.committed = true end -- the next config update times the apply
+    TK.changed()
+    if now then landed(b) end
 end
 
 -- Load the freshly imported loadout. A load error right after import is usually timing,
@@ -525,11 +531,19 @@ local function load(id, p)
             -- the game often loads it anyway; only load again if the talents didn't land
             p.retried = true
             return C_Timer.After(1.5, TK.safe(function() -- sooner can cut off a load the game did start
+                -- the change's cast running means the game took it after all. The tree alone
+                -- can't tell: a load the game cancelled leaves the build staged there.
+                if UnitCastingInfo("player") then
+                    TK.log("apply '%s': going through despite the error", p.b.name)
+                    C_ClassTalents.UpdateLastSelectedSavedConfigID(specID, id)
+                    return finish(p.b, specID)
+                end
+                if B.unsaved() then C_Traits.RollbackConfig(C_ClassTalents.GetActiveConfigID()) end
                 local d = TK.compare.diff(p.b.text, currentString())
                 if d and #d == 0 then
                     TK.log("apply '%s': landed despite the error", p.b.name)
                     C_ClassTalents.UpdateLastSelectedSavedConfigID(specID, id)
-                    return finish(p.b, specID)
+                    return finish(p.b, specID, true)
                 end
                 load(id, p)
             end))
@@ -538,7 +552,7 @@ local function load(id, p)
         return TK.chat(("|cffff6666Couldn't apply %s.|r %s"):format(p.b.name, changeError or "Try again in a moment."))
     end
     C_ClassTalents.UpdateLastSelectedSavedConfigID(specID, id)
-    finish(p.b, specID)
+    finish(p.b, specID, r == Enum.LoadConfigResult.NoChangesNecessary)
 end
 
 
@@ -588,9 +602,11 @@ end
 
 -- How long an apply took, click to talents committed (logged for comparing methods).
 TK.on("TRAIT_CONFIG_UPDATED", function(id)
-    if lastApply and lastApply.committed and not lastApply.logged and id == C_ClassTalents.GetActiveConfigID() then
+    if lastApply and lastApply.committed and not lastApply.logged and not lastApply.failed
+        and id == C_ClassTalents.GetActiveConfigID() then
         lastApply.logged = true
         TK.log("apply '%s': talents in after %d ms", lastApply.b.name, debugprofilestop() - lastApply.t0)
+        landed(lastApply.b)
     end
 end)
 

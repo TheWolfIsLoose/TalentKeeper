@@ -468,7 +468,9 @@ function W.refresh()
     for _, r in ipairs(rows) do r:Hide() end
     for _, h in ipairs(heads) do h:Hide() end
     local specID = B.specID()
+    local t = debugprofilestop()
     local now = specID and B.onNow(specID)
+    W.cost = { match = debugprofilestop() - t }
     pane.head.version:SetText(UI.versionText())
     -- lay out every line, then show the ones inside the list's window
     local lines, y = {}, 0
@@ -535,7 +537,9 @@ function W.refresh()
         h:SetPoint("TOPLEFT", 0, 0); h:SetPoint("TOPRIGHT", 0, 0)
         h:Show()
     end
+    t = debugprofilestop()
     refreshDetail(specID, now)
+    W.cost.preview = debugprofilestop() - t
     if lastNow ~= nil and lastNow ~= (now or false) then UIFrameFadeIn(detail.name, 0.4, 0, 1) end
     lastNow = now or false
 end
@@ -1329,7 +1333,10 @@ EventUtil.ContinueOnAddOnLoaded("Blizzard_PlayerSpells", TK.safe(function()
         local ours = debugprofilestop() - t0
         C_Timer.After(0, function()
             local frame = debugprofilestop() - (start or t0)
-            if ours >= 5 then TK.log("talent window open: TalentKeeper %d ms, frame %d ms", ours, frame) end
+            local c = W.cost or {}
+            if ours >= 5 then
+                TK.log("talent window open: TalentKeeper %d ms (match %d, preview %d), frame %d ms", ours, c.match or -1, c.preview or -1, frame)
+            end
         end)
     end)
     tf:HookScript("OnHide", function()
