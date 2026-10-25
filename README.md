@@ -16,6 +16,10 @@ where. Tag a build with the dungeons, delves and raid bosses it's for, and
 TalentKeeper offers the right spec and build when you get there, so the
 talent window becomes something you rarely need to open.
 
+<p align="center">
+  <img src=".assets/screenshots/talent-pane.png" alt="TalentKeeper's side pane on the talent window: spec tiles, Apply, Tags, More, Save current and Import, what's in the tree now, and your builds with their tags" width="900">
+</p>
+
 ## Features
 
 - **Right beside your talents.** A side pane on the talent window holds everything: your specs (click one to change spec), Apply, Tags, More, Save current and Import in one block at the top, then your builds in groups you can drag them between.
@@ -30,6 +34,14 @@ talent window becomes something you rarely need to open.
 - **Bring your builds over.** At your first login, TalentKeeper offers to copy your builds from Talent Loadout Ex, Talent Loadout Manager and your game loadouts, then to turn the other talent addon off. Ones it already has are skipped, and nothing is removed anywhere. Also in Options.
 - **Sim them.** Your builds go into the SimulationCraft addon's `/simc` text as saved loadouts, ready to pick on sim sites. Your other specs' builds too when SimulationCraft's Offspec Talent Loadouts box is ticked.
 - **Options.** Talent window size, whether to ask in delves, and whether to add builds to `/simc` (the three-bar icon in the pane's header).
+
+<p align="center">
+  <img src=".assets/screenshots/preview.png" alt="Previewing a build on the tree: talents it takes glow green, talents it drops glow red, and the pane counts the changes" width="900">
+</p>
+
+<p align="center">
+  <img src=".assets/screenshots/tag-overview.png" alt="Tag Overview: every dungeon, delve and raid boss this season with the build each of your specs has tagged there" width="900">
+</p>
 
 ## Commands
 

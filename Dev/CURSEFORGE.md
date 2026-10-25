@@ -1,9 +1,13 @@
 <!-- Paste below this line into the CurseForge description (Markdown). Dev-only.
-     Mirrors README.md without the HTML. -->
+     Mirrors README.md without the HTML.
+     Gallery (upload in this order, talent-pane first as the featured image):
+     .assets/screenshots/talent-pane.png, preview.png, tag-overview.png -->
 
 **Keep your talent builds tidy, and the right one wherever you go.**
 
 TalentKeeper keeps a few talent builds per spec and knows which one goes where. Tag a build with the dungeons, delves and raid bosses it's for, and TalentKeeper offers the right spec and build when you get there, so the talent window becomes something you rarely need to open.
+
+![TalentKeeper beside the talent window](https://raw.githubusercontent.com/TheWolfIsLoose/TalentKeeper/main/.assets/screenshots/talent-pane.png)
 
 ### Features
 
@@ -19,6 +23,10 @@ TalentKeeper keeps a few talent builds per spec and knows which one goes where. 
 - **Bring your builds over.** At your first login, TalentKeeper offers to copy your builds from Talent Loadout Ex, Talent Loadout Manager and your game loadouts, then to turn the other talent addon off. Ones it already has are skipped, and nothing is removed anywhere. Also in Options.
 - **Sim them.** Your builds go into the SimulationCraft addon's `/simc` text as saved loadouts, ready to pick on sim sites. Your other specs' builds too when SimulationCraft's Offspec Talent Loadouts box is ticked.
 - **Options.** Talent window size, whether to ask in delves, and whether to add builds to `/simc` (the three-bar icon in the pane's header).
+
+![Previewing a build on the tree](https://raw.githubusercontent.com/TheWolfIsLoose/TalentKeeper/main/.assets/screenshots/preview.png)
+
+![Tag Overview](https://raw.githubusercontent.com/TheWolfIsLoose/TalentKeeper/main/.assets/screenshots/tag-overview.png)
 
 ### Commands
 
