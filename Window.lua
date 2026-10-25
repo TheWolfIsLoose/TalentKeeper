@@ -1334,7 +1334,7 @@ EventUtil.ContinueOnAddOnLoaded("Blizzard_PlayerSpells", TK.safe(function()
         C_Timer.After(0, function()
             local frame = debugprofilestop() - (start or t0)
             local c = W.cost or {}
-            if ours >= 5 then
+            if ours >= 25 then
                 TK.log("talent window open: TalentKeeper %d ms (match %d, preview %d), frame %d ms", ours, c.match or -1, c.preview or -1, frame)
             end
         end)
