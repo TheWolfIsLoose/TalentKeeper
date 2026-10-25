@@ -1325,11 +1325,11 @@ EventUtil.ContinueOnAddOnLoaded("Blizzard_PlayerSpells", TK.safe(function()
         if not TK.db.imported.offered then
             TK.safe(function() if W.showBring() == 0 then TK.db.imported.offered = true bring:Hide() end end)()
         end
-        -- a slow open: ours vs the whole frame (the game's own window build included)
+        -- a slow open on our side: ours vs the whole frame (the game rebuilds its tree on every open)
         local ours = debugprofilestop() - t0
         C_Timer.After(0, function()
             local frame = debugprofilestop() - (start or t0)
-            if ours >= 5 or frame >= 50 then TK.log("talent window open: TalentKeeper %d ms, frame %d ms", ours, frame) end
+            if ours >= 5 then TK.log("talent window open: TalentKeeper %d ms, frame %d ms", ours, frame) end
         end)
     end)
     tf:HookScript("OnHide", function()

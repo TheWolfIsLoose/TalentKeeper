@@ -93,8 +93,15 @@ local function entries(text)
     return M:ConvertToImportLoadoutEntryInfo(C_ClassTalents.GetActiveConfigID(), treeID, M:ReadLoadoutContent(stream, treeID))
 end
 
+-- The game's export is slow and comparing calls it once per build: keep it for the frame
+-- (GetTime() is fixed within a frame, so a change shows up on the next one).
+local curText, curAt, curCfg
 local function currentString()
-    return C_Traits.GenerateImportString(C_ClassTalents.GetActiveConfigID())
+    local cfg, now = C_ClassTalents.GetActiveConfigID(), GetTime()
+    if curAt ~= now or curCfg ~= cfg then
+        curText, curAt, curCfg = C_Traits.GenerateImportString(cfg), now, cfg
+    end
+    return curText
 end
 B.currentString = currentString
 
