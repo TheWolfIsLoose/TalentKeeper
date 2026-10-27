@@ -6,6 +6,8 @@ CHANGELOG.md. Add each release's detailed notes here when you cut it.
 
 ## Next (on `dev`, not released)
 
+Nothing yet.
+
 ## v0.5.2 (2026-10-25)
 
 - Gear set per build: `b.gear` holds an Equipment Manager set's name; More... > Gear set... picks None or a set (with its icon). `B.equipGear` puts it on once the talents are in, and when the talents already match; skips a set already worn and combat; reports a renamed / deleted set. Build tooltip shows it. A spec with its own set assigned in the Equipment Manager (the game swaps that gear itself on spec change) is left alone (`B.specGearSet`), said once per session in chat and in the menu.

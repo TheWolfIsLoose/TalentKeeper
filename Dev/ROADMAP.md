@@ -11,19 +11,13 @@ disagree), **Open** (needs an answer before build).
 
 ## Next session: start here
 
-**On `dev` (2026-10-23):** gear set per build (More... > Gear set...), test round set.
-
-**2026-10-23: v0.5.1 released** (Tag Overview with tree lines and folding, motion, More... delete flash, Group... fix).
-
-**2026-10-22: v0.5.0 released** (suite style pass: monochrome palette, drawn Settings & Activity icon, Delves under a Miscellaneous heading; tidy pass). Notes in `Dev/HISTORY.md`.
-
-On `dev` for the next scheduled release (cosmetic, tested 2026-10-22): Tag Config renamed Tag Overview, its places hang from each heading on tree lines, headings fold (remembered).
+**2026-10-25: v0.5.2 released** (gear set per build, import preview fix, side pane layering, a cancelled talent change no longer counts as applied, README / CurseForge screenshots). v0.5.1 2026-10-23, v0.5.0 and v0.4.0 2026-10-22; notes in `Dev/HISTORY.md`. Nothing unreleased on `dev`.
 
 Open:
-1. **More... menu:** the player's verdict on friction (Group, Rename, Copy, Update to my talents, Delete).
-2. **Not yet seen in the wild:** bringing builds in for real, and converting the second talent addon's builds.
+1. **More... menu:** the player's verdict on friction (Group, Rename, Copy, Update to my talents, Gear set, Delete).
+2. **Not yet seen in the wild:** bringing builds in for real, converting the second talent addon's builds, and a build's gear set going on after a real apply.
 3. **Raid rooms:** Vashnik and The Twin Fangs still need their rooms (learned passively from pulls; ship them once known).
-4. **Done on `dev`:** More... delete confirms flash like the suite's buttons.
+4. **CurseForge:** paste `Dev/CURSEFORGE.md` (screenshots, gear set line) and upload the gallery listed at its top.
 5. **PvP:** see Future: PvP.
 
 ## Back to basics (player, 2026-10-18)
@@ -52,8 +46,9 @@ zone-in and after each kill, changeable in the prompt. A wipe keeps the
 same boss.
 
 **Cut (2026-10-18):** tidy up, fill up and build sources, main builds and
-variants / swaps, near-match planning, gear sets. A dungeon's tweak is its
-own build tagged for that dungeon.
+variants / swaps, near-match planning. A dungeon's tweak is its own build
+tagged for that dungeon. (Gear sets were cut here too, then came back from
+player feedback and shipped in v0.5.2.)
 
 ## Ideas from play (player, 2026-10-21)
 
