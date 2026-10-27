@@ -23,7 +23,7 @@ create releases by hand. Wait for a release push's tag
 (`git ls-remote --tags origin`) before pushing again.
 
 **Cadence (all of the player's addons, 2026-10-13):** feature releases go
-out every other Tuesday around 9 AM ET, bundling whatever is tested on
+out every Tuesday around 9 AM ET, bundling whatever is tested on
 `dev`; hotfixes ship as needed. On a Retail patch day the release moves to
 ~5 PM ET and carries the TOC bump.
 
