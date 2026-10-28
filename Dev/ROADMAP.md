@@ -11,7 +11,7 @@ disagree), **Open** (needs an answer before build).
 
 ## Next session: start here
 
-**2026-10-25: v0.5.2 released** (gear set per build, import preview fix, side pane layering, a cancelled talent change no longer counts as applied, README / CurseForge screenshots). v0.5.1 2026-10-23, v0.5.0 and v0.4.0 2026-10-22; notes in `Dev/HISTORY.md`. Nothing unreleased on `dev`.
+**2026-10-28: v0.5.3 released** (hotfix: tree marks no longer anchor to the game's talent buttons, which broke the hero talent layout; not yet checked in game, DevChecklist round "tree marks"). v0.5.2 2026-10-25, v0.5.1 2026-10-23; notes in `Dev/HISTORY.md`. Nothing unreleased on `dev`.
 
 Open:
 1. **More... menu:** the player's verdict on friction (Group, Rename, Copy, Update to my talents, Gear set, Delete).

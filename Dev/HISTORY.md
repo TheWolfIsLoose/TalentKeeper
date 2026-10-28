@@ -8,6 +8,11 @@ CHANGELOG.md. Add each release's detailed notes here when you cut it.
 
 Nothing yet.
 
+## v0.5.3 (2026-10-28)
+
+- Hotfix. The tree marks were anchored to Blizzard's talent buttons and the hero-tree name to the game's hero label (`HeroSpecLabel`), joining the game's anchor families: closing the talent window after a cross-hero-tree preview / apply threw "SetPoint would result in anchor family connection" (HeroTalentsContainer) and "Line:SetStartPoint(): Not allowed to depend on Button" (tree edges). Marks now sit at each region's position in the talent frame's coordinates (`spot()` via GetRect and effective scales), anchored only to the talent frame. Ceiling: a mark doesn't follow a button the game moves while it shows (marks redraw on every refresh). Shipped before the in-game check (player raiding); the DevChecklist round "tree marks" covers it.
+- Smoke test caught up with v0.5.2 (UnitCastingInfo stub, the TRAIT_CONFIG_UPDATED "talents in" event, a clock that steps a frame when the stubbed export changes); all sections pass.
+
 ## v0.5.2 (2026-10-25)
 
 - Gear set per build: `b.gear` holds an Equipment Manager set's name; More... > Gear set... picks None or a set (with its icon). `B.equipGear` puts it on once the talents are in, and when the talents already match; skips a set already worn and combat; reports a renamed / deleted set. Build tooltip shows it. A spec with its own set assigned in the Equipment Manager (the game swaps that gear itself on spec change) is left alone (`B.specGearSet`), said once per session in chat and in the menu.
