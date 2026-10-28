@@ -45,7 +45,8 @@ tContains = function(t, v) for _, x in pairs(t) do if x == v then return true en
 tInvert = function(t) local r = {} for k, v in pairs(t) do r[v] = k end return r end
 debugstack = function() return "stack" end
 geterrorhandler = function() return function(e) error(e, 0) end end
-GetTime = function() return 100 end
+local clock = 100 -- one game frame, until the test changes the talents (the export is cached per frame)
+GetTime = function() return clock end
 ERR_LEARN_SPELL_S, ERR_SPELL_UNLEARNED_S = "You have learned a new spell: %s.", "You have unlearned %s."
 local chatFilter
 ChatFrame_AddMessageEventFilter = function(_, fn) chatFilter = fn end
@@ -57,6 +58,7 @@ SlashCmdList = {}
 local onSpells = {}
 EventUtil = { ContinueOnAddOnLoaded = function(_, fn) onSpells[#onSpells + 1] = fn end }
 InCombatLockdown = function() return false end
+UnitCastingInfo = function() return nil end -- no cast running: a load error is retried
 GetNumClasses = function() return 1 end
 GetClassInfo = function() return "Warlock", "WARLOCK", 9 end
 local SPECS = { [265] = "Affliction", [266] = "Demonology", [267] = "Destruction" }
@@ -124,6 +126,14 @@ C_Traits = {
     PurchaseRank = function() return true end, SetSelection = function() return true end,
     GetConfigInfo = function(id) return configs[id] end,
 }
+-- Swapping the export stands in for the talents changing: that shows up on the next frame.
+do
+    local traits = C_Traits
+    C_Traits = setmetatable({}, { __index = traits, __newindex = function(_, k, v)
+        traits[k] = v
+        if k == "GenerateImportString" then clock = clock + 0.01 end
+    end })
+end
 C_ClassTalents = {
     GetTraitTreeForSpec = function() return 1 end,
     GetActiveConfigID = function() return 1 end,
@@ -238,6 +248,7 @@ ok(#loads == 1, "loaded once")
 runTimers() -- the retry after LoadConfig's error
 ok(imports == 1 and #loads == 2 and loads[2] == 8, "same loadout loaded again after an error")
 ok(TK.db.active[267] == target.name, "second load succeeds")
+fire("TRAIT_CONFIG_UPDATED", 1) -- the change's cast finished: the talents are in
 runTimers() -- verify
 ok(not said("no longer fit"), "talents verified")
 currentSpec = 265
