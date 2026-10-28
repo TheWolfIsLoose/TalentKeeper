@@ -63,6 +63,18 @@ local function sizeOf(region, w, h)
     return w, h
 end
 
+-- Where a region sits, in the talent frame's own coordinates (marks are its children). Marks are
+-- placed there, never anchored to the tree's buttons or labels: anchoring to them joined Blizzard's
+-- anchor families and broke the hero talent layout and the tree's edge lines.
+-- ponytail: a position, not an anchor; marks don't follow a button the game moves while they show
+-- (they're redrawn on every refresh), anchor to a moving frame of our own if that turns up.
+local function spot(region, ax, ay)
+    local l, b, w, h = region:GetRect()
+    if not l then return end
+    local s = region:GetEffectiveScale() / tf:GetEffectiveScale()
+    return (l + w * (ax or 0.5)) * s - tf:GetLeft(), (b + h * (ay or 0.5)) * s - tf:GetBottom()
+end
+
 local function place(m, button, c)
     local k = c and kind(c) or "swap"
     local art = button.artSet or { glow = "talents-node-circle-greenglow" }
@@ -70,7 +82,9 @@ local function place(m, button, c)
     m:SetFrameStrata(button:GetFrameStrata())
     m:SetFrameLevel(button:GetFrameLevel() + 10)
     m:ClearAllPoints()
-    m:SetPoint("CENTER", button)
+    local x, y = spot(button)
+    if not x then return m:Hide() end
+    m:SetPoint("CENTER", tf, "BOTTOMLEFT", x, y)
     m:SetSize(w, h)
     local iw, ih = sizeOf(button.Icon, w, h)
     m.mask:SetSize(iw, ih)
@@ -127,7 +141,9 @@ function W.show(b)
         -- the build's hero tree over the game's own name for the current one (the eye button is below)
         local current = tf.HeroTalentsContainer.HeroSpecLabel
         m.label:ClearAllPoints()
-        if current then m.label:SetPoint("BOTTOM", current, "TOP", 0, 4) else m.label:SetPoint("BOTTOM", m, "TOP", 0, 26) end
+        local lx, ly
+        if current then lx, ly = spot(current, 0.5, 1) end
+        if lx then m.label:SetPoint("BOTTOM", tf, "BOTTOMLEFT", lx, ly + 4) else m.label:SetPoint("BOTTOM", m, "TOP", 0, 26) end
         m.label:SetTextColor(0.1, 1, 0.1) -- green: the tree this build takes
         m.label:SetText(C.heroName(b.text) or "")
     end
