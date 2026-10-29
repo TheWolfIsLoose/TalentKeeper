@@ -231,9 +231,10 @@ end
 -- Tag kinds, one grid column each (left to right): the column's heading, its width, the tooltip label.
 -- ponytail: a zone tag counts as a dungeon (raids are tagged by boss, delves by "delve").
 local KINDS = {
-    { prefix = "boss:", head = "RAID", w = 32, label = "Raid" },
-    { prefix = "zone:", head = "M+", w = 26, label = "Dungeons" },
-    { prefix = "delve", head = "DELVE", w = 34, label = "Delves" },
+    { prefix = "boss:", head = "RAID", w = 30, label = "Raid" },
+    { prefix = "zone:", head = "M+", w = 24, label = "Dungeons" },
+    { prefix = "delve", head = "DELVE", w = 32, label = "Delves" },
+    { head = "GEAR", w = 30, gear = true }, -- not a tag: the build's gear set
 }
 local GRID_R, GRID_GAP = 8, 2 -- the grid's right margin and the gap between columns
 local function kindX(k) -- a column's right edge, from the row's right
@@ -246,7 +247,7 @@ local function tagsByKind(b)
     local out = {}
     for key, name in pairs(b.tags or {}) do
         for k, kind in ipairs(KINDS) do
-            if key:sub(1, #kind.prefix) == kind.prefix then
+            if kind.prefix and key:sub(1, #kind.prefix) == kind.prefix then
                 out[k] = out[k] or {}
                 table.insert(out[k], name)
                 break
@@ -267,6 +268,31 @@ local function setHero(tex, text)
     tex:SetTexCoord(l + w, r - w, t + h, bt - h)
 end
 
+-- The gear that goes with a build: the spec's own set in the game's Equipment Manager wins (the
+-- game swaps it on spec change), else the build's set in TalentKeeper. { name, icon, own, missing }
+function W.gearFor(b)
+    local specID = B.findSpec(b)
+    local own = specID and B.specGearSet(specID)
+    local name = own or b.gear
+    if not name then return {} end
+    local id = C_EquipmentSet and C_EquipmentSet.GetEquipmentSetID(name)
+    local icon = id and select(2, C_EquipmentSet.GetEquipmentSetInfo(id))
+    return { name = name, icon = icon, own = own ~= nil, missing = not id }
+end
+
+-- A row's gear cell: the set's icon (grayed when it's the spec's set from the Equipment Manager),
+-- a yellow ? when the set is gone, a muted dash when there's none.
+function W.placeGear(well, g)
+    well.none:SetText(not g.name and "–" or (g.missing and "?") or "")
+    if g.missing then well.none:SetTextColor(1, 0.847, 0.29) else well.none:SetTextColor(0.35, 0.35, 0.35) end
+    well:SetShown(g.icon ~= nil)
+    if g.icon then
+        well.icon:SetTexture(g.icon)
+        well.icon:SetDesaturated(g.own)
+        well.icon:SetAlpha(g.own and 0.6 or 1)
+    end
+end
+
 local function selectBuild(b)
     TK.selected = (TK.selected ~= b) and b or nil
     W.refresh()
@@ -282,11 +308,24 @@ local function row(i)
     -- the tag grid at the right: how many places of each kind, centred under the column headings
     r.cells = {}
     for k, kind in ipairs(KINDS) do
-        local c = r:CreateFontString(nil, "OVERLAY", "TalentKeeperFontSmall")
-        c:SetPoint("RIGHT", kindX(k), 0)
-        c:SetWidth(kind.w)
-        c:SetJustifyH("CENTER")
-        r.cells[k] = c
+        if kind.gear then -- the gear set's icon, centred in its column
+            local well = CreateFrame("Frame", nil, r)
+            well:SetSize(16, 16)
+            well:SetPoint("CENTER", r, "RIGHT", kindX(k) - kind.w / 2, 0)
+            UI.ring(well, 0.3)
+            well.icon = well:CreateTexture(nil, "ARTWORK")
+            well.icon:SetPoint("TOPLEFT", 1, -1); well.icon:SetPoint("BOTTOMRIGHT", -1, 1)
+            well.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+            well.none = r:CreateFontString(nil, "OVERLAY", "TalentKeeperFontSmall")
+            well.none:SetPoint("CENTER", well)
+            r.gear = well
+        else
+            local c = r:CreateFontString(nil, "OVERLAY", "TalentKeeperFontSmall")
+            c:SetPoint("RIGHT", kindX(k), 0)
+            c:SetWidth(kind.w)
+            c:SetJustifyH("CENTER")
+            r.cells[k] = c
+        end
     end
     r.status = r:CreateFontString(nil, "OVERLAY", "TalentKeeperFontSmall")
     r.status:SetPoint("RIGHT", -(GRID_W + 4), 0)
@@ -384,7 +423,15 @@ local function row(i)
                 end
             end
         end
-        if self.b.gear then GameTooltip:AddLine("Gear set: " .. self.b.gear, 1, 1, 1) end
+        local g = W.gearFor(self.b)
+        if g.own then
+            GameTooltip:AddDoubleLine("Gear", g.name .. " (Equipment Manager, this spec)", 0.55, 0.55, 0.55, 1, 1, 1)
+            if self.b.gear and self.b.gear ~= g.name then
+                GameTooltip:AddLine(("Its own set, %s, isn't used while the spec has one."):format(self.b.gear), 1, 0.847, 0.29, true)
+            end
+        elseif g.name then
+            GameTooltip:AddDoubleLine("Gear", g.name .. (g.missing and " |cffffd84a(not found)|r" or ""), 0.55, 0.55, 0.55, 1, 1, 1)
+        end
         GameTooltip:AddLine("Click to preview on the tree, double-click to apply. Drag to reorder, or onto a group heading.", 0.55, 0.55, 0.55, true)
         GameTooltip:Show()
     end))
@@ -608,7 +655,7 @@ function W.refresh()
     local nr, nh, n, dashed = 0, 0, 0, nil
     -- the tag grid: a count per kind, a muted dash where there's none (empty on Unsaved talents)
     local function placeKinds(r, byKind)
-        for k, c in ipairs(r.cells) do
+        for k, c in pairs(r.cells) do
             local names = byKind and byKind[k]
             if names then c:SetText(#names) c:SetTextColor(1, 1, 1)
             else c:SetText(byKind and "–" or "") c:SetTextColor(0.35, 0.35, 0.35) end
@@ -643,6 +690,7 @@ function W.refresh()
             r.text:SetText("Unsaved talents")
             r.text:SetTextColor(0.74, 0.74, 0.74)
             placeKinds(r, nil)
+            r.gear:Hide() r.gear.none:SetText("")
             r.status:SetText("Save")
             r.status:SetTextColor(0.55, 0.55, 0.55)
             r.stripe:Hide(); r.sel:Hide()
@@ -660,6 +708,7 @@ function W.refresh()
             setHero(r.hero, b.text)
             r.ShowHero(W.showHero)
             placeKinds(r, tagsByKind(b))
+            W.placeGear(r.gear, W.gearFor(b))
             r.status:SetText(b.outdated and "Outdated" or "")
             if b.outdated then r.status:SetTextColor(1, 0.847, 0.29) else r.status:SetTextColor(0.55, 0.55, 0.55) end
             r.stripe:SetShown(n % 2 == 0)
@@ -701,6 +750,8 @@ end
 TK.on("ACTIVE_PLAYER_SPECIALIZATION_CHANGED", function() TK.selected = nil offset = 0 TK.safe(W.refresh)() end)
 -- your talents changed (an apply landed, a click in the tree): redraw the preview
 TK.on("TRAIT_CONFIG_UPDATED", function() TK.safe(W.refresh)() end)
+-- gear sets made, renamed, deleted or assigned to a spec: redraw the GEAR column
+TK.on("EQUIPMENT_SETS_CHANGED", function() TK.safe(W.refresh)() end)
 
 -- Spec tiles: one strip across the top, in the class's spec order (each spec always in the same
 -- spot), the width shared out so three or four fill it alike; yours lit with the white ring, the
