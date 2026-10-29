@@ -173,7 +173,9 @@ local ROW1 = DECK_Y - TILE_H - 6         -- Apply / Tags... / More...
 local ROW2 = ROW1 - 24                   -- Save current / Import
 local TABS = ROW2 - 20 - 10               -- the Builds / Tag Overview tabs
 local HEAD, TOP = 22, TABS - 24
--- Build cards: two lines (name and gear, then the tag slots), a third only for a problem.
+local GRID_HEAD = 16 -- the grid's column headings, between the tabs and the list
+-- Build cards: the name, then the grid (tag counts and gear set) under the headings; a third line
+-- only for a problem.
 local ROW, ROW_NOTE = 40, 54
 local SHIMMER_W = 90
 local offset = 0
@@ -229,13 +231,22 @@ local function showDashes(r)
     end
 end
 
--- Tag kinds, one slot each on a card's second line (left to right): its label, its width, the tooltip label.
+-- Grid columns (left to right) on a card's second line: tag kinds, then the gear set. Heading, width,
+-- the tooltip label.
 -- ponytail: a zone tag counts as a dungeon (raids are tagged by boss, delves by "delve").
 local KINDS = {
-    { prefix = "boss:", head = "RAID", w = 46, label = "Raid" },
-    { prefix = "zone:", head = "M+", w = 38, label = "Dungeons" },
-    { prefix = "delve", head = "DELVE", w = 50, label = "Delves" },
+    { prefix = "boss:", head = "RAID", w = 32, label = "Raid" },
+    { prefix = "zone:", head = "M+", w = 28, label = "Dungeons" },
+    { prefix = "delve", head = "DELVE", w = 34, label = "Delves" },
+    { head = "GEAR", w = 32, gear = true }, -- not a tag: the build's gear set
 }
+local GRID_R, GRID_GAP = 8, 2 -- the grid's right margin and the gap between columns
+local function kindX(k) -- a column's right edge, from the row's right
+    local x = -GRID_R
+    for j = #KINDS, k + 1, -1 do x = x - KINDS[j].w - GRID_GAP end
+    return x
+end
+local LINE2 = -24 -- a card's second line, centred this far below its top
 local function tagsByKind(b)
     local out = {}
     for key, name in pairs(b.tags or {}) do
@@ -251,7 +262,7 @@ local function tagsByKind(b)
 end
 
 -- The hero tree's emblem in a square ring, like the spec tiles.
-local HERO_ZOOM = 0 -- share of the emblem trimmed off each side (0: the whole emblem)
+local HERO_ZOOM = 0.05 -- share of the emblem trimmed off each side
 local function setHero(tex, text)
     local hero = C.hero(text)
     if not (hero and hero.atlas) then tex:SetTexture(nil) return end
@@ -313,34 +324,33 @@ local function row(i)
     UI.ring(well, 0.3)
     r.hero = well:CreateTexture(nil, "ARTWORK")
     r.hero:SetPoint("TOPLEFT", 1, -1); r.hero:SetPoint("BOTTOMRIGHT", -1, 1)
-    -- line 1: the name, the gear set's icon at the right
-    local gear = CreateFrame("Frame", nil, r)
-    gear:SetSize(16, 16)
-    gear:SetPoint("TOPRIGHT", -8, -4)
-    UI.ring(gear, 0.3)
-    gear.icon = gear:CreateTexture(nil, "ARTWORK")
-    gear.icon:SetPoint("TOPLEFT", 1, -1); gear.icon:SetPoint("BOTTOMRIGHT", -1, 1)
-    gear.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
-    gear.none = r:CreateFontString(nil, "OVERLAY", "TalentKeeperFontSmall")
-    gear.none:SetPoint("CENTER", gear)
-    r.gear = gear
+    -- line 1: the name, the card's full width
     r.text = r:CreateFontString(nil, "OVERLAY", "TalentKeeperFont")
     r.text:SetPoint("TOPLEFT", well, "TOPRIGHT", 6, -1)
-    r.text:SetPoint("RIGHT", gear, "LEFT", -6, 0)
+    r.text:SetPoint("RIGHT", -8, 0)
     r.text:SetJustifyH("LEFT")
     r.text:SetWordWrap(false)
-    -- line 2: a slot per kind of place, label then count, at the same spot on every card
-    r.cells, r.labels = {}, {}
-    local x = 0
+    -- line 2: the grid under the headings, a count per tag kind and the gear set's icon
+    r.cells = {}
     for k, kind in ipairs(KINDS) do
-        local l = r:CreateFontString(nil, "OVERLAY", "TalentKeeperFontSmall")
-        l:SetPoint("BOTTOMLEFT", well, "BOTTOMRIGHT", 6 + x, 1)
-        l:SetTextColor(0.55, 0.55, 0.55)
-        l:SetText(kind.head)
-        local c = r:CreateFontString(nil, "OVERLAY", "TalentKeeperFontSmall")
-        c:SetPoint("LEFT", l, "RIGHT", 4, 0)
-        r.labels[k], r.cells[k] = l, c
-        x = x + kind.w
+        if kind.gear then
+            local gear = CreateFrame("Frame", nil, r)
+            gear:SetSize(16, 16)
+            gear:SetPoint("CENTER", r, "TOPRIGHT", kindX(k) - kind.w / 2, LINE2)
+            UI.ring(gear, 0.3)
+            gear.icon = gear:CreateTexture(nil, "ARTWORK")
+            gear.icon:SetPoint("TOPLEFT", 1, -1); gear.icon:SetPoint("BOTTOMRIGHT", -1, 1)
+            gear.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+            gear.none = r:CreateFontString(nil, "OVERLAY", "TalentKeeperFontSmall")
+            gear.none:SetPoint("CENTER", gear)
+            r.gear = gear
+        else
+            local c = r:CreateFontString(nil, "OVERLAY", "TalentKeeperFontSmall")
+            c:SetPoint("RIGHT", r, "TOPRIGHT", kindX(k), LINE2)
+            c:SetWidth(kind.w)
+            c:SetJustifyH("CENTER")
+            r.cells[k] = c
+        end
     end
     r.hint = r:CreateFontString(nil, "OVERLAY", "TalentKeeperFontSmall") -- line 2 of Unsaved talents
     r.hint:SetPoint("BOTTOMLEFT", well, "BOTTOMRIGHT", 6, 1)
@@ -655,9 +665,9 @@ function W.refresh()
     local nr, nh, n, dashed = 0, 0, 0, nil
     -- the tag slots: a count per kind, a muted dash where there's none; hidden on Unsaved talents
     local function placeKinds(r, byKind)
-        for k, c in ipairs(r.cells) do
+        for k, c in pairs(r.cells) do
             local names = byKind and byKind[k]
-            r.labels[k]:SetShown(byKind ~= nil); c:SetShown(byKind ~= nil)
+            c:SetShown(byKind ~= nil)
             if names then c:SetText(#names) c:SetTextColor(1, 1, 1)
             else c:SetText("–") c:SetTextColor(0.35, 0.35, 0.35) end
         end
@@ -1500,7 +1510,16 @@ EventUtil.ContinueOnAddOnLoaded("Blizzard_PlayerSpells", TK.safe(function()
     makeDetail()
     -- the scrolling list between the spec buttons and the selected build's panel
     pane.list = CreateFrame("Frame", nil, pane)
-    pane.list:SetPoint("TOPLEFT", 0, TOP); pane.list:SetPoint("TOPRIGHT", 0, TOP)
+    pane.list:SetPoint("TOPLEFT", 0, TOP - GRID_HEAD); pane.list:SetPoint("TOPRIGHT", 0, TOP - GRID_HEAD)
+    -- the grid's column headings (Tag Overview covers them)
+    for k, kind in ipairs(KINDS) do
+        local h = pane:CreateFontString(nil, "OVERLAY", "TalentKeeperFontSmall")
+        h:SetPoint("TOPRIGHT", pane, "TOPRIGHT", kindX(k), TOP - 2)
+        h:SetWidth(kind.w)
+        h:SetJustifyH("CENTER")
+        h:SetTextColor(0.55, 0.55, 0.55)
+        h:SetText(kind.head)
+    end
     pane.list:SetPoint("BOTTOM", pane, "BOTTOM", 0, 1)
     pane.list:SetClipsChildren(true)
     pane.list:EnableMouseWheel(true)
