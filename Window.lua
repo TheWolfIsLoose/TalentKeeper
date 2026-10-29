@@ -345,11 +345,7 @@ local function row(i)
     r.hero = well:CreateTexture(nil, "ARTWORK")
     r.hero:SetPoint("TOPLEFT", 1, -1); r.hero:SetPoint("BOTTOMRIGHT", -1, 1)
     r.text = r:CreateFontString(nil, "OVERLAY", "TalentKeeperFont")
-    r.ShowHero = function(on)
-        well:SetShown(on)
-        r.text:SetPoint("LEFT", on and 28 or 8, 0)
-    end
-    r.ShowHero(false)
+    r.text:SetPoint("LEFT", well, "RIGHT", 5, 0)
     r.text:SetPoint("RIGHT", r.status, "LEFT", -6, 0)
     r.text:SetJustifyH("LEFT")
     r.text:SetWordWrap(false)
@@ -661,14 +657,6 @@ function W.refresh()
             else c:SetText(byKind and "–" or "") c:SetTextColor(0.35, 0.35, 0.35) end
         end
     end
-    -- the hero icon column only when this spec's builds take more than one hero tree
-    local heroes, nHeroes = {}, 0
-    for _, line in ipairs(lines) do
-        local text = line.build and line.build.text or (line.unsaved and B.currentString())
-        local h = text and C.heroName(text)
-        if h and not heroes[h] then heroes[h] = true nHeroes = nHeroes + 1 end
-    end
-    W.showHero = nHeroes > 1
     local function visible(ly, h) return ly - offset >= 0 and ly - offset + h <= height end
     for _, line in ipairs(lines) do
         if line.build then n = n + 1 end
@@ -686,7 +674,6 @@ function W.refresh()
             if r.b then r.StopShimmer() end
             r.b = nil
             setHero(r.hero, B.currentString())
-            r.ShowHero(W.showHero)
             r.text:SetText("Unsaved talents")
             r.text:SetTextColor(0.74, 0.74, 0.74)
             placeKinds(r, nil)
@@ -706,7 +693,6 @@ function W.refresh()
             if TK.flashing[b] then r.Shimmer() end
             r.text:SetText(b.name)
             setHero(r.hero, b.text)
-            r.ShowHero(W.showHero)
             placeKinds(r, tagsByKind(b))
             W.placeGear(r.gear, W.gearFor(b))
             r.status:SetText(b.outdated and "Outdated" or "")
