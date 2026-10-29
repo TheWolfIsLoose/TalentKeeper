@@ -161,7 +161,7 @@ end
 -- class's spec order, so each sits in the same spot; the strip's width is shared out, so there's no
 -- gap for three specs or crowding for four), then Apply / Tags... / More... and Save current /
 -- Import across the full width; then the Builds / Tag Overview tabs and the list, which scrolls.
--- In the list each build leads with its hero tree's icon; the build in the tree has a solid outline
+-- In the list each build is a card: its hero tree's emblem, name and gear set, then its tags; the build in the tree has a solid outline
 -- (talents that aren't a saved build get an "Unsaved talents" row on top) and the one you're
 -- previewing a dashed one that marches (still with reduced motion).
 local pane, rows, heads = nil, {}, {}
@@ -172,8 +172,9 @@ local COL_X, COL_W = 8, PANE_W - 16
 local ROW1 = DECK_Y - TILE_H - 6         -- Apply / Tags... / More...
 local ROW2 = ROW1 - 24                   -- Save current / Import
 local TABS = ROW2 - 20 - 10               -- the Builds / Tag Overview tabs
-local ROW, HEAD, TOP = 24, 22, TABS - 24
-local GRID_HEAD = 16 -- the grid's column headings, between the tabs and the list
+local HEAD, TOP = 22, TABS - 24
+-- Build cards: two lines (name and gear, then the tag slots), a third only for a problem.
+local ROW, ROW_NOTE = 40, 54
 local SHIMMER_W = 90
 local offset = 0
 local detail -- the selected build's panel
@@ -198,7 +199,7 @@ local function dashes()
         if across then clip:SetHeight(1) else clip:SetWidth(1) end
         clip:SetClipsChildren(true)
         local strip = CreateFrame("Frame", nil, clip)
-        local len = (across and PANE_W or ROW) + PERIOD
+        local len = (across and PANE_W or ROW_NOTE) + PERIOD
         strip:SetSize(across and len or 1, across and 1 or len)
         strip:SetPoint(e[5], clip, e[5], -e[3] * PERIOD, -e[4] * PERIOD)
         for i = 0, math.floor(len / PERIOD) do
@@ -228,21 +229,13 @@ local function showDashes(r)
     end
 end
 
--- Tag kinds, one grid column each (left to right): the column's heading, its width, the tooltip label.
+-- Tag kinds, one slot each on a card's second line (left to right): its label, its width, the tooltip label.
 -- ponytail: a zone tag counts as a dungeon (raids are tagged by boss, delves by "delve").
 local KINDS = {
-    { prefix = "boss:", head = "RAID", w = 30, label = "Raid" },
-    { prefix = "zone:", head = "M+", w = 24, label = "Dungeons" },
-    { prefix = "delve", head = "DELVE", w = 32, label = "Delves" },
-    { head = "GEAR", w = 30, gear = true }, -- not a tag: the build's gear set
+    { prefix = "boss:", head = "RAID", w = 46, label = "Raid" },
+    { prefix = "zone:", head = "M+", w = 38, label = "Dungeons" },
+    { prefix = "delve", head = "DELVE", w = 50, label = "Delves" },
 }
-local GRID_R, GRID_GAP = 8, 2 -- the grid's right margin and the gap between columns
-local function kindX(k) -- a column's right edge, from the row's right
-    local x = -GRID_R
-    for j = #KINDS, k + 1, -1 do x = x - KINDS[j].w - GRID_GAP end
-    return x
-end
-local GRID_W = -kindX(1) + KINDS[1].w
 local function tagsByKind(b)
     local out = {}
     for key, name in pairs(b.tags or {}) do
@@ -305,30 +298,6 @@ local function row(i)
     r.stripe = UI.fill(r, "BACKGROUND", 1, 1, 1, 0.05)
     r.sel = UI.fill(r, "BACKGROUND", 1, 1, 1, 0.12)
     UI.fill(r, "HIGHLIGHT", 0.851, 0.851, 0.851, 0.15)
-    -- the tag grid at the right: how many places of each kind, centred under the column headings
-    r.cells = {}
-    for k, kind in ipairs(KINDS) do
-        if kind.gear then -- the gear set's icon, centred in its column
-            local well = CreateFrame("Frame", nil, r)
-            well:SetSize(16, 16)
-            well:SetPoint("CENTER", r, "RIGHT", kindX(k) - kind.w / 2, 0)
-            UI.ring(well, 0.3)
-            well.icon = well:CreateTexture(nil, "ARTWORK")
-            well.icon:SetPoint("TOPLEFT", 1, -1); well.icon:SetPoint("BOTTOMRIGHT", -1, 1)
-            well.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
-            well.none = r:CreateFontString(nil, "OVERLAY", "TalentKeeperFontSmall")
-            well.none:SetPoint("CENTER", well)
-            r.gear = well
-        else
-            local c = r:CreateFontString(nil, "OVERLAY", "TalentKeeperFontSmall")
-            c:SetPoint("RIGHT", kindX(k), 0)
-            c:SetWidth(kind.w)
-            c:SetJustifyH("CENTER")
-            r.cells[k] = c
-        end
-    end
-    r.status = r:CreateFontString(nil, "OVERLAY", "TalentKeeperFontSmall")
-    r.status:SetPoint("RIGHT", -(GRID_W + 4), 0)
     r.outline = {} -- solid: the build in the tree
     for _, e in ipairs({ { "TOPLEFT", "TOPRIGHT" }, { "BOTTOMLEFT", "BOTTOMRIGHT" }, { "TOPLEFT", "BOTTOMLEFT" }, { "TOPRIGHT", "BOTTOMRIGHT" } }) do
         local t = r:CreateTexture(nil, "OVERLAY")
@@ -337,29 +306,62 @@ local function row(i)
         if e[1]:sub(1, 3) == e[2]:sub(1, 3) then t:SetHeight(1) else t:SetWidth(1) end
         r.outline[#r.outline + 1] = t
     end
+    -- the hero tree's emblem, a tile as tall as the two lines
     local well = CreateFrame("Frame", nil, r)
-    r.well = well
-    well:SetSize(18, 18)
-    well:SetPoint("LEFT", 5, 0)
+    well:SetSize(32, 32)
+    well:SetPoint("TOPLEFT", 4, -4)
     UI.ring(well, 0.3)
     r.hero = well:CreateTexture(nil, "ARTWORK")
     r.hero:SetPoint("TOPLEFT", 1, -1); r.hero:SetPoint("BOTTOMRIGHT", -1, 1)
+    -- line 1: the name, the gear set's icon at the right
+    local gear = CreateFrame("Frame", nil, r)
+    gear:SetSize(16, 16)
+    gear:SetPoint("TOPRIGHT", -8, -4)
+    UI.ring(gear, 0.3)
+    gear.icon = gear:CreateTexture(nil, "ARTWORK")
+    gear.icon:SetPoint("TOPLEFT", 1, -1); gear.icon:SetPoint("BOTTOMRIGHT", -1, 1)
+    gear.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+    gear.none = r:CreateFontString(nil, "OVERLAY", "TalentKeeperFontSmall")
+    gear.none:SetPoint("CENTER", gear)
+    r.gear = gear
     r.text = r:CreateFontString(nil, "OVERLAY", "TalentKeeperFont")
-    r.text:SetPoint("LEFT", well, "RIGHT", 5, 0)
-    r.text:SetPoint("RIGHT", r.status, "LEFT", -6, 0)
+    r.text:SetPoint("TOPLEFT", well, "TOPRIGHT", 6, -1)
+    r.text:SetPoint("RIGHT", gear, "LEFT", -6, 0)
     r.text:SetJustifyH("LEFT")
     r.text:SetWordWrap(false)
+    -- line 2: a slot per kind of place, label then count, at the same spot on every card
+    r.cells, r.labels = {}, {}
+    local x = 0
+    for k, kind in ipairs(KINDS) do
+        local l = r:CreateFontString(nil, "OVERLAY", "TalentKeeperFontSmall")
+        l:SetPoint("BOTTOMLEFT", well, "BOTTOMRIGHT", 6 + x, 1)
+        l:SetTextColor(0.55, 0.55, 0.55)
+        l:SetText(kind.head)
+        local c = r:CreateFontString(nil, "OVERLAY", "TalentKeeperFontSmall")
+        c:SetPoint("LEFT", l, "RIGHT", 4, 0)
+        r.labels[k], r.cells[k] = l, c
+        x = x + kind.w
+    end
+    r.hint = r:CreateFontString(nil, "OVERLAY", "TalentKeeperFontSmall") -- line 2 of Unsaved talents
+    r.hint:SetPoint("BOTTOMLEFT", well, "BOTTOMRIGHT", 6, 1)
+    r.hint:SetTextColor(0.55, 0.55, 0.55)
+    -- line 3, only for a problem (outdated, gear set gone)
+    r.status = r:CreateFontString(nil, "OVERLAY", "TalentKeeperFontSmall")
+    r.status:SetPoint("BOTTOMLEFT", 8, 5)
+    r.status:SetPoint("RIGHT", -8, 0)
+    r.status:SetJustifyH("LEFT")
+    r.status:SetTextColor(1, 0.847, 0.29)
     -- Shimmer: one soft white band sweeps across the row (once, two seconds), clipped to it.
     local clip = CreateFrame("Frame", nil, r)
     clip:SetAllPoints()
     clip:SetClipsChildren(true)
     local band = CreateFrame("Frame", nil, clip)
-    band:SetSize(SHIMMER_W, ROW)
+    band:SetSize(SHIMMER_W, ROW_NOTE)
     band:SetPoint("RIGHT", clip, "LEFT")
     for half = 1, 2 do
         local t = band:CreateTexture(nil, "ARTWORK")
         t:SetColorTexture(1, 1, 1, 1)
-        t:SetSize(SHIMMER_W / 2, ROW)
+        t:SetSize(SHIMMER_W / 2, ROW_NOTE)
         t:SetPoint(half == 1 and "LEFT" or "RIGHT")
         local none, peak = CreateColor(1, 1, 1, 0), CreateColor(1, 1, 1, 0.15)
         t:SetGradient("HORIZONTAL", half == 1 and none or peak, half == 1 and peak or none)
@@ -628,7 +630,7 @@ function W.refresh()
     pane.head.version:SetText(UI.versionText())
     -- lay out every line, then show the ones inside the list's window
     local lines, y = {}, 0
-    if specID and not now then lines[1] = { unsaved = true, y = 0 } y = ROW end -- talents that aren't a saved build
+    if specID and not now then lines[1] = { unsaved = true, y = 0, h = ROW } y = ROW end -- talents that aren't a saved build
     for _, line in ipairs(B.ordered(specID)) do
         if line.header ~= nil then
             if line.header or #lines > (lines[1] and lines[1].unsaved and 1 or 0) then -- "No group" only after a build or group
@@ -636,26 +638,30 @@ function W.refresh()
                 y = y + HEAD
             end
         else
-            lines[#lines + 1] = { build = line.build, y = y }
-            y = y + ROW
+            local b = line.build
+            local h = (b.outdated or W.gearFor(b).missing) and ROW_NOTE or ROW
+            lines[#lines + 1] = { build = b, y = y, h = h }
+            y = y + h
         end
     end
     local height = pane.list:GetHeight()
     for _, line in ipairs(lines) do -- scroll a build that just changed into view
         if line.build and TK.flashing[line.build] then
-            offset = math.min(math.max(offset, line.y + ROW - height), line.y)
+            offset = math.min(math.max(offset, line.y + line.h - height), line.y)
             break
         end
     end
     offset = math.max(0, math.min(offset, y + 28 - height))
     local nr, nh, n, dashed = 0, 0, 0, nil
-    -- the tag grid: a count per kind, a muted dash where there's none (empty on Unsaved talents)
+    -- the tag slots: a count per kind, a muted dash where there's none; hidden on Unsaved talents
     local function placeKinds(r, byKind)
-        for k, c in pairs(r.cells) do
+        for k, c in ipairs(r.cells) do
             local names = byKind and byKind[k]
+            r.labels[k]:SetShown(byKind ~= nil); c:SetShown(byKind ~= nil)
             if names then c:SetText(#names) c:SetTextColor(1, 1, 1)
-            else c:SetText(byKind and "–" or "") c:SetTextColor(0.35, 0.35, 0.35) end
+            else c:SetText("–") c:SetTextColor(0.35, 0.35, 0.35) end
         end
+        r.hint:SetShown(byKind == nil)
     end
     local function visible(ly, h) return ly - offset >= 0 and ly - offset + h <= height end
     for _, line in ipairs(lines) do
@@ -668,7 +674,7 @@ function W.refresh()
             h:ClearAllPoints()
             h:SetPoint("TOPLEFT", 0, -(line.y - offset)); h:SetPoint("TOPRIGHT", 0, -(line.y - offset))
             h:Show()
-        elseif line.unsaved and visible(line.y, ROW) then
+        elseif line.unsaved and visible(line.y, line.h) then
             nr = nr + 1
             local r = row(nr)
             if r.b then r.StopShimmer() end
@@ -678,14 +684,15 @@ function W.refresh()
             r.text:SetTextColor(0.74, 0.74, 0.74)
             placeKinds(r, nil)
             r.gear:Hide() r.gear.none:SetText("")
-            r.status:SetText("Save")
-            r.status:SetTextColor(0.55, 0.55, 0.55)
+            r.hint:SetText("Not a saved build. Click to save it.")
+            r.status:SetText("")
+            r:SetHeight(line.h)
             r.stripe:Hide(); r.sel:Hide()
             for _, t in ipairs(r.outline) do t:Show() end
             r:ClearAllPoints()
             r:SetPoint("TOPLEFT", 0, -(line.y - offset)); r:SetPoint("TOPRIGHT", 0, -(line.y - offset))
             r:Show()
-        elseif line.build and visible(line.y, ROW) then
+        elseif line.build and visible(line.y, line.h) then
             nr = nr + 1
             local b, r = line.build, row(nr)
             if r.b ~= b then r.StopShimmer() end -- the frame now shows another build
@@ -694,9 +701,11 @@ function W.refresh()
             r.text:SetText(b.name)
             setHero(r.hero, b.text)
             placeKinds(r, tagsByKind(b))
-            W.placeGear(r.gear, W.gearFor(b))
-            r.status:SetText(b.outdated and "Outdated" or "")
-            if b.outdated then r.status:SetTextColor(1, 0.847, 0.29) else r.status:SetTextColor(0.55, 0.55, 0.55) end
+            local g = W.gearFor(b)
+            W.placeGear(r.gear, g)
+            r.status:SetText(b.outdated and "Outdated: some talents no longer fit the tree."
+                or g.missing and ("Gear set %s not found."):format(g.name) or "")
+            r:SetHeight(line.h)
             r.stripe:SetShown(n % 2 == 0)
             r.sel:SetShown(b == TK.selected)
             local isOn = b == now
@@ -1491,16 +1500,7 @@ EventUtil.ContinueOnAddOnLoaded("Blizzard_PlayerSpells", TK.safe(function()
     makeDetail()
     -- the scrolling list between the spec buttons and the selected build's panel
     pane.list = CreateFrame("Frame", nil, pane)
-    pane.list:SetPoint("TOPLEFT", 0, TOP - GRID_HEAD); pane.list:SetPoint("TOPRIGHT", 0, TOP - GRID_HEAD)
-    -- the grid's column headings (Tag Overview covers them)
-    for k, kind in ipairs(KINDS) do
-        local h = pane:CreateFontString(nil, "OVERLAY", "TalentKeeperFontSmall")
-        h:SetPoint("TOPRIGHT", pane, "TOPRIGHT", kindX(k), TOP - 2)
-        h:SetWidth(kind.w)
-        h:SetJustifyH("CENTER")
-        h:SetTextColor(0.55, 0.55, 0.55)
-        h:SetText(kind.head)
-    end
+    pane.list:SetPoint("TOPLEFT", 0, TOP); pane.list:SetPoint("TOPRIGHT", 0, TOP)
     pane.list:SetPoint("BOTTOM", pane, "BOTTOM", 0, 1)
     pane.list:SetClipsChildren(true)
     pane.list:EnableMouseWheel(true)
