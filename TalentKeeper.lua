@@ -113,6 +113,7 @@ local HELP = {
     "  /tk import |cff8c8c8c— paste a talent string to save it|r",
     "  /tk log [clear] |cff8c8c8c— open the log to copy into a bug report, or clear it|r",
     "  /tk debug |cff8c8c8c— record detailed steps into the log until /reload|r",
+    "  /tk readycheck |cff8c8c8c— preview the ready check card (again for the next look); shift-drag to move it|r",
 }
 
 TK.commands.help = function()

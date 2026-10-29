@@ -90,13 +90,19 @@ local function learnRoom(enc, why)
 end
 
 -- The strip --------------------------------------------------------------------------------
+local stand -- /tk readycheck's stand-in for the game's popup
+local function popup() -- what the card sits under: the game's ready check popup, or the stand-in
+    if stand and stand:IsShown() then return stand end
+    if ReadyCheckFrame and ReadyCheckFrame:IsShown() then return ReadyCheckFrame end
+end
+
 local function placeStrip()
     strip:ClearAllPoints()
     local pos = TK.db.readyCheckPos
     if pos then
         strip:SetPoint(pos.point, UIParent, pos.point, pos.x, pos.y)
-    elseif ReadyCheckFrame and ReadyCheckFrame:IsShown() then
-        strip:SetPoint("TOP", ReadyCheckFrame, "BOTTOM", 0, 1) -- flush: the edges overlap
+    elseif popup() then
+        strip:SetPoint("TOP", popup(), "BOTTOM", 0, 1) -- flush: the edges overlap
     else
         strip:SetPoint("TOP", UIParent, "TOP", 0, -200)
     end
@@ -170,7 +176,7 @@ function R.show(check)
     end
     if not strip then makeStrip() end
     -- flush under Blizzard's popup and as wide, so it reads as part of it
-    card.minWidth = not TK.db.readyCheckPos and ReadyCheckFrame and ReadyCheckFrame:IsShown() and ReadyCheckFrame:GetWidth() or nil
+    card.minWidth = not TK.db.readyCheckPos and popup() and popup():GetWidth() or nil
     strip:Set(card)
     strip.where.pick = here.pick
     strip.where:SetScript("OnClick", here.pick and TK.safe(function(self) R.pickBoss(self) end) or nil)
@@ -217,3 +223,56 @@ TK.on("READY_CHECK_FINISHED", function() R.hide("finished") end) -- everyone ans
 TK.on("ENCOUNTER_START", function(enc) learnRoom(enc, "pull") end)
 TK.on("ENCOUNTER_END", function(_, _, _, _, success) if success == 1 then manual = nil end end)
 TK.on("ADDON_LOADED", function(name) if name == "TalentKeeper" then TK.db.rooms = TK.db.rooms or {} end end)
+
+-- /tk readycheck: the card's three looks without a ready check, under a stand-in the size and
+-- place of the game's popup. Each call shows the next look; the fourth closes it. The buttons only
+-- close the card here: nothing is tagged or switched.
+local step = 0
+TK.commands.readycheck = function()
+    step = step % 4 + 1
+    if not stand then
+        stand = CreateFrame("Frame", "TalentKeeperReadyCheckStandIn", UIParent)
+        local rc = ReadyCheckFrame
+        local w, h = rc and rc:GetSize()
+        stand:SetSize((w and w > 0) and w or 323, (h and h > 0) and h or 100)
+        if rc and rc:GetNumPoints() > 0 then
+            for i = 1, rc:GetNumPoints() do stand:SetPoint(rc:GetPoint(i)) end
+        else
+            stand:SetPoint("CENTER", UIParent, "CENTER", 0, 150)
+        end
+        stand:SetFrameStrata("DIALOG")
+        UI.fill(stand, "BACKGROUND", 0.2, 0.2, 0.2, 0.9)
+        UI.ring(stand, 0.4)
+        local t = stand:CreateFontString(nil, "OVERLAY", "TalentKeeperFont")
+        t:SetPoint("CENTER")
+        t:SetText("Ready check (stand-in)")
+    end
+    if step == 4 then
+        stand:Hide()
+        R.hide()
+        return TK.chat("Ready check preview closed.")
+    end
+    stand:Show()
+    if not strip then makeStrip() end
+    local spec = B.specID()
+    local b = (spec and B.onNow(spec)) or (spec and B.list(spec)[1])
+    if not b then return TK.chat("Save a build first: the preview shows one of yours.") end
+    local place = "Murder Row"
+    for _, name in pairs(b.tags or {}) do place = name break end
+    local close = function() R.hide() end
+    local looks = {
+        { specID = spec, text = b.text, title = b.name, sub = place .. " · ready" },
+        { specID = spec, text = b.text, title = b.name, sub = place .. " · |cffffd84anot on it|r", one = { "Switch", close } },
+        { specID = spec, text = b.text, title = ("Use %s here?"):format(b.name), sub = place .. " · nothing for " .. B.specName(spec),
+          one = { "Use " .. b.name, close }, two = { "Choose...", close } },
+    }
+    local card = looks[step]
+    card.minWidth = not TK.db.readyCheckPos and stand:GetWidth() or nil
+    strip:Set(card)
+    strip.where.pick = nil
+    strip.where:SetScript("OnClick", nil)
+    placeStrip()
+    if step == 2 then strip.btn1.pulse() end
+    TK.chat(("Ready check preview %d of 3: %s. |cffffffff/tk readycheck|r for the next."):format(step,
+        ({ "on the tagged build", "on another build", "nothing tagged" })[step]))
+end
