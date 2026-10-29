@@ -358,7 +358,7 @@ local function makeDialog()
             local d = TK.compare.diff(B.currentString(), text)
             if d then
                 preview = text
-                note = #d == 0 and "Same as your talents now." or ("%d changes marked on the tree."):format(#d)
+                note = #d == 0 and "Same as your talents now." or "Shown on the tree."
             end
         elseif text ~= "" then
             note = "|cffff6666That isn't a talent string.|r"

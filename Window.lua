@@ -160,8 +160,9 @@ end
 -- and level, shown with the talent window). Every control in one block at the top: a strip of spec tiles (always in the
 -- class's spec order, so each sits in the same spot; the strip's width is shared out, so there's no
 -- gap for three specs or crowding for four), then Apply / Tags... / More... and Save current /
--- Import across the full width; under it what's in the tree now and the build you're previewing;
--- then the Builds / Tag Overview tabs and the list, which scrolls.
+-- Import across the full width; under it what's in the tree now; then the Builds / Tag Overview
+-- tabs and the list, which scrolls. In the list, the build in the tree has a solid outline and the
+-- one you're previewing a dashed one that marches (still with reduced motion).
 local pane, rows, heads = nil, {}, {}
 local openStart -- when the talent window began opening (timing a slow open)
 local PANE_W = 220
@@ -169,12 +170,62 @@ local DECK_Y, TILE_H, GAP = -34, 40, 4 -- the spec strip
 local COL_X, COL_W = 8, PANE_W - 16
 local ROW1 = DECK_Y - TILE_H - 6         -- Apply / Tags... / More...
 local ROW2 = ROW1 - 24                   -- Save current / Import
-local DETAIL_Y = ROW2 - 20 - 10          -- in the tree now / previewing
-local TABS = DETAIL_Y - 52               -- the Builds / Tag Overview tabs
+local DETAIL_Y = ROW2 - 20 - 10          -- in the tree now
+local TABS = DETAIL_Y - 38               -- the Builds / Tag Overview tabs
 local ROW, HEAD, TOP = 24, 22, TABS - 24
 local SHIMMER_W = 90
 local offset = 0
 local detail -- the selected build's panel
+
+-- The previewed build's dashed outline: each edge is a clipped strip of dashes one period longer
+-- than the edge, slid along by one period on a loop so the dashes march clockwise.
+local DASH, PERIOD = 4, 7
+local ants
+local function dashes()
+    if ants then return ants end
+    ants = CreateFrame("Frame", nil, pane.list)
+    ants:SetFrameLevel(pane.list:GetFrameLevel() + 5)
+    ants.loops = {}
+    -- edge: clip anchors, which way it runs (x, y), where the strip starts
+    for _, e in ipairs({
+        { "TOPLEFT", "TOPRIGHT", 1, 0, "LEFT" }, { "TOPRIGHT", "BOTTOMRIGHT", 0, -1, "TOP" },
+        { "BOTTOMRIGHT", "BOTTOMLEFT", -1, 0, "RIGHT" }, { "BOTTOMLEFT", "TOPLEFT", 0, 1, "BOTTOM" },
+    }) do
+        local across = e[3] ~= 0
+        local clip = CreateFrame("Frame", nil, ants)
+        clip:SetPoint(e[1]); clip:SetPoint(e[2])
+        if across then clip:SetHeight(1) else clip:SetWidth(1) end
+        clip:SetClipsChildren(true)
+        local strip = CreateFrame("Frame", nil, clip)
+        local len = (across and PANE_W or ROW) + PERIOD
+        strip:SetSize(across and len or 1, across and 1 or len)
+        strip:SetPoint(e[5], clip, e[5], -e[3] * PERIOD, -e[4] * PERIOD)
+        for i = 0, math.floor(len / PERIOD) do
+            local t = strip:CreateTexture(nil, "OVERLAY")
+            t:SetColorTexture(1, 1, 1, 1)
+            t:SetSize(across and DASH or 1, across and 1 or DASH)
+            t:SetPoint(e[5], strip, e[5], e[3] * i * PERIOD, e[4] * i * PERIOD)
+        end
+        local loop = strip:CreateAnimationGroup()
+        loop:SetLooping("REPEAT")
+        local move = loop:CreateAnimation("Translation")
+        move:SetOffset(e[3] * PERIOD, e[4] * PERIOD)
+        move:SetDuration(0.35)
+        ants.loops[#ants.loops + 1] = loop
+    end
+    return ants
+end
+
+local function showDashes(r)
+    local a = dashes()
+    if not r then a:Hide() for _, l in ipairs(a.loops) do l:Stop() end return end
+    a:ClearAllPoints()
+    a:SetAllPoints(r)
+    a:Show()
+    for _, l in ipairs(a.loops) do
+        if TK.db.noMotion then l:Stop() elseif not l:IsPlaying() then l:Play() end
+    end
+end
 
 local function selectBuild(b)
     TK.selected = (TK.selected ~= b) and b or nil
@@ -190,9 +241,14 @@ local function row(i)
     UI.fill(r, "HIGHLIGHT", 0.851, 0.851, 0.851, 0.15)
     r.status = r:CreateFontString(nil, "OVERLAY", "TalentKeeperFontSmall")
     r.status:SetPoint("RIGHT", -8, 0)
-    r.bar = r:CreateTexture(nil, "OVERLAY")
-    r.bar:SetColorTexture(1, 1, 1, 1)
-    r.bar:SetPoint("TOPLEFT"); r.bar:SetPoint("BOTTOMLEFT"); r.bar:SetWidth(2)
+    r.outline = {} -- solid: the build in the tree
+    for _, e in ipairs({ { "TOPLEFT", "TOPRIGHT" }, { "BOTTOMLEFT", "BOTTOMRIGHT" }, { "TOPLEFT", "BOTTOMLEFT" }, { "TOPRIGHT", "BOTTOMRIGHT" } }) do
+        local t = r:CreateTexture(nil, "OVERLAY")
+        t:SetColorTexture(1, 1, 1, 1)
+        t:SetPoint(e[1]); t:SetPoint(e[2])
+        if e[1]:sub(1, 3) == e[2]:sub(1, 3) then t:SetHeight(1) else t:SetWidth(1) end
+        r.outline[#r.outline + 1] = t
+    end
     r.text = r:CreateFontString(nil, "OVERLAY", "TalentKeeperFont")
     r.text:SetPoint("LEFT", 8, 0)
     r.text:SetPoint("RIGHT", r.status, "LEFT", -6, 0)
@@ -372,18 +428,8 @@ local function refreshDetail(specID, now)
         detail.name:SetText("|cff8c8c8cNow:|r winging it")
         detail.nowInfo:SetText("|cff8c8c8cThese talents aren't a saved build. Save current keeps them.|r")
     end
-    if not b then
-        detail.info:SetText("|cff8c8c8cClick a build to preview it on the tree.|r")
-        W.hide()
-        return
-    end
+    if not b then W.hide() return end
     local d = W.show(b)
-    local what
-    if not d then what = "|cffff6666can't read it|r"
-    elseif #d == 0 then what = "what you have now"
-    else what = ("%d change%s marked"):format(#d, #d == 1 and "" or "s") end
-    if b.outdated then what = what .. " · |cffffd84aoutdated|r" end
-    detail.info:SetText(("|cffffffffPreview:|r %s · %s"):format(b.name, what))
     detail.apply:SetEnabled(d ~= nil and #d > 0)
 end
 
@@ -456,9 +502,9 @@ local function makeDetail()
     import:SetPoint("LEFT", save, "RIGHT", GAP, 0)
     hoverTip(import, "Import", "Paste a talent string; it shows on the tree before you save it.")
     detail.buttons = { detail.apply, tagsBtn, more }
-    -- under the block: what's in the tree now, then the build you're previewing
+    -- under the block: what's in the tree now (the list's outlines show what you're previewing)
     detail:SetPoint("TOPLEFT", 0, DETAIL_Y); detail:SetPoint("TOPRIGHT", 0, DETAIL_Y)
-    detail:SetHeight(48)
+    detail:SetHeight(34)
     local rule = detail:CreateTexture(nil, "OVERLAY")
     rule:SetColorTexture(0, 0, 0, 1)
     rule:SetHeight(1)
@@ -474,13 +520,12 @@ local function makeDetail()
     detail.name = line("TalentKeeperFont", 0)
     detail.name:SetTextColor(1, 1, 1)
     detail.nowInfo = line("TalentKeeperFontSmall", -16)
-    detail.info = line("TalentKeeperFontSmall", -30)
 end
 
 function W.refresh()
     if not pane or not pane:IsShown() then return end
     W.refreshSpecs()
-    if W.inSeason and W.inSeason() then W.hide() return W.refreshSeason() end -- no tree marks there
+    if W.inSeason and W.inSeason() then W.hide() showDashes(nil) return W.refreshSeason() end -- no tree marks there
     for _, r in ipairs(rows) do r:Hide() end
     for _, h in ipairs(heads) do h:Hide() end
     local specID = B.specID()
@@ -509,7 +554,7 @@ function W.refresh()
         end
     end
     offset = math.max(0, math.min(offset, y + 28 - height))
-    local nr, nh, n = 0, 0, 0
+    local nr, nh, n, dashed = 0, 0, 0, nil
     local function visible(ly, h) return ly - offset >= 0 and ly - offset + h <= height end
     for _, line in ipairs(lines) do
         if line.build then n = n + 1 end
@@ -535,12 +580,14 @@ function W.refresh()
             local isOn = b == now
             if isOn and lastNow ~= nil and lastNow ~= now then r.Shimmer() end -- it just went in the tree
             r.text:SetTextColor(1, 1, 1)
-            r.bar:SetShown(isOn)
+            for _, t in ipairs(r.outline) do t:SetShown(isOn) end
+            if b == TK.selected and not isOn then dashed = r end
             r:ClearAllPoints()
             r:SetPoint("TOPLEFT", 0, -(line.y - offset)); r:SetPoint("TOPRIGHT", 0, -(line.y - offset))
             r:Show()
         end
     end
+    showDashes(dashed)
     wipe(TK.flashing) -- drawn or not, a change shimmers only right after it happens
     pane.newGroup:ClearAllPoints()
     pane.newGroup:SetPoint("TOPLEFT", 8, -(y - offset + 6))
