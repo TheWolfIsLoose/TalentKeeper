@@ -256,8 +256,8 @@ local function tagsByKind(b)
     return out
 end
 
--- The hero tree's emblem, cropped square like the spec tiles.
-local HERO_ZOOM = 0.12 -- share of the emblem trimmed off each side
+-- The hero tree's emblem in a square ring, like the spec tiles.
+local HERO_ZOOM = 0 -- share of the emblem trimmed off each side (0: the whole emblem)
 local function setHero(tex, text)
     local hero = C.hero(text)
     if not (hero and hero.atlas) then tex:SetTexture(nil) return end
