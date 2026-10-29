@@ -161,7 +161,7 @@ end
 -- class's spec order, so each sits in the same spot; the strip's width is shared out, so there's no
 -- gap for three specs or crowding for four), then Apply / Tags... / More... and Save current /
 -- Import across the full width; then the Builds / Tag Overview tabs and the list, which scrolls.
--- In the list each build is a card: its hero tree's emblem, name and gear set, then its tags; the build in the tree has a solid outline
+-- In the list each build is a row: its hero tree's emblem, name, then a grid of tag counts and gear set; the build in the tree has a solid outline
 -- (talents that aren't a saved build get an "Unsaved talents" row on top) and the one you're
 -- previewing a dashed one that marches (still with reduced motion).
 local pane, rows, heads = nil, {}, {}
@@ -174,9 +174,9 @@ local ROW2 = ROW1 - 24                   -- Save current / Import
 local TABS = ROW2 - 20 - 10               -- the Builds / Tag Overview tabs
 local HEAD, TOP = 22, TABS - 24
 local GRID_HEAD = 16 -- the grid's column headings, between the tabs and the list
--- Build cards: the name, then the grid (tag counts and gear set) under the headings; a third line
--- only for a problem.
-local ROW, ROW_NOTE = 40, 54
+-- Build rows: hero emblem, name, then the grid (tag counts, gear set) under the headings; a second
+-- line only for a problem (talents that no longer fit, a gear set that's gone).
+local ROW, ROW_NOTE = 24, 38
 local SHIMMER_W = 90
 local offset = 0
 local detail -- the selected build's panel
@@ -231,7 +231,7 @@ local function showDashes(r)
     end
 end
 
--- Grid columns (left to right) on a card's second line: tag kinds, then the gear set. Heading, width,
+-- Grid columns (left to right) at a row's right: tag kinds, then the gear set. Heading, width,
 -- the tooltip label.
 -- ponytail: a zone tag counts as a dungeon (raids are tagged by boss, delves by "delve").
 local KINDS = {
@@ -246,7 +246,7 @@ local function kindX(k) -- a column's right edge, from the row's right
     for j = #KINDS, k + 1, -1 do x = x - KINDS[j].w - GRID_GAP end
     return x
 end
-local LINE2 = -24 -- a card's second line, centred this far below its top
+local LINE1 = -12 -- a row's first line, centred this far below its top
 local function tagsByKind(b)
     local out = {}
     for key, name in pairs(b.tags or {}) do
@@ -317,26 +317,26 @@ local function row(i)
         if e[1]:sub(1, 3) == e[2]:sub(1, 3) then t:SetHeight(1) else t:SetWidth(1) end
         r.outline[#r.outline + 1] = t
     end
-    -- the hero tree's emblem, a tile as tall as the two lines
+    -- the hero tree's emblem
     local well = CreateFrame("Frame", nil, r)
-    well:SetSize(32, 32)
-    well:SetPoint("TOPLEFT", 4, -4)
+    well:SetSize(18, 18)
+    well:SetPoint("CENTER", r, "TOPLEFT", 14, LINE1)
     UI.ring(well, 0.3)
     r.hero = well:CreateTexture(nil, "ARTWORK")
     r.hero:SetPoint("TOPLEFT", 1, -1); r.hero:SetPoint("BOTTOMRIGHT", -1, 1)
-    -- line 1: the name, the card's full width
+    -- the name, up to the grid
     r.text = r:CreateFontString(nil, "OVERLAY", "TalentKeeperFont")
-    r.text:SetPoint("TOPLEFT", well, "TOPRIGHT", 6, -1)
-    r.text:SetPoint("RIGHT", -8, 0)
+    r.text:SetPoint("LEFT", well, "RIGHT", 5, 0)
+    r.text:SetPoint("RIGHT", r, "TOPRIGHT", kindX(1) - KINDS[1].w - 4, LINE1)
     r.text:SetJustifyH("LEFT")
     r.text:SetWordWrap(false)
-    -- line 2: the grid under the headings, a count per tag kind and the gear set's icon
+    -- the grid under the headings: a count per tag kind and the gear set's icon
     r.cells = {}
     for k, kind in ipairs(KINDS) do
         if kind.gear then
             local gear = CreateFrame("Frame", nil, r)
             gear:SetSize(16, 16)
-            gear:SetPoint("CENTER", r, "TOPRIGHT", kindX(k) - kind.w / 2, LINE2)
+            gear:SetPoint("CENTER", r, "TOPRIGHT", kindX(k) - kind.w / 2, LINE1)
             UI.ring(gear, 0.3)
             gear.icon = gear:CreateTexture(nil, "ARTWORK")
             gear.icon:SetPoint("TOPLEFT", 1, -1); gear.icon:SetPoint("BOTTOMRIGHT", -1, 1)
@@ -346,16 +346,16 @@ local function row(i)
             r.gear = gear
         else
             local c = r:CreateFontString(nil, "OVERLAY", "TalentKeeperFontSmall")
-            c:SetPoint("RIGHT", r, "TOPRIGHT", kindX(k), LINE2)
+            c:SetPoint("RIGHT", r, "TOPRIGHT", kindX(k), LINE1)
             c:SetWidth(kind.w)
             c:SetJustifyH("CENTER")
             r.cells[k] = c
         end
     end
-    r.hint = r:CreateFontString(nil, "OVERLAY", "TalentKeeperFontSmall") -- line 2 of Unsaved talents
-    r.hint:SetPoint("BOTTOMLEFT", well, "BOTTOMRIGHT", 6, 1)
+    r.hint = r:CreateFontString(nil, "OVERLAY", "TalentKeeperFontSmall") -- in the grid's place on Unsaved talents
+    r.hint:SetPoint("RIGHT", r, "TOPRIGHT", -8, LINE1)
     r.hint:SetTextColor(0.55, 0.55, 0.55)
-    -- line 3, only for a problem (outdated, gear set gone)
+    -- line 2, only for a problem (outdated, gear set gone)
     r.status = r:CreateFontString(nil, "OVERLAY", "TalentKeeperFontSmall")
     r.status:SetPoint("BOTTOMLEFT", 8, 5)
     r.status:SetPoint("RIGHT", -8, 0)
@@ -694,7 +694,7 @@ function W.refresh()
             r.text:SetTextColor(0.74, 0.74, 0.74)
             placeKinds(r, nil)
             r.gear:Hide() r.gear.none:SetText("")
-            r.hint:SetText("Not a saved build. Click to save it.")
+            r.hint:SetText("Click to save")
             r.status:SetText("")
             r:SetHeight(line.h)
             r.stripe:Hide(); r.sel:Hide()
