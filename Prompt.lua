@@ -202,7 +202,11 @@ function P.check()
     show(text, P.tagButtons(here, cur, other, P.hide))
 end
 
-local function soon() C_Timer.After(2, TK.safe(P.check)) end -- instance info settles after loading
+local function check() -- after login, wait for the builds to be read (see Compare.lua)
+    if TK.compare.warming then return C_Timer.After(0.5, TK.safe(check)) end
+    P.check()
+end
+local function soon() C_Timer.After(2, TK.safe(check)) end -- instance info settles after loading
 TK.on("PLAYER_ENTERING_WORLD", soon)
 TK.on("ZONE_CHANGED_NEW_AREA", soon)
 TK.on("CHALLENGE_MODE_START", function() P.hide() end) -- the key started: talents are locked

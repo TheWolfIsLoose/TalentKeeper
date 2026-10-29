@@ -524,7 +524,8 @@ end
 local function load(id, p)
     local specID = B.specID()
     local r, changeError = C_ClassTalents.LoadConfig(id, true)
-    TK.log("apply '%s': LoadConfig %s %s%s", p.b.name, resultName[r] or tostring(r), changeError or "", p.retried and " (retry)" or "")
+    TK.log("apply '%s': LoadConfig %s %s%s%s", p.b.name, resultName[r] or tostring(r), changeError or "", p.retried and " (retry)" or "",
+        r == Enum.LoadConfigResult.Error and (" [replaced slot was selected: %s]"):format(tostring(p.wasSelected)) or "")
     if r == Enum.LoadConfigResult.Error then
         p.tries = (p.tries or 0) + 1
         if p.tries < 2 then
@@ -590,7 +591,9 @@ function B.apply(b)
     B.muteUntil = GetTime() + 10
     local old = findSlot(specID)
     if old then C_ClassTalents.DeleteConfig(old) end
-    pending = { b = b, prev = prev }
+    -- was the slot being replaced the loadout the game had selected? (probing why the first load
+    -- after a reload reports Error yet goes through)
+    pending = { b = b, prev = prev, wasSelected = old ~= nil and C_ClassTalents.GetLastSelectedSavedConfigID(specID) == old }
     local ok, importErr = C_ClassTalents.ImportLoadout(C_ClassTalents.GetActiveConfigID(), e, SLOT, strtrim(b.text))
     TK.log("apply '%s' (%s): import %s %s", b.name, B.specName(specID), tostring(ok), importErr or "")
     if not ok then
@@ -915,7 +918,6 @@ local function hookSimc()
         local ok, withOurs = pcall(B.addToSimc, profile)
         return ok and withOurs or profile, err
     end
-    TK.log("SimulationCraft: TalentKeeper builds go into /simc")
 end
 TK.on("PLAYER_LOGIN", hookSimc)
 TK.on("ADDON_LOADED", function(name) if name == "Simulationcraft" and TK.db then hookSimc() end end)

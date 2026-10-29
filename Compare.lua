@@ -22,6 +22,7 @@ function C.picks(text)
     local treeID = spec and C_ClassTalents.GetTraitTreeForSpec(spec)
     if spec and not treeID and LTT then treeID = LTT:GetClassTreeID(select(6, GetSpecializationInfoByID(spec))) end
     local nodes = treeID and C_Traits.GetTreeNodes(treeID)
+    if not nodes then return nil end -- the tree isn't loaded yet: don't remember the string as unreadable
     local picks
     if nodes then
         local M = B.mixin()
@@ -41,6 +42,25 @@ function C.picks(text)
     cache[text] = picks or false
     return picks
 end
+
+-- Reading a string is the slow part of comparing builds, and a check right after login reads every
+-- build at once (once took long enough for the game to stop it). So after login every build of
+-- the class is read in the background, one per frame; checks wait while C.warming.
+TK.on("PLAYER_LOGIN", function()
+    local texts = { B.currentString() } -- nil this early is fine: the builds then start at [1]
+    for i = 1, GetNumSpecializations() or 0 do
+        for _, b in ipairs(TK.db.builds[GetSpecializationInfo(i)] or {}) do texts[#texts + 1] = b.text end
+    end
+    C.warming = true
+    local i = 0
+    local function step()
+        i = i + 1
+        if not texts[i] then C.warming = nil return end
+        pcall(C.picks, texts[i])
+        C_Timer.After(0, step)
+    end
+    step()
+end)
 
 -- Nodes free for this spec today, read from the game's own export of your current talents.
 -- An older string may list a node as bought that a patch has since made free.
