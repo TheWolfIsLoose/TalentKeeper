@@ -160,9 +160,10 @@ end
 -- and level, shown with the talent window). Every control in one block at the top: a strip of spec tiles (always in the
 -- class's spec order, so each sits in the same spot; the strip's width is shared out, so there's no
 -- gap for three specs or crowding for four), then Apply / Tags... / More... and Save current /
--- Import across the full width; under it what's in the tree now; then the Builds / Tag Overview
--- tabs and the list, which scrolls. In the list, the build in the tree has a solid outline and the
--- one you're previewing a dashed one that marches (still with reduced motion).
+-- Import across the full width; then the Builds / Tag Overview tabs and the list, which scrolls.
+-- In the list each build leads with its hero tree's icon; the build in the tree has a solid outline
+-- (talents that aren't a saved build get an "Unsaved talents" row on top) and the one you're
+-- previewing a dashed one that marches (still with reduced motion).
 local pane, rows, heads = nil, {}, {}
 local openStart -- when the talent window began opening (timing a slow open)
 local PANE_W = 220
@@ -170,8 +171,7 @@ local DECK_Y, TILE_H, GAP = -34, 40, 4 -- the spec strip
 local COL_X, COL_W = 8, PANE_W - 16
 local ROW1 = DECK_Y - TILE_H - 6         -- Apply / Tags... / More...
 local ROW2 = ROW1 - 24                   -- Save current / Import
-local DETAIL_Y = ROW2 - 20 - 10          -- in the tree now
-local TABS = DETAIL_Y - 38               -- the Builds / Tag Overview tabs
+local TABS = ROW2 - 20 - 10               -- the Builds / Tag Overview tabs
 local ROW, HEAD, TOP = 24, 22, TABS - 24
 local SHIMMER_W = 90
 local offset = 0
@@ -249,8 +249,11 @@ local function row(i)
         if e[1]:sub(1, 3) == e[2]:sub(1, 3) then t:SetHeight(1) else t:SetWidth(1) end
         r.outline[#r.outline + 1] = t
     end
+    r.hero = r:CreateTexture(nil, "ARTWORK")
+    r.hero:SetSize(16, 16)
+    r.hero:SetPoint("LEFT", 6, 0)
     r.text = r:CreateFontString(nil, "OVERLAY", "TalentKeeperFont")
-    r.text:SetPoint("LEFT", 8, 0)
+    r.text:SetPoint("LEFT", r.hero, "RIGHT", 5, 0)
     r.text:SetPoint("RIGHT", r.status, "LEFT", -6, 0)
     r.text:SetJustifyH("LEFT")
     r.text:SetWordWrap(false)
@@ -287,13 +290,16 @@ local function row(i)
     r:RegisterForDrag("LeftButton")
     r:SetScript("OnClick", TK.safe(function(self)
         if self.dragged then self.dragged = nil return end
+        if not self.b then return UI.buildDialog(false) end -- the Unsaved talents row
         selectBuild(self.b)
     end))
     r:SetScript("OnDoubleClick", TK.safe(function(self)
+        if not self.b then return end
         TK.selected = self.b
         B.apply(self.b)
     end))
     r:SetScript("OnDragStart", function(self)
+        if not self.b then return end
         self.dragged, W.dragging = true, self.b
         GameTooltip:Hide()
         self:SetAlpha(0.4) -- the row you picked up dims; a white line shows where it will land
@@ -302,6 +308,11 @@ local function row(i)
     r:SetScript("OnDragStop", TK.safe(function() W.drop() end))
     r:SetScript("OnEnter", TK.safe(function(self)
         GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        if not self.b then
+            GameTooltip:SetText("Unsaved talents")
+            GameTooltip:AddLine("Your talents now aren't a saved build. Click to save them.", 0.74, 0.74, 0.74, true)
+            return GameTooltip:Show()
+        end
         GameTooltip:SetText(self.b.name)
         local hero = C.heroName(self.b.text)
         if hero then GameTooltip:AddLine(hero, 0.74, 0.74, 0.74) end
@@ -381,7 +392,7 @@ function W.dragLine()
     end
     local r, after = dropSpot()
     line:ClearAllPoints()
-    if r and r.b ~= W.dragging then
+    if r and r.b and r.b ~= W.dragging then
         local edge = after and "BOTTOM" or "TOP"
         line:SetPoint(edge .. "LEFT", r, edge .. "LEFT", 4, 0)
         line:SetPoint(edge .. "RIGHT", r, edge .. "RIGHT", -4, 0)
@@ -401,7 +412,7 @@ function W.drop()
     for _, r in ipairs(rows) do r:SetAlpha(1) end
     if not b then return end
     local r, after = dropSpot()
-    if r and r.b ~= b then return B.move(B.specID(), b, r.b, after) end
+    if r and r.b and r.b ~= b then return B.move(B.specID(), b, r.b, after) end
     local target -- nil: no drop target; false: no group
     for _, h in ipairs(heads) do if h:IsShown() and h:IsMouseOver() then target = h.group or false end end
     if pane.newGroup:IsShown() and pane.newGroup:IsMouseOver() then
@@ -419,15 +430,6 @@ local function refreshDetail(specID, now)
     local b = TK.selected
     if b and B.findSpec(b) ~= specID then b, TK.selected = nil, nil end
     for _, bt in ipairs(detail.buttons) do bt:SetEnabled(b ~= nil) end
-    -- what's committed in the tree: a saved build, or talents you haven't saved
-    if now then
-        detail.name:SetText("|cff8c8c8cNow:|r " .. now.name)
-        local hero, tags = C.heroName(now.text), UI.tagSummary(now)
-        detail.nowInfo:SetText((hero and (hero .. " · ") or "") .. (tags and ("Tags: " .. tags) or "|cff8c8c8cNo tags yet|r"))
-    else
-        detail.name:SetText("|cff8c8c8cNow:|r winging it")
-        detail.nowInfo:SetText("|cff8c8c8cThese talents aren't a saved build. Save current keeps them.|r")
-    end
     if not b then W.hide() return end
     local d = W.show(b)
     detail.apply:SetEnabled(d ~= nil and #d > 0)
@@ -502,24 +504,6 @@ local function makeDetail()
     import:SetPoint("LEFT", save, "RIGHT", GAP, 0)
     hoverTip(import, "Import", "Paste a talent string; it shows on the tree before you save it.")
     detail.buttons = { detail.apply, tagsBtn, more }
-    -- under the block: what's in the tree now (the list's outlines show what you're previewing)
-    detail:SetPoint("TOPLEFT", 0, DETAIL_Y); detail:SetPoint("TOPRIGHT", 0, DETAIL_Y)
-    detail:SetHeight(34)
-    local rule = detail:CreateTexture(nil, "OVERLAY")
-    rule:SetColorTexture(0, 0, 0, 1)
-    rule:SetHeight(1)
-    rule:SetPoint("BOTTOMLEFT"); rule:SetPoint("BOTTOMRIGHT")
-    local function line(font, y)
-        local fs = detail:CreateFontString(nil, "OVERLAY", font)
-        fs:SetPoint("TOPLEFT", 8, y); fs:SetPoint("TOPRIGHT", -8, y)
-        fs:SetJustifyH("LEFT")
-        fs:SetWordWrap(false)
-        fs:SetTextColor(0.74, 0.74, 0.74)
-        return fs
-    end
-    detail.name = line("TalentKeeperFont", 0)
-    detail.name:SetTextColor(1, 1, 1)
-    detail.nowInfo = line("TalentKeeperFontSmall", -16)
 end
 
 function W.refresh()
@@ -535,9 +519,10 @@ function W.refresh()
     pane.head.version:SetText(UI.versionText())
     -- lay out every line, then show the ones inside the list's window
     local lines, y = {}, 0
+    if specID and not now then lines[1] = { unsaved = true, y = 0 } y = ROW end -- talents that aren't a saved build
     for _, line in ipairs(B.ordered(specID)) do
         if line.header ~= nil then
-            if line.header or #lines > 0 then -- "No group" only when something came before it
+            if line.header or #lines > (lines[1] and lines[1].unsaved and 1 or 0) then -- "No group" only after a build or group
                 lines[#lines + 1] = { header = line.header, y = y }
                 y = y + HEAD
             end
@@ -566,6 +551,22 @@ function W.refresh()
             h:ClearAllPoints()
             h:SetPoint("TOPLEFT", 0, -(line.y - offset)); h:SetPoint("TOPRIGHT", 0, -(line.y - offset))
             h:Show()
+        elseif line.unsaved and visible(line.y, ROW) then
+            nr = nr + 1
+            local r = row(nr)
+            if r.b then r.StopShimmer() end
+            r.b = nil
+            local hero = C.hero(B.currentString())
+            if hero and hero.atlas then r.hero:SetAtlas(hero.atlas) else r.hero:SetTexture(nil) end
+            r.text:SetText("Unsaved talents")
+            r.text:SetTextColor(0.74, 0.74, 0.74)
+            r.status:SetText("Save")
+            r.status:SetTextColor(0.55, 0.55, 0.55)
+            r.stripe:Hide(); r.sel:Hide()
+            for _, t in ipairs(r.outline) do t:Show() end
+            r:ClearAllPoints()
+            r:SetPoint("TOPLEFT", 0, -(line.y - offset)); r:SetPoint("TOPRIGHT", 0, -(line.y - offset))
+            r:Show()
         elseif line.build and visible(line.y, ROW) then
             nr = nr + 1
             local b, r = line.build, row(nr)
@@ -573,6 +574,8 @@ function W.refresh()
             r.b = b
             if TK.flashing[b] then r.Shimmer() end
             r.text:SetText(b.name)
+            local hero = C.hero(b.text)
+            if hero and hero.atlas then r.hero:SetAtlas(hero.atlas) else r.hero:SetTexture(nil) end
             r.status:SetText(b.outdated and "Outdated" or UI.tagSummary(b) or "")
             if b.outdated then r.status:SetTextColor(1, 0.847, 0.29) else r.status:SetTextColor(0.55, 0.55, 0.55) end
             r.stripe:SetShown(n % 2 == 0)
@@ -597,13 +600,12 @@ function W.refresh()
         h.text:SetText("No builds for this spec yet.")
         h.group = nil
         h:ClearAllPoints()
-        h:SetPoint("TOPLEFT", 0, 0); h:SetPoint("TOPRIGHT", 0, 0)
+        h:SetPoint("TOPLEFT", 0, -y); h:SetPoint("TOPRIGHT", 0, -y) -- under Unsaved talents
         h:Show()
     end
     t = debugprofilestop()
     refreshDetail(specID, now)
     W.cost.preview = debugprofilestop() - t
-    if lastNow ~= nil and lastNow ~= (now or false) then UIFrameFadeIn(detail.name, 0.4, 0, 1) end
     lastNow = now or false
 end
 

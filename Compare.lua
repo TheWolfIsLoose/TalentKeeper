@@ -134,17 +134,25 @@ function C.nearNote(list, b)
         table.concat(C.describe(d, 3), ", "))
 end
 
--- The hero tree a build takes, by name (nil if unknown).
-function C.heroName(text)
+-- The hero tree a build takes: its name and icon atlas (nil if unknown). Remembered per string,
+-- since the list asks for every row on each redraw.
+local heroCache = {}
+function C.hero(text)
+    if not text then return nil end
+    local hit = heroCache[text]
+    if hit ~= nil then return hit or nil end
     local picks = LTT and C.picks(text)
-    if not picks then return nil end
-    for node, v in pairs(picks) do
+    for node, v in pairs(picks or {}) do
         local n = libNode(node)
         if n and n.isSubTreeSelection then
             local choice = tonumber(v:match(":(%d+)$")) or 0
             local entry = n.entryIDs and LTT:GetEntryInfo(n.entryIDs[choice > 0 and choice or 1])
-            local info = entry and entry.subTreeID and LTT:GetSubTreeInfo(entry.subTreeID)
-            return info and info.name
+            hit = entry and entry.subTreeID and LTT:GetSubTreeInfo(entry.subTreeID)
+            break
         end
     end
+    heroCache[text] = hit and { name = hit.name, atlas = hit.iconElementID } or false
+    return heroCache[text] or nil
 end
+
+function C.heroName(text) local h = C.hero(text) return h and h.name end
