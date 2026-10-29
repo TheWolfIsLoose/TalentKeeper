@@ -275,18 +275,7 @@ local function tagsByKind(b)
     return out
 end
 
--- The hero tree's emblem in a square ring, like the spec tiles.
-local HERO_ZOOM = 0.05 -- share of the emblem trimmed off each side
-local function setHero(tex, text)
-    local hero = C.hero(text)
-    if not (hero and hero.atlas) then tex:SetTexture(nil) return end
-    local a = C_Texture.GetAtlasInfo(hero.atlas) -- the atlas's own coords: the texture's are already cropped
-    if not a then tex:SetTexture(nil) return end
-    tex:SetTexture(a.file or a.filename)
-    local l, r, t, bt = a.leftTexCoord, a.rightTexCoord, a.topTexCoord, a.bottomTexCoord
-    local w, h = (r - l) * HERO_ZOOM, (bt - t) * HERO_ZOOM
-    tex:SetTexCoord(l + w, r - w, t + h, bt - h)
-end
+local setHero = function(tex, text) UI.setHero(tex, text) end
 
 -- The gear that goes with a build: the spec's own set in the game's Equipment Manager wins (the
 -- game swaps it on spec change), else the build's set in TalentKeeper. { name, icon, own, missing }

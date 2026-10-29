@@ -1,6 +1,7 @@
--- TalentKeeper prompt: on arriving in a dungeon or a delve, offer the build
--- tagged for it (changing spec first if it's another spec's build). Nothing set: offer to use
--- your current build there, or choose one. Raids wait for boss awareness.
+-- TalentKeeper prompt: on arriving in a delve, offer the build tagged for delves (changing spec
+-- first if it's another spec's build). Nothing set: offer to use your current build there, or
+-- choose one. Dungeons and raids are covered by the ready check card (ReadyCheck.lua): every key
+-- has a ready check before it starts.
 local _, TK = ...
 local B, C, UI = TK.builds, TK.compare, TK.ui
 local P = {}
@@ -22,51 +23,19 @@ local function onBuild(b, specID)
 end
 
 local function makeBar()
-    bar = CreateFrame("Frame", "TalentKeeperPrompt", UIParent)
-    bar:SetHeight(32)
-    bar:SetPoint("TOP", 0, -120)
-    bar:SetFrameStrata("HIGH")
-    bar:EnableMouse(true)
-    UI.fill(bar, "BACKGROUND", 0.06, 0.06, 0.06, 0.98)
-    UI.ring(bar, 0)
-    local mark = bar:CreateTexture(nil, "ARTWORK")
-    mark:SetSize(16, 16)
-    mark:SetPoint("LEFT", 8, 0)
-    mark:SetTexture("Interface\\AddOns\\TalentKeeper\\icon.png")
-    bar.text = bar:CreateFontString(nil, "OVERLAY", "TalentKeeperFont")
-    bar.text:SetPoint("LEFT", mark, "RIGHT", 6, 0)
-    bar.close = UI.button(bar, "x", 24, function()
+    bar = UI.card("TalentKeeperPrompt", function()
         TK.log("prompt: dismissed (%s)", shownFor or "?")
         bar:Hide()
     end)
-    bar.close:SetPoint("RIGHT", -4, 0)
-    bar.b2 = UI.button(bar, "", 70, function() end)
-    bar.b2:SetPoint("RIGHT", bar.close, "LEFT", -4, 0)
-    bar.b1 = UI.button(bar, "", 70, function() end)
-    bar.b1.pulse = UI.pulse(bar.b1)
-    bar.b1:SetPoint("RIGHT", bar.b2, "LEFT", -4, 0)
+    bar:SetPoint("TOP", 0, -120)
+    bar:SetFrameStrata("HIGH")
 end
 
--- show(text, { label, fn }, { label, fn }?)
-local function show(text, one, two)
-    if not one then one, two = two, nil end
+-- show(card): the build card at the top of the screen; its main button pulses as it appears
+local function show(card)
     if not bar then makeBar() end
-    bar.text:SetText(text)
-    for _, pair in ipairs({ { bar.b1, one }, { bar.b2, two } }) do
-        local bt, spec = pair[1], pair[2]
-        bt:SetShown(spec ~= nil)
-        if spec then
-            bt:SetText(spec[1])
-            bt:SetWidth(math.max(56, bt:GetTextWidth() + 20))
-            bt:SetScript("OnClick", TK.safe(function() spec[2](bt) end))
-        end
-    end
-    if not two then bar.b1:ClearAllPoints() bar.b1:SetPoint("RIGHT", bar.close, "LEFT", -4, 0)
-    else bar.b1:ClearAllPoints() bar.b1:SetPoint("RIGHT", bar.b2, "LEFT", -4, 0) end
-    local w = 8 + 16 + 6 + bar.text:GetStringWidth() + 12 + bar.b1:GetWidth() + (two and bar.b2:GetWidth() + 4 or 0) + 4 + 24 + 4
-    bar:SetWidth(math.ceil(w))
-    bar:Show()
-    bar.b1.pulse() -- the main choice pulses as the bar appears
+    bar:Set(card)
+    if card.one then bar.btn1.pulse() end
 end
 
 function P.hide() if bar then bar:Hide() end end
@@ -168,10 +137,11 @@ function P.check()
         return P.hide()
     end
     if not P.taggable(here) then return P.hide() end
+    local delve = here.content == "delve"
+    if not delve then shownFor = nil return P.hide() end -- dungeons: the ready check card
     if here.key == shownFor then return end -- same place: don't ask again
     shownFor = here.key
-    local delve = here.content == "delve"
-    if delve and TK.db.noDelvePrompt then return P.hide() end
+    if TK.db.noDelvePrompt then return P.hide() end
     if delve then
         here = { key = "delve", name = "Delves", content = "delve" } -- delves share one tag
         -- the build you last applied counting as your Delves build is enough
@@ -190,16 +160,18 @@ function P.check()
             return P.hide()
         end
         TK.log("prompt: %s, offering '%s'", name, mine.name)
-        return show(("%s: |cffffffff%s|r"):format(name, mine.name), { "Switch", function() switch(mine, B.specID()) end })
+        return show({ specID = B.specID(), text = mine.text, title = mine.name, sub = name .. " · |cffffd84anot on it|r",
+            one = { "Switch", function() switch(mine, B.specID()) end } })
     end
     if P.asked(here) then return TK.log("prompt: %s, already asked this session", name) end
     P.markAsked(here)
-    local text = other
-        and ("Nothing for %s here. %s: |cffffffff%s|r"):format(B.specName(B.specID()), B.specName(other.specID), other.b.name)
-        or ("Nothing set for %s."):format(here.name)
     TK.log("prompt: %s, nothing for this spec (current: %s%s)", name, cur and cur.name or "unsaved",
         other and (", " .. B.specName(other.specID) .. " has '" .. other.b.name .. "'") or "")
-    show(text, P.tagButtons(here, cur, other, P.hide))
+    local one, two = P.tagButtons(here, cur, other, P.hide)
+    local shown = other and other.b or cur
+    show({ specID = other and other.specID or B.specID(), text = shown and shown.text or B.currentString(),
+        title = other and ("%s: %s"):format(B.specName(other.specID), other.b.name) or (cur and ("Use %s here?"):format(cur.name) or "Nothing tagged"),
+        sub = name .. " · nothing for " .. B.specName(B.specID()), one = one, two = two })
 end
 
 local function check() -- after login, wait for the builds to be read (see Compare.lua)

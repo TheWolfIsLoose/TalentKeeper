@@ -111,6 +111,88 @@ function UI.footBand(f, h)
     return band
 end
 
+-- The hero tree's emblem for a build's talent string, trimmed a little like the spec tiles.
+local HERO_ZOOM = 0.05 -- share of the emblem trimmed off each side
+function UI.setHero(tex, text)
+    local hero = TK.compare.hero(text)
+    local a = hero and hero.atlas and C_Texture.GetAtlasInfo(hero.atlas) -- the atlas's own coords: a texture's may be cropped already
+    if not a then tex:SetTexture(nil) return end
+    tex:SetTexture(a.file or a.filename)
+    local l, r, t, bt = a.leftTexCoord, a.rightTexCoord, a.topTexCoord, a.bottomTexCoord
+    local w, h = (r - l) * HERO_ZOOM, (bt - t) * HERO_ZOOM
+    tex:SetTexCoord(l + w, r - w, t + h, bt - h)
+end
+
+-- A build card: the spec's tile and the build's hero emblem, the build name, a line under it saying
+-- where and how it stands, and up to two buttons (plus x when it can be closed). The ready check
+-- and the delve prompt both use it, so a glance says which spec and build without reading.
+-- card:Set({ specID, text, title, sub, one = { label, fn }, two = ..., minWidth })
+local TILE = 34
+function UI.card(name, onClose)
+    local c = CreateFrame("Frame", name, UIParent)
+    c:SetHeight(TILE + 12)
+    c:SetFrameStrata("DIALOG")
+    c:SetClampedToScreen(true)
+    c:EnableMouse(true)
+    fill(c, "BACKGROUND", 0.06, 0.06, 0.06, 0.98)
+    ring(c, 0)
+    local function tile(x)
+        local f = CreateFrame("Frame", nil, c)
+        f:SetSize(TILE, TILE)
+        f:SetPoint("LEFT", x, 0)
+        ring(f, 0.3)
+        f.icon = f:CreateTexture(nil, "ARTWORK")
+        f.icon:SetPoint("TOPLEFT", 1, -1); f.icon:SetPoint("BOTTOMRIGHT", -1, 1)
+        return f
+    end
+    c.spec, c.hero = tile(6), tile(6 + TILE + 4)
+    c.spec.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+    c.title = c:CreateFontString(nil, "OVERLAY", "TalentKeeperFontLarge")
+    c.title:SetPoint("TOPLEFT", c.hero, "TOPRIGHT", 8, 0)
+    c.title:SetWordWrap(false)
+    -- the second line is a button so the ready check can make it clickable (correct the boss)
+    c.where = CreateFrame("Button", nil, c)
+    c.where:SetHeight(14)
+    c.where:SetPoint("BOTTOMLEFT", c.hero, "BOTTOMRIGHT", 8, 0)
+    c.sub = c.where:CreateFontString(nil, "OVERLAY", "TalentKeeperFontSmall")
+    c.sub:SetPoint("LEFT")
+    c.sub:SetTextColor(0.74, 0.74, 0.74)
+    if onClose then
+        c.close = button(c, "x", 24, onClose)
+        c.close:SetPoint("RIGHT", -6, 0)
+    end
+    c.btn1 = button(c, "", 70, function() end)
+    c.btn1.pulse = UI.pulse(c.btn1)
+    c.btn2 = button(c, "", 70, function() end)
+    function c:Set(o)
+        local icon = o.specID and select(4, GetSpecializationInfoByID(o.specID))
+        self.spec.icon:SetTexture(icon)
+        UI.setHero(self.hero.icon, o.text)
+        self.title:SetText(o.title or "")
+        self.sub:SetText(o.sub or "")
+        self.where:SetWidth(math.max(1, self.sub:GetStringWidth()))
+        local right, bw = self.close or nil, 0
+        for _, pair in ipairs({ { self.btn2, o.two }, { self.btn1, o.one } }) do -- laid out right to left
+            local bt, spec = pair[1], pair[2]
+            bt:SetShown(spec ~= nil)
+            if spec then
+                bt:SetText(spec[1])
+                bt:SetWidth(math.max(64, bt:GetTextWidth() + 20))
+                bt:SetScript("OnClick", TK.safe(function() spec[2](bt) end))
+                bt:ClearAllPoints()
+                if right then bt:SetPoint("RIGHT", right, "LEFT", -4, 0) else bt:SetPoint("RIGHT", -6, 0) end
+                right, bw = bt, bw + bt:GetWidth() + 4
+            end
+        end
+        local text = math.max(self.title:GetStringWidth(), self.sub:GetStringWidth())
+        local w = 6 + 2 * TILE + 4 + 8 + text + 16 + bw + (self.close and 30 or 2)
+        self:SetWidth(math.ceil(math.max(o.minWidth or 0, w)))
+        self:Show()
+    end
+    c:Hide()
+    return c
+end
+
 -- The suite's pulse ("this wants a click"): three 1 s fades, then it stops. UI.pulse(region)
 -- returns a function that plays it, unless motion is turned off.
 function UI.pulse(region)

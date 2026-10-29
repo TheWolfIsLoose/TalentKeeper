@@ -90,28 +90,22 @@ local function learnRoom(enc, why)
 end
 
 -- The strip --------------------------------------------------------------------------------
-local function place()
+local function placeStrip()
     strip:ClearAllPoints()
     local pos = TK.db.readyCheckPos
     if pos then
         strip:SetPoint(pos.point, UIParent, pos.point, pos.x, pos.y)
     elseif ReadyCheckFrame and ReadyCheckFrame:IsShown() then
-        strip:SetPoint("TOP", ReadyCheckFrame, "BOTTOM", 0, -4)
+        strip:SetPoint("TOP", ReadyCheckFrame, "BOTTOM", 0, 1) -- flush: the edges overlap
     else
         strip:SetPoint("TOP", UIParent, "TOP", 0, -200)
     end
 end
 
 local function makeStrip()
-    strip = CreateFrame("Frame", "TalentKeeperReadyCheck", UIParent)
-    strip:SetSize(300, 50)
-    strip:SetFrameStrata("DIALOG")
-    strip:SetClampedToScreen(true)
+    strip = UI.card("TalentKeeperReadyCheck")
     strip:SetMovable(true)
-    strip:EnableMouse(true)
     strip:RegisterForDrag("LeftButton")
-    UI.fill(strip, "BACKGROUND", 0.06, 0.06, 0.06, 0.98)
-    UI.ring(strip, 0)
     -- shift-drag to move; the spot is kept
     strip:SetScript("OnDragStart", function(self) if IsShiftKeyDown() then self:StartMoving() end end)
     strip:SetScript("OnDragStop", function(self)
@@ -126,25 +120,8 @@ local function makeStrip()
         GameTooltip:Show()
     end)
     strip:SetScript("OnLeave", GameTooltip_Hide)
-    local mark = strip:CreateTexture(nil, "ARTWORK")
-    mark:SetSize(16, 16)
-    mark:SetPoint("TOPLEFT", 8, -8)
-    mark:SetTexture("Interface\\AddOns\\TalentKeeper\\icon.png")
-    -- the situation; in a raid the boss name is a button that opens the boss list
-    strip.what = CreateFrame("Button", nil, strip)
-    strip.what:SetHeight(16)
-    strip.what:SetPoint("LEFT", mark, "RIGHT", 6, 0)
-    strip.what.text = strip.what:CreateFontString(nil, "OVERLAY", "TalentKeeperFont")
-    strip.what.text:SetPoint("LEFT")
-    strip.what:SetScript("OnEnter", function(self) if self.pick then self.text:SetTextColor(1, 1, 1) end end)
-    strip.what:SetScript("OnLeave", function(self) self.text:SetTextColor(1, 1, 1) end)
-    strip.status = strip:CreateFontString(nil, "OVERLAY", "TalentKeeperFontSmall")
-    strip.status:SetPoint("TOPLEFT", mark, "BOTTOMLEFT", 0, -6)
-    strip.btn = UI.button(strip, "", 70, function() end)
-    strip.btn.pulse = UI.pulse(strip.btn)
-    strip.btn:SetPoint("RIGHT", -8, 0)
-    strip.btn2 = UI.button(strip, "", 70, function() end)
-    strip.btn2:SetPoint("RIGHT", strip.btn, "LEFT", -4, 0)
+    strip.where:SetScript("OnEnter", function(self) if self.pick then strip.sub:SetTextColor(1, 1, 1) end end)
+    strip.where:SetScript("OnLeave", function() strip.sub:SetTextColor(0.74, 0.74, 0.74) end)
 end
 
 -- The situation for this ready check: { key, name, pick? }, or nil where there's nothing to say.
@@ -172,42 +149,33 @@ function R.show(check)
     end
     local mine, other, cur = P.plan(here)
     local spec = B.specID()
-    local status, one, two, what
-    if mine and P.onBuild(mine, spec) then
-        status, what = "|cffffffffOn " .. mine.name .. "|r", "on '" .. mine.name .. "'"
+    local place = here.name .. (here.pick and " |cff8c8c8c(change)|r" or "")
+    local card, what -- what: for the log
+    if mine and P.onBuild(mine, spec) then -- a quiet confirmation
+        card = { specID = spec, text = mine.text, title = mine.name, sub = place .. " · ready" }
+        what = "on '" .. mine.name .. "'"
     elseif mine then
-        status, what = "|cffffd84aNot on|r " .. mine.name .. ", tagged here", "tagged '" .. mine.name .. "'"
-        one = { "Switch", function() P.switch(mine, spec) R.hide() end }
+        card = { specID = spec, text = mine.text, title = mine.name, sub = place .. " · |cffffd84anot on it|r",
+            one = { "Switch", function() P.switch(mine, spec) R.hide() end } }
+        what = "tagged '" .. mine.name .. "'"
     else
         if check and P.asked(here) then return TK.log("readycheck: %s, already asked this session", here.name) end
         if check then P.markAsked(here) end
-        status = other and ("|cff8c8c8cNothing for %s here.|r %s: %s"):format(B.specName(spec), B.specName(other.specID), other.b.name)
-            or "|cff8c8c8cNothing tagged here|r"
+        local one, two = P.tagButtons(here, cur, other, R.refresh)
+        local show = other and other.b or cur -- another spec's tagged build, or what you're on
+        card = { specID = other and other.specID or spec, text = show and show.text or B.currentString(),
+            title = other and ("%s: %s"):format(B.specName(other.specID), other.b.name) or (cur and ("Use %s here?"):format(cur.name) or "Nothing tagged"),
+            sub = place .. " · nothing for " .. B.specName(spec), one = one, two = two }
         what = "nothing for this spec" .. (other and (", " .. B.specName(other.specID) .. " has '" .. other.b.name .. "'") or "")
-        one, two = P.tagButtons(here, cur, other, R.refresh)
     end
     if not strip then makeStrip() end
-    strip.what.text:SetText(here.name .. (here.pick and " |cff8c8c8c(change)|r" or ""))
-    strip.what:SetWidth(strip.what.text:GetStringWidth())
-    strip.what.pick = here.pick
-    strip.what:SetScript("OnClick", here.pick and TK.safe(function(self) R.pickBoss(self) end) or nil)
-    strip.status:SetText(status)
-    local bw = 0
-    for _, pair in ipairs({ { strip.btn, one }, { strip.btn2, two } }) do
-        local bt, spec2 = pair[1], pair[2]
-        bt:SetShown(spec2 ~= nil)
-        if spec2 then
-            bt:SetText(spec2[1])
-            bt:SetWidth(math.max(64, bt:GetTextWidth() + 20))
-            bt:SetScript("OnClick", TK.safe(function() spec2[2](bt) end))
-            bw = bw + bt:GetWidth() + 8
-        end
-    end
-    local w = 8 + 16 + 6 + math.max(strip.what.text:GetStringWidth(), strip.status:GetStringWidth()) + 16 + bw
-    strip:SetWidth(math.ceil(math.max(200, w)))
-    place()
-    strip:Show()
-    if mine and not P.onBuild(mine, spec) then strip.btn.pulse() end -- on the wrong build: Switch pulses
+    -- flush under Blizzard's popup and as wide, so it reads as part of it
+    card.minWidth = not TK.db.readyCheckPos and ReadyCheckFrame and ReadyCheckFrame:IsShown() and ReadyCheckFrame:GetWidth() or nil
+    strip:Set(card)
+    strip.where.pick = here.pick
+    strip.where:SetScript("OnClick", here.pick and TK.safe(function(self) R.pickBoss(self) end) or nil)
+    placeStrip()
+    if mine and not P.onBuild(mine, spec) then strip.btn1.pulse() end -- on the wrong build: Switch pulses
     -- answering the ready check (or it timing out) closes Blizzard's popup: the strip goes with it
     if ReadyCheckFrame and not hooked then
         hooked = true
