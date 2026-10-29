@@ -227,6 +227,38 @@ local function showDashes(r)
     end
 end
 
+-- Tag kinds, in the order their columns run on a row: the map legend's icon and the tooltip label.
+-- ponytail: a zone tag counts as a dungeon (raids are tagged by boss, delves by "delve").
+local KINDS = {
+    { prefix = "boss:", atlas = "Raid", label = "Raid" },
+    { prefix = "zone:", atlas = "Dungeon", label = "Dungeons" },
+    { prefix = "delve", atlas = "delves-regular", label = "Delves", single = true },
+}
+local function tagsByKind(b)
+    local out = {}
+    for key, name in pairs(b.tags or {}) do
+        for k, kind in ipairs(KINDS) do
+            if key:sub(1, #kind.prefix) == kind.prefix then
+                out[k] = out[k] or {}
+                table.insert(out[k], name)
+                break
+            end
+        end
+    end
+    return out
+end
+
+-- The hero tree's emblem cropped square (the round frame zoomed out of view), like the spec tiles.
+local HERO_ZOOM = 0.2 -- share of the emblem trimmed off each side
+local function setHero(tex, text)
+    local hero = C.hero(text)
+    if not (hero and hero.atlas) then tex:SetTexture(nil) return end
+    tex:SetAtlas(hero.atlas)
+    local l, t, _, bt, r = tex:GetTexCoord()
+    local w, h = (r - l) * HERO_ZOOM, (bt - t) * HERO_ZOOM
+    tex:SetTexCoord(l + w, r - w, t + h, bt - h)
+end
+
 local function selectBuild(b)
     TK.selected = (TK.selected ~= b) and b or nil
     W.refresh()
@@ -239,6 +271,20 @@ local function row(i)
     r.stripe = UI.fill(r, "BACKGROUND", 1, 1, 1, 0.05)
     r.sel = UI.fill(r, "BACKGROUND", 1, 1, 1, 0.12)
     UI.fill(r, "HIGHLIGHT", 0.851, 0.851, 0.851, 0.15)
+    -- tag columns at the right: an icon per kind of place, with how many
+    r.kinds = {}
+    for k = 1, #KINDS do
+        local col = CreateFrame("Frame", nil, r)
+        col:SetSize(1, ROW)
+        col.icon = col:CreateTexture(nil, "ARTWORK")
+        col.icon:SetSize(14, 14)
+        col.icon:SetPoint("LEFT")
+        col.icon:SetAtlas(KINDS[k].atlas)
+        col.count = col:CreateFontString(nil, "OVERLAY", "TalentKeeperFontSmall")
+        col.count:SetPoint("LEFT", col.icon, "RIGHT", 2, 0)
+        col.count:SetTextColor(0.74, 0.74, 0.74)
+        r.kinds[k] = col
+    end
     r.status = r:CreateFontString(nil, "OVERLAY", "TalentKeeperFontSmall")
     r.status:SetPoint("RIGHT", -8, 0)
     r.outline = {} -- solid: the build in the tree
@@ -249,11 +295,14 @@ local function row(i)
         if e[1]:sub(1, 3) == e[2]:sub(1, 3) then t:SetHeight(1) else t:SetWidth(1) end
         r.outline[#r.outline + 1] = t
     end
-    r.hero = r:CreateTexture(nil, "ARTWORK")
-    r.hero:SetSize(16, 16)
-    r.hero:SetPoint("LEFT", 6, 0)
+    local well = CreateFrame("Frame", nil, r)
+    well:SetSize(18, 18)
+    well:SetPoint("LEFT", 5, 0)
+    UI.ring(well, 0.3)
+    r.hero = well:CreateTexture(nil, "ARTWORK")
+    r.hero:SetPoint("TOPLEFT", 1, -1); r.hero:SetPoint("BOTTOMRIGHT", -1, 1)
     r.text = r:CreateFontString(nil, "OVERLAY", "TalentKeeperFont")
-    r.text:SetPoint("LEFT", r.hero, "RIGHT", 5, 0)
+    r.text:SetPoint("LEFT", well, "RIGHT", 5, 0)
     r.text:SetPoint("RIGHT", r.status, "LEFT", -6, 0)
     r.text:SetJustifyH("LEFT")
     r.text:SetWordWrap(false)
@@ -316,8 +365,15 @@ local function row(i)
         GameTooltip:SetText(self.b.name)
         local hero = C.heroName(self.b.text)
         if hero then GameTooltip:AddLine(hero, 0.74, 0.74, 0.74) end
-        local tags = B.tagNames(self.b)
-        if #tags > 0 then GameTooltip:AddLine("Tags: " .. table.concat(tags, ", "), 1, 1, 1, true) end
+        local byKind = tagsByKind(self.b)
+        for k, kind in ipairs(KINDS) do
+            local names = byKind[k]
+            if names and kind.single then GameTooltip:AddLine(kind.label, 1, 1, 1)
+            elseif names then
+                table.sort(names)
+                GameTooltip:AddLine(kind.label .. ": " .. table.concat(names, ", "), 1, 1, 1, true)
+            end
+        end
         if self.b.gear then GameTooltip:AddLine("Gear set: " .. self.b.gear, 1, 1, 1) end
         GameTooltip:AddLine("Click to preview on the tree, double-click to apply. Drag to reorder, or onto a group heading.", 0.55, 0.55, 0.55, true)
         GameTooltip:Show()
@@ -540,6 +596,28 @@ function W.refresh()
     end
     offset = math.max(0, math.min(offset, y + 28 - height))
     local nr, nh, n, dashed = 0, 0, 0, nil
+    -- tag columns: only the kinds some build here uses, the same width on every row so they line up
+    local used = {}
+    for _, line in ipairs(lines) do
+        if line.build then for k in pairs(tagsByKind(line.build)) do used[k] = true end end
+    end
+    local function placeKinds(r, byKind)
+        local x = -8
+        for k = #KINDS, 1, -1 do
+            local col = r.kinds[k]
+            local names = byKind and byKind[k]
+            col:SetShown(names ~= nil)
+            if used[k] then
+                local w = KINDS[k].single and 14 or 28
+                col:ClearAllPoints()
+                col:SetPoint("LEFT", r, "RIGHT", x - w, 0)
+                col.count:SetText((names and not KINDS[k].single) and #names or "")
+                x = x - w - 4
+            end
+        end
+        r.status:ClearAllPoints()
+        r.status:SetPoint("RIGHT", r, "RIGHT", x, 0)
+    end
     local function visible(ly, h) return ly - offset >= 0 and ly - offset + h <= height end
     for _, line in ipairs(lines) do
         if line.build then n = n + 1 end
@@ -556,10 +634,10 @@ function W.refresh()
             local r = row(nr)
             if r.b then r.StopShimmer() end
             r.b = nil
-            local hero = C.hero(B.currentString())
-            if hero and hero.atlas then r.hero:SetAtlas(hero.atlas) else r.hero:SetTexture(nil) end
+            setHero(r.hero, B.currentString())
             r.text:SetText("Unsaved talents")
             r.text:SetTextColor(0.74, 0.74, 0.74)
+            placeKinds(r, nil)
             r.status:SetText("Save")
             r.status:SetTextColor(0.55, 0.55, 0.55)
             r.stripe:Hide(); r.sel:Hide()
@@ -574,9 +652,9 @@ function W.refresh()
             r.b = b
             if TK.flashing[b] then r.Shimmer() end
             r.text:SetText(b.name)
-            local hero = C.hero(b.text)
-            if hero and hero.atlas then r.hero:SetAtlas(hero.atlas) else r.hero:SetTexture(nil) end
-            r.status:SetText(b.outdated and "Outdated" or UI.tagSummary(b) or "")
+            setHero(r.hero, b.text)
+            placeKinds(r, tagsByKind(b))
+            r.status:SetText(b.outdated and "Outdated" or "")
             if b.outdated then r.status:SetTextColor(1, 0.847, 0.29) else r.status:SetTextColor(0.55, 0.55, 0.55) end
             r.stripe:SetShown(n % 2 == 0)
             r.sel:SetShown(b == TK.selected)
