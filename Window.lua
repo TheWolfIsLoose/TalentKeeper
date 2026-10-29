@@ -241,12 +241,26 @@ local KINDS = {
     { head = "GEAR", w = 32, gear = true }, -- not a tag: the build's gear set
 }
 local GRID_R, GRID_GAP = 8, 2 -- the grid's right margin and the gap between columns
-local function kindX(k) -- a column's right edge, from the row's right
+local LINE1 = -12 -- a row's first line, centred this far below its top
+local function kindX(k) -- a column's right edge, from the row's right (hidden columns take no room)
     local x = -GRID_R
-    for j = #KINDS, k + 1, -1 do x = x - KINDS[j].w - GRID_GAP end
+    for j = #KINDS, k + 1, -1 do if not KINDS[j].hidden then x = x - KINDS[j].w - GRID_GAP end end
     return x
 end
-local LINE1 = -12 -- a row's first line, centred this far below its top
+-- The DELVE column shows only while delve prompts are on (Options > Ask in delves).
+local function gridHidden() KINDS[3].hidden = TK.db.noDelvePrompt and true or nil return KINDS[3].hidden end
+local function placeGrid(r) -- anchor a row's cells to the current columns
+    for k, kind in ipairs(KINDS) do
+        local x = kindX(k)
+        if kind.gear then
+            r.gear:ClearAllPoints()
+            r.gear:SetPoint("CENTER", r, "TOPRIGHT", x - kind.w / 2, LINE1)
+        else
+            r.cells[k]:ClearAllPoints()
+            r.cells[k]:SetPoint("RIGHT", r, "TOPRIGHT", x, LINE1)
+        end
+    end
+end
 local function tagsByKind(b)
     local out = {}
     for key, name in pairs(b.tags or {}) do
@@ -266,8 +280,10 @@ local HERO_ZOOM = 0.05 -- share of the emblem trimmed off each side
 local function setHero(tex, text)
     local hero = C.hero(text)
     if not (hero and hero.atlas) then tex:SetTexture(nil) return end
-    tex:SetAtlas(hero.atlas)
-    local l, t, _, bt, r = tex:GetTexCoord()
+    local a = C_Texture.GetAtlasInfo(hero.atlas) -- the atlas's own coords: the texture's are already cropped
+    if not a then tex:SetTexture(nil) return end
+    tex:SetTexture(a.file or a.filename)
+    local l, r, t, bt = a.leftTexCoord, a.rightTexCoord, a.topTexCoord, a.bottomTexCoord
     local w, h = (r - l) * HERO_ZOOM, (bt - t) * HERO_ZOOM
     tex:SetTexCoord(l + w, r - w, t + h, bt - h)
 end
@@ -336,7 +352,6 @@ local function row(i)
         if kind.gear then
             local gear = CreateFrame("Frame", nil, r)
             gear:SetSize(16, 16)
-            gear:SetPoint("CENTER", r, "TOPRIGHT", kindX(k) - kind.w / 2, LINE1)
             UI.ring(gear, 0.3)
             gear.icon = gear:CreateTexture(nil, "ARTWORK")
             gear.icon:SetPoint("TOPLEFT", 1, -1); gear.icon:SetPoint("BOTTOMRIGHT", -1, 1)
@@ -346,12 +361,13 @@ local function row(i)
             r.gear = gear
         else
             local c = r:CreateFontString(nil, "OVERLAY", "TalentKeeperFontSmall")
-            c:SetPoint("RIGHT", r, "TOPRIGHT", kindX(k), LINE1)
             c:SetWidth(kind.w)
             c:SetJustifyH("CENTER")
             r.cells[k] = c
         end
     end
+    placeGrid(r)
+    r.gridKey = KINDS[3].hidden
     r.hint = r:CreateFontString(nil, "OVERLAY", "TalentKeeperFontSmall") -- in the grid's place on Unsaved talents
     r.hint:SetPoint("RIGHT", r, "TOPRIGHT", -8, LINE1)
     r.hint:SetTextColor(0.55, 0.55, 0.55)
@@ -663,11 +679,18 @@ function W.refresh()
     end
     offset = math.max(0, math.min(offset, y + 28 - height))
     local nr, nh, n, dashed = 0, 0, 0, nil
+    local hidden = gridHidden()
+    for k, h in ipairs(pane.gridHeads) do
+        h:SetShown(not KINDS[k].hidden)
+        h:ClearAllPoints()
+        h:SetPoint("TOPRIGHT", pane, "TOPRIGHT", kindX(k), TOP - 2)
+    end
+    for _, r in ipairs(rows) do if r.gridKey ~= hidden then placeGrid(r) r.gridKey = hidden end end
     -- the tag slots: a count per kind, a muted dash where there's none; hidden on Unsaved talents
     local function placeKinds(r, byKind)
         for k, c in pairs(r.cells) do
             local names = byKind and byKind[k]
-            c:SetShown(byKind ~= nil)
+            c:SetShown(byKind ~= nil and not KINDS[k].hidden)
             if names then c:SetText(#names) c:SetTextColor(1, 1, 1)
             else c:SetText("–") c:SetTextColor(0.35, 0.35, 0.35) end
         end
@@ -1432,7 +1455,7 @@ local function makeOptions()
     local delve = W.checkbox(opt, "Ask in delves",
         "Offer your Delves build when you enter a delve. Off: no prompt or ready check strip in delves.",
         function() return not TK.db.noDelvePrompt end,
-        function(on) TK.db.noDelvePrompt = not on or nil TK.log("option: ask in delves %s", on and "on" or "off") end)
+        function(on) TK.db.noDelvePrompt = not on or nil TK.log("option: ask in delves %s", on and "on" or "off") TK.safe(W.refresh)() end)
     delve:SetPoint("TOPLEFT", head2, "BOTTOMLEFT", 0, -4)
     local motion = W.checkbox(opt, "Animate what changed",
         "The prompt's button and the ready check strip's Switch pulse when they appear; saved, tagged, moved and newly live builds shimmer once.",
@@ -1512,9 +1535,10 @@ EventUtil.ContinueOnAddOnLoaded("Blizzard_PlayerSpells", TK.safe(function()
     pane.list = CreateFrame("Frame", nil, pane)
     pane.list:SetPoint("TOPLEFT", 0, TOP - GRID_HEAD); pane.list:SetPoint("TOPRIGHT", 0, TOP - GRID_HEAD)
     -- the grid's column headings (Tag Overview covers them)
+    pane.gridHeads = {}
     for k, kind in ipairs(KINDS) do
         local h = pane:CreateFontString(nil, "OVERLAY", "TalentKeeperFontSmall")
-        h:SetPoint("TOPRIGHT", pane, "TOPRIGHT", kindX(k), TOP - 2)
+        pane.gridHeads[k] = h
         h:SetWidth(kind.w)
         h:SetJustifyH("CENTER")
         h:SetTextColor(0.55, 0.55, 0.55)
