@@ -256,11 +256,15 @@ local function tagsByKind(b)
     return out
 end
 
--- The hero tree's top talent icon, trimmed like the spec tiles.
+-- The hero tree's emblem, cropped square like the spec tiles.
+local HERO_ZOOM = 0.12 -- share of the emblem trimmed off each side
 local function setHero(tex, text)
     local hero = C.hero(text)
-    if hero and hero.icon then tex:SetTexture(hero.icon) tex:SetTexCoord(0.08, 0.92, 0.08, 0.92)
-    else tex:SetTexture(nil) end
+    if not (hero and hero.atlas) then tex:SetTexture(nil) return end
+    tex:SetAtlas(hero.atlas)
+    local l, t, _, bt, r = tex:GetTexCoord()
+    local w, h = (r - l) * HERO_ZOOM, (bt - t) * HERO_ZOOM
+    tex:SetTexCoord(l + w, r - w, t + h, bt - h)
 end
 
 local function selectBuild(b)

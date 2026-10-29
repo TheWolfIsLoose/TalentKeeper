@@ -134,20 +134,7 @@ function C.nearNote(list, b)
         table.concat(C.describe(d, 3), ", "))
 end
 
--- A hero tree's face: the spell icon of its top talent, the one that defines the tree.
-function C.heroIcon(subTreeID)
-    local top, topY
-    for _, node in ipairs(LTT:GetSubTreeNodeIDs(subTreeID)) do
-        local _, y = LTT:GetNodePosition(node)
-        if y and (not topY or y < topY) then top, topY = node, y end
-    end
-    local n = top and libNode(top)
-    local entry = n and n.entryIDs and LTT:GetEntryInfo(n.entryIDs[1])
-    local def = entry and entry.definitionID and C_Traits.GetDefinitionInfo(entry.definitionID)
-    return def and (def.overrideIcon or (def.spellID and C_Spell.GetSpellTexture(def.spellID)))
-end
-
--- The hero tree a build takes: its name, emblem atlas and top talent's icon (nil if unknown). Remembered per string,
+-- The hero tree a build takes: its name and emblem atlas (nil if unknown). Remembered per string,
 -- since the list asks for every row on each redraw.
 local heroCache = {}
 function C.hero(text)
@@ -161,11 +148,10 @@ function C.hero(text)
             local choice = tonumber(v:match(":(%d+)$")) or 0
             local entry = n.entryIDs and LTT:GetEntryInfo(n.entryIDs[choice > 0 and choice or 1])
             hit = entry and entry.subTreeID and LTT:GetSubTreeInfo(entry.subTreeID)
-            if hit then hit.id = entry.subTreeID end -- a copy: the library deep-copies it
             break
         end
     end
-    heroCache[text] = hit and { name = hit.name, atlas = hit.iconElementID, icon = hit.id and C.heroIcon(hit.id) } or false
+    heroCache[text] = hit and { name = hit.name, atlas = hit.iconElementID } or false
     return heroCache[text] or nil
 end
 
