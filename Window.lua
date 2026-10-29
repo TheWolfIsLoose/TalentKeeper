@@ -173,6 +173,7 @@ local ROW1 = DECK_Y - TILE_H - 6         -- Apply / Tags... / More...
 local ROW2 = ROW1 - 24                   -- Save current / Import
 local TABS = ROW2 - 20 - 10               -- the Builds / Tag Overview tabs
 local ROW, HEAD, TOP = 24, 22, TABS - 24
+local GRID_HEAD = 16 -- the grid's column headings, between the tabs and the list
 local SHIMMER_W = 90
 local offset = 0
 local detail -- the selected build's panel
@@ -227,13 +228,20 @@ local function showDashes(r)
     end
 end
 
--- Tag kinds, in the order their columns run on a row: the map legend's icon and the tooltip label.
+-- Tag kinds, one grid column each (left to right): the column's heading, its width, the tooltip label.
 -- ponytail: a zone tag counts as a dungeon (raids are tagged by boss, delves by "delve").
 local KINDS = {
-    { prefix = "boss:", atlas = "Raid", label = "Raid" },
-    { prefix = "zone:", atlas = "Dungeon", label = "Dungeons" },
-    { prefix = "delve", atlas = "delves-regular", label = "Delves", single = true },
+    { prefix = "boss:", head = "RAID", w = 32, label = "Raid" },
+    { prefix = "zone:", head = "M+", w = 26, label = "Dungeons" },
+    { prefix = "delve", head = "DELVE", w = 34, label = "Delves" },
 }
+local GRID_R, GRID_GAP = 8, 2 -- the grid's right margin and the gap between columns
+local function kindX(k) -- a column's right edge, from the row's right
+    local x = -GRID_R
+    for j = #KINDS, k + 1, -1 do x = x - KINDS[j].w - GRID_GAP end
+    return x
+end
+local GRID_W = -kindX(1) + KINDS[1].w
 local function tagsByKind(b)
     local out = {}
     for key, name in pairs(b.tags or {}) do
@@ -248,15 +256,11 @@ local function tagsByKind(b)
     return out
 end
 
--- The hero tree's emblem cropped square (the round frame zoomed out of view), like the spec tiles.
-local HERO_ZOOM = 0.2 -- share of the emblem trimmed off each side
+-- The hero tree's top talent icon, trimmed like the spec tiles.
 local function setHero(tex, text)
     local hero = C.hero(text)
-    if not (hero and hero.atlas) then tex:SetTexture(nil) return end
-    tex:SetAtlas(hero.atlas)
-    local l, t, _, bt, r = tex:GetTexCoord()
-    local w, h = (r - l) * HERO_ZOOM, (bt - t) * HERO_ZOOM
-    tex:SetTexCoord(l + w, r - w, t + h, bt - h)
+    if hero and hero.icon then tex:SetTexture(hero.icon) tex:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+    else tex:SetTexture(nil) end
 end
 
 local function selectBuild(b)
@@ -271,22 +275,17 @@ local function row(i)
     r.stripe = UI.fill(r, "BACKGROUND", 1, 1, 1, 0.05)
     r.sel = UI.fill(r, "BACKGROUND", 1, 1, 1, 0.12)
     UI.fill(r, "HIGHLIGHT", 0.851, 0.851, 0.851, 0.15)
-    -- tag columns at the right: an icon per kind of place, with how many
-    r.kinds = {}
-    for k = 1, #KINDS do
-        local col = CreateFrame("Frame", nil, r)
-        col:SetSize(1, ROW)
-        col.icon = col:CreateTexture(nil, "ARTWORK")
-        col.icon:SetSize(14, 14)
-        col.icon:SetPoint("LEFT")
-        col.icon:SetAtlas(KINDS[k].atlas)
-        col.count = col:CreateFontString(nil, "OVERLAY", "TalentKeeperFontSmall")
-        col.count:SetPoint("LEFT", col.icon, "RIGHT", 2, 0)
-        col.count:SetTextColor(0.74, 0.74, 0.74)
-        r.kinds[k] = col
+    -- the tag grid at the right: how many places of each kind, centred under the column headings
+    r.cells = {}
+    for k, kind in ipairs(KINDS) do
+        local c = r:CreateFontString(nil, "OVERLAY", "TalentKeeperFontSmall")
+        c:SetPoint("RIGHT", kindX(k), 0)
+        c:SetWidth(kind.w)
+        c:SetJustifyH("CENTER")
+        r.cells[k] = c
     end
     r.status = r:CreateFontString(nil, "OVERLAY", "TalentKeeperFontSmall")
-    r.status:SetPoint("RIGHT", -8, 0)
+    r.status:SetPoint("RIGHT", -(GRID_W + 4), 0)
     r.outline = {} -- solid: the build in the tree
     for _, e in ipairs({ { "TOPLEFT", "TOPRIGHT" }, { "BOTTOMLEFT", "BOTTOMRIGHT" }, { "TOPLEFT", "BOTTOMLEFT" }, { "TOPRIGHT", "BOTTOMRIGHT" } }) do
         local t = r:CreateTexture(nil, "OVERLAY")
@@ -296,13 +295,18 @@ local function row(i)
         r.outline[#r.outline + 1] = t
     end
     local well = CreateFrame("Frame", nil, r)
+    r.well = well
     well:SetSize(18, 18)
     well:SetPoint("LEFT", 5, 0)
     UI.ring(well, 0.3)
     r.hero = well:CreateTexture(nil, "ARTWORK")
     r.hero:SetPoint("TOPLEFT", 1, -1); r.hero:SetPoint("BOTTOMRIGHT", -1, 1)
     r.text = r:CreateFontString(nil, "OVERLAY", "TalentKeeperFont")
-    r.text:SetPoint("LEFT", well, "RIGHT", 5, 0)
+    r.ShowHero = function(on)
+        well:SetShown(on)
+        r.text:SetPoint("LEFT", on and 28 or 8, 0)
+    end
+    r.ShowHero(false)
     r.text:SetPoint("RIGHT", r.status, "LEFT", -6, 0)
     r.text:SetJustifyH("LEFT")
     r.text:SetWordWrap(false)
@@ -365,13 +369,15 @@ local function row(i)
         GameTooltip:SetText(self.b.name)
         local hero = C.heroName(self.b.text)
         if hero then GameTooltip:AddLine(hero, 0.74, 0.74, 0.74) end
+        -- tags as a two-column list: the kind once, then one place per line
         local byKind = tagsByKind(self.b)
         for k, kind in ipairs(KINDS) do
             local names = byKind[k]
-            if names and kind.single then GameTooltip:AddLine(kind.label, 1, 1, 1)
-            elseif names then
+            if names then
                 table.sort(names)
-                GameTooltip:AddLine(kind.label .. ": " .. table.concat(names, ", "), 1, 1, 1, true)
+                for i, name in ipairs(names) do
+                    GameTooltip:AddDoubleLine(i == 1 and kind.label or " ", name, 0.55, 0.55, 0.55, 1, 1, 1)
+                end
             end
         end
         if self.b.gear then GameTooltip:AddLine("Gear set: " .. self.b.gear, 1, 1, 1) end
@@ -596,28 +602,22 @@ function W.refresh()
     end
     offset = math.max(0, math.min(offset, y + 28 - height))
     local nr, nh, n, dashed = 0, 0, 0, nil
-    -- tag columns: only the kinds some build here uses, the same width on every row so they line up
-    local used = {}
-    for _, line in ipairs(lines) do
-        if line.build then for k in pairs(tagsByKind(line.build)) do used[k] = true end end
-    end
+    -- the tag grid: a count per kind, a muted dash where there's none (empty on Unsaved talents)
     local function placeKinds(r, byKind)
-        local x = -8
-        for k = #KINDS, 1, -1 do
-            local col = r.kinds[k]
+        for k, c in ipairs(r.cells) do
             local names = byKind and byKind[k]
-            col:SetShown(names ~= nil)
-            if used[k] then
-                local w = KINDS[k].single and 14 or 28
-                col:ClearAllPoints()
-                col:SetPoint("LEFT", r, "RIGHT", x - w, 0)
-                col.count:SetText((names and not KINDS[k].single) and #names or "")
-                x = x - w - 4
-            end
+            if names then c:SetText(#names) c:SetTextColor(1, 1, 1)
+            else c:SetText(byKind and "–" or "") c:SetTextColor(0.35, 0.35, 0.35) end
         end
-        r.status:ClearAllPoints()
-        r.status:SetPoint("RIGHT", r, "RIGHT", x, 0)
     end
+    -- the hero icon column only when this spec's builds take more than one hero tree
+    local heroes, nHeroes = {}, 0
+    for _, line in ipairs(lines) do
+        local text = line.build and line.build.text or (line.unsaved and B.currentString())
+        local h = text and C.heroName(text)
+        if h and not heroes[h] then heroes[h] = true nHeroes = nHeroes + 1 end
+    end
+    W.showHero = nHeroes > 1
     local function visible(ly, h) return ly - offset >= 0 and ly - offset + h <= height end
     for _, line in ipairs(lines) do
         if line.build then n = n + 1 end
@@ -635,6 +635,7 @@ function W.refresh()
             if r.b then r.StopShimmer() end
             r.b = nil
             setHero(r.hero, B.currentString())
+            r.ShowHero(W.showHero)
             r.text:SetText("Unsaved talents")
             r.text:SetTextColor(0.74, 0.74, 0.74)
             placeKinds(r, nil)
@@ -653,6 +654,7 @@ function W.refresh()
             if TK.flashing[b] then r.Shimmer() end
             r.text:SetText(b.name)
             setHero(r.hero, b.text)
+            r.ShowHero(W.showHero)
             placeKinds(r, tagsByKind(b))
             r.status:SetText(b.outdated and "Outdated" or "")
             if b.outdated then r.status:SetTextColor(1, 0.847, 0.29) else r.status:SetTextColor(0.55, 0.55, 0.55) end
@@ -1448,7 +1450,16 @@ EventUtil.ContinueOnAddOnLoaded("Blizzard_PlayerSpells", TK.safe(function()
     makeDetail()
     -- the scrolling list between the spec buttons and the selected build's panel
     pane.list = CreateFrame("Frame", nil, pane)
-    pane.list:SetPoint("TOPLEFT", 0, TOP); pane.list:SetPoint("TOPRIGHT", 0, TOP)
+    pane.list:SetPoint("TOPLEFT", 0, TOP - GRID_HEAD); pane.list:SetPoint("TOPRIGHT", 0, TOP - GRID_HEAD)
+    -- the grid's column headings (Tag Overview covers them)
+    for k, kind in ipairs(KINDS) do
+        local h = pane:CreateFontString(nil, "OVERLAY", "TalentKeeperFontSmall")
+        h:SetPoint("TOPRIGHT", pane, "TOPRIGHT", kindX(k), TOP - 2)
+        h:SetWidth(kind.w)
+        h:SetJustifyH("CENTER")
+        h:SetTextColor(0.55, 0.55, 0.55)
+        h:SetText(kind.head)
+    end
     pane.list:SetPoint("BOTTOM", pane, "BOTTOM", 0, 1)
     pane.list:SetClipsChildren(true)
     pane.list:EnableMouseWheel(true)
