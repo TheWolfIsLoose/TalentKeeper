@@ -136,8 +136,8 @@ function UI.card(name, onClose)
     c:EnableMouse(true)
     fill(c, "BACKGROUND", 0.06, 0.06, 0.06, 0.98)
     ring(c, 0)
-    local function tile(x)
-        local f = CreateFrame("Frame", nil, c)
+    local function tile(x, kind)
+        local f = CreateFrame(kind, nil, c)
         f:SetSize(TILE, TILE)
         f:SetPoint("LEFT", x, 0)
         ring(f, 0.3)
@@ -145,11 +145,35 @@ function UI.card(name, onClose)
         f.icon:SetPoint("TOPLEFT", 1, -1); f.icon:SetPoint("BOTTOMRIGHT", -1, 1)
         return f
     end
-    c.spec, c.hero = tile(6), tile(6 + TILE + 4)
+    -- the spec tile is a button: change spec or loot spec
+    c.spec, c.hero = tile(6, "Button"), tile(6 + TILE + 4, "Frame")
     c.spec.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
-    c.title = c:CreateFontString(nil, "OVERLAY", "TalentKeeperFontLarge")
-    c.title:SetPoint("TOPLEFT", c.hero, "TOPRIGHT", 8, 0)
+    fill(c.spec, "HIGHLIGHT", 1, 1, 1, 0.15)
+    c.spec:SetScript("OnClick", TK.safe(function(self) UI.specMenu(self) end))
+    c.spec:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
+        GameTooltip:SetText("Spec and loot spec")
+        local loot = GetLootSpecialization and GetLootSpecialization() or 0
+        GameTooltip:AddLine("Loot: " .. (loot == 0 and "current spec" or select(2, GetSpecializationInfoByID(loot)) or "?"), 0.74, 0.74, 0.74)
+        GameTooltip:AddLine("Click to change either.", 0.55, 0.55, 0.55)
+        GameTooltip:Show()
+    end)
+    c.spec:SetScript("OnLeave", GameTooltip_Hide)
+    -- the build name is a button when the card can offer another build (c:Set's onTitle)
+    c.name = CreateFrame("Button", nil, c)
+    c.name:SetPoint("TOPLEFT", c.hero, "TOPRIGHT", 8, 0)
+    c.name:SetHeight(18)
+    c.title = c.name:CreateFontString(nil, "OVERLAY", "TalentKeeperFontLarge")
+    c.title:SetPoint("LEFT")
     c.title:SetWordWrap(false)
+    c.name:SetScript("OnEnter", function(self)
+        if not self.pick then return end
+        c.title:SetTextColor(0.851, 0.851, 0.851)
+        GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
+        GameTooltip:SetText("Pick another build")
+        GameTooltip:Show()
+    end)
+    c.name:SetScript("OnLeave", function() c.title:SetTextColor(1, 1, 1) GameTooltip:Hide() end)
     -- the second line is a button so the ready check can make it clickable (correct the boss)
     c.where = CreateFrame("Button", nil, c)
     c.where:SetHeight(14)
@@ -169,6 +193,9 @@ function UI.card(name, onClose)
         self.spec.icon:SetTexture(icon)
         UI.setHero(self.hero.icon, o.text)
         self.title:SetText(o.title or "")
+        self.name:SetWidth(math.max(1, self.title:GetStringWidth()))
+        self.name.pick = o.onTitle
+        self.name:SetScript("OnClick", o.onTitle and TK.safe(o.onTitle) or nil)
         self.sub:SetText(o.sub or "")
         self.where:SetWidth(math.max(1, self.sub:GetStringWidth()))
         local right, bw = self.close or nil, 0
@@ -191,6 +218,47 @@ function UI.card(name, onClose)
     end
     c:Hide()
     return c
+end
+
+-- Spec and loot spec in one picker (the cards' spec tile).
+function UI.specMenu(owner)
+    UI.picker(owner, "Spec", function()
+        local items = { { heading = "Specialization" } }
+        for i = 1, GetNumSpecializations() or 0 do
+            local id, name = GetSpecializationInfo(i)
+            items[#items + 1] = { label = name, checked = function() return GetSpecialization() == i end, onClick = function()
+                if i == GetSpecialization() then return end
+                if InCombatLockdown() then return TK.chat("|cffff6666Can't change spec in combat.|r") end
+                TK.log("spec change to %s (card)", name)
+                C_SpecializationInfo.SetSpecialization(i)
+            end }
+        end
+        items[#items + 1] = { heading = "Loot" }
+        items[#items + 1] = { label = "Current spec", checked = function() return GetLootSpecialization() == 0 end,
+            onClick = function() SetLootSpecialization(0) return "keep" end }
+        for i = 1, GetNumSpecializations() or 0 do
+            local id, name = GetSpecializationInfo(i)
+            items[#items + 1] = { label = name, checked = function() return GetLootSpecialization() == id end,
+                onClick = function() SetLootSpecialization(id) return "keep" end }
+        end
+        return items
+    end)
+end
+
+-- This spec's builds, by group, in a picker; onPick(b).
+function UI.buildMenu(owner, specID, onPick)
+    UI.picker(owner, "Builds", function()
+        local items = {}
+        for _, line in ipairs(TK.builds.ordered(specID)) do
+            if line.header then items[#items + 1] = { heading = line.header }
+            elseif line.build then
+                local b = line.build
+                items[#items + 1] = { label = b.name, onClick = function() onPick(b) end }
+            end
+        end
+        if #items == 0 then items[1] = { label = "No builds saved for this spec yet.", disabled = true } end
+        return items
+    end)
 end
 
 -- The suite's pulse ("this wants a click"): three 1 s fades, then it stops. UI.pulse(region)

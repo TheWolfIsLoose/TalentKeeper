@@ -151,6 +151,15 @@ local hooked -- ReadyCheckFrame's OnHide hooked once
 -- On the build this spec has tagged here: say so. On another of this spec's builds: name the tagged
 -- one, with Switch (every ready check: a wipe is when people forget). Nothing tagged for this spec:
 -- ask once per play session to tag what you're on, with the other spec's tagged build beside it.
+-- A build picked from the card's build list ({ b }), until the card closes: shown with Apply.
+local chosen
+-- The card for a build picked by hand: ready if you're on it, else Apply.
+local function chosenCard(b, spec, place)
+    if P.onBuild(b, spec) then return { specID = spec, text = b.text, title = b.name, sub = place .. " · ready" } end
+    return { specID = spec, text = b.text, title = b.name, sub = place .. " · picked",
+        one = { "Apply", function() TK.log("readycheck: apply picked '%s'", b.name) B.apply(b) R.hide() end } }
+end
+
 function R.show(check)
     local here = situation()
     if not here then return R.hide() end
@@ -162,7 +171,9 @@ function R.show(check)
     local spec = B.specID()
     local place = here.name .. (here.pick and " |cff8c8c8c(change)|r" or "")
     local card, what -- what: for the log
-    if mine and P.onBuild(mine, spec) then -- a quiet confirmation
+    if chosen then
+        card, what = chosenCard(chosen, spec, place), "picked '" .. chosen.name .. "'"
+    elseif mine and P.onBuild(mine, spec) then -- a quiet confirmation
         card = { specID = spec, text = mine.text, title = mine.name, sub = place .. " · ready" }
         what = "on '" .. mine.name .. "'"
     elseif mine then
@@ -182,11 +193,12 @@ function R.show(check)
     if not strip then makeStrip() end
     -- flush under Blizzard's popup and as wide, so it reads as part of it
     card.minWidth = popup() and popup():GetWidth() or nil
+    card.onTitle = function(self) UI.buildMenu(self, spec, function(b) chosen = b R.refresh() end) end
     strip:Set(card)
     strip.where.pick = here.pick
     strip.where:SetScript("OnClick", here.pick and TK.safe(function(self) R.pickBoss(self) end) or nil)
     placeStrip()
-    if mine and not P.onBuild(mine, spec) then strip.btn1.pulse() end -- on the wrong build: Switch pulses
+    if not chosen and mine and not P.onBuild(mine, spec) then strip.btn1.pulse() end -- on the wrong build: Switch pulses
     -- answering the ready check (or it timing out) closes Blizzard's popup: the strip goes with it
     if ReadyCheckFrame and not hooked then
         hooked = true
@@ -195,8 +207,16 @@ function R.show(check)
     TK.log("readycheck: %s%s, %s", here.name, here.how and (" (" .. here.how .. ")") or "", what)
 end
 
-function R.refresh() if strip and strip:IsShown() then R.show() end end
+function R.refresh()
+    if not (strip and strip:IsShown()) then return end
+    if stand and stand:IsShown() then return R.preview() end
+    R.show()
+end
+-- a spec change from the card's spec tile: show the new spec's side (a picked build was the old spec's)
+TK.on("ACTIVE_PLAYER_SPECIALIZATION_CHANGED", function() chosen = nil R.refresh() end)
+TK.on("TRAIT_CONFIG_UPDATED", function() R.refresh() end) -- an apply landed: ready
 function R.hide(why)
+    chosen = nil
     if not strip or not strip:IsShown() then return end
     strip:Hide()
     if why then TK.log("readycheck: strip closed (%s)", why) end
@@ -237,6 +257,31 @@ end)
 -- place of the game's popup. Each call shows the next look; the fourth closes it. The buttons only
 -- close the card here: nothing is tagged or switched.
 local step = 0
+function R.preview()
+    if not strip then makeStrip() end
+    local spec = B.specID()
+    local b = (spec and B.onNow(spec)) or (spec and B.list(spec)[1])
+    if not b then return TK.chat("Save a build first: the preview shows one of yours.") end
+    local place = "Murder Row"
+    for _, name in pairs(b.tags or {}) do place = name break end
+    local close = function() R.hide() end
+    local looks = {
+        { specID = spec, text = b.text, title = b.name, sub = place .. " · ready" },
+        { specID = spec, text = b.text, title = b.name, sub = place .. " · |cffffd84anot on it|r", one = { "Switch", close } },
+        { specID = spec, text = b.text, title = ("Use %s here?"):format(b.name), sub = place .. " · nothing for " .. B.specName(spec),
+          one = { "Use " .. b.name, close }, two = { "Choose...", close } },
+    }
+    -- a build picked from the name applies for real (it's your click), like on a real ready check
+    local card = chosen and chosenCard(chosen, spec, place) or looks[step]
+    card.minWidth = stand:GetWidth()
+    card.onTitle = function(self) UI.buildMenu(self, spec, function(pb) chosen = pb R.refresh() end) end
+    strip:Set(card)
+    strip.where.pick = nil
+    strip.where:SetScript("OnClick", nil)
+    placeStrip()
+    if step == 2 and not chosen then strip.btn1.pulse() end
+end
+
 TK.commands.readycheck = function(arg)
     if arg == "reset" then
         TK.db.readyCheckOffset = nil
@@ -267,26 +312,8 @@ TK.commands.readycheck = function(arg)
         return TK.chat("Ready check preview closed.")
     end
     stand:Show()
-    if not strip then makeStrip() end
-    local spec = B.specID()
-    local b = (spec and B.onNow(spec)) or (spec and B.list(spec)[1])
-    if not b then return TK.chat("Save a build first: the preview shows one of yours.") end
-    local place = "Murder Row"
-    for _, name in pairs(b.tags or {}) do place = name break end
-    local close = function() R.hide() end
-    local looks = {
-        { specID = spec, text = b.text, title = b.name, sub = place .. " · ready" },
-        { specID = spec, text = b.text, title = b.name, sub = place .. " · |cffffd84anot on it|r", one = { "Switch", close } },
-        { specID = spec, text = b.text, title = ("Use %s here?"):format(b.name), sub = place .. " · nothing for " .. B.specName(spec),
-          one = { "Use " .. b.name, close }, two = { "Choose...", close } },
-    }
-    local card = looks[step]
-    card.minWidth = stand:GetWidth()
-    strip:Set(card)
-    strip.where.pick = nil
-    strip.where:SetScript("OnClick", nil)
-    placeStrip()
-    if step == 2 then strip.btn1.pulse() end
+    chosen = nil
+    R.preview()
     TK.chat(("Ready check preview %d of 3: %s. |cffffffff/tk readycheck|r for the next."):format(step,
         ({ "on the tagged build", "on another build", "nothing tagged" })[step]))
 end
