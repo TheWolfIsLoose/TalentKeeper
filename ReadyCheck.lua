@@ -184,8 +184,6 @@ function R.show(check)
         what = "nothing for this spec" .. (other and (", " .. B.specName(other.specID) .. " has '" .. other.b.name .. "'") or "")
     end
     if not strip then makeStrip() end
-    -- flush under Blizzard's popup and as wide, so it reads as part of it
-    card.minWidth = popup() and popup():GetWidth() or nil
     card.onTitle = function(self) UI.buildMenu(self, spec, function(b) chosen = b R.refresh() end) end
     strip:Set(card)
     strip.where.pick = here.pick
@@ -267,7 +265,6 @@ function R.preview()
     }
     -- a build picked from the name applies for real (it's your click), like on a real ready check
     local card = chosen and chosenCard(chosen, spec, place) or looks[step]
-    card.minWidth = stand:GetWidth()
     card.onTitle = function(self) UI.buildMenu(self, spec, function(pb) chosen = pb R.refresh() end) end
     strip:Set(card)
     strip.where.pick = nil

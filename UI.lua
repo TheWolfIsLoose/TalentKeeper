@@ -144,6 +144,7 @@ end
 -- and the delve prompt both use it, so a glance says which spec and build without reading.
 -- card:Set({ specID, text, title, sub, one = { label, fn }, two = ..., minWidth })
 local TILE = 34
+local WASH = 0.22 -- how strongly the spec's art shows behind the card (left edge; it fades out to the right)
 function UI.card(name, onClose)
     local c = CreateFrame("Frame", name, UIParent)
     c:SetHeight(TILE + 12)
@@ -152,41 +153,17 @@ function UI.card(name, onClose)
     c:EnableMouse(true)
     fill(c, "BACKGROUND", 0.06, 0.06, 0.06, 0.98)
     ring(c, 0)
-    local function tile(x, kind)
-        local f = CreateFrame(kind, nil, c)
-        f:SetSize(TILE, TILE)
-        f:SetPoint("LEFT", x, 0)
-        ring(f, 0.3)
-        f.icon = f:CreateTexture(nil, "ARTWORK")
-        f.icon:SetPoint("TOPLEFT", 1, -1); f.icon:SetPoint("BOTTOMRIGHT", -1, 1)
-        return f
-    end
-    -- the spec tile is a dropdown (spec and loot spec): a chevron badge in its corner says so, and a
-    -- small loot badge at the top shows a loot spec that isn't the current one
-    c.spec, c.hero = tile(6, "Button"), tile(6 + TILE + 4, "Frame")
-    c.spec.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
-    fill(c.spec, "HIGHLIGHT", 1, 1, 1, 0.15)
-    local badge = CreateFrame("Frame", nil, c.spec)
-    badge:SetSize(12, 10)
-    badge:SetPoint("BOTTOMRIGHT", -1, 1)
-    fill(badge, "ARTWORK", 0, 0, 0, 0.8)
-    UI.chevron(badge, 0.9):SetPoint("CENTER", 0, 0)
-    c.loot = CreateFrame("Frame", nil, c.spec)
-    c.loot:SetSize(14, 14)
-    c.loot:SetPoint("TOPRIGHT", 3, 3)
-    ring(c.loot, 0)
-    c.loot.icon = c.loot:CreateTexture(nil, "OVERLAY")
-    c.loot.icon:SetPoint("TOPLEFT", 1, -1); c.loot.icon:SetPoint("BOTTOMRIGHT", -1, 1)
-    c.loot.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
-    c.spec:SetScript("OnClick", TK.safe(function(self) UI.specMenu(self) end))
-    c.spec:SetScript("OnEnter", function(self) -- what it is: the spec and where loot goes
-        GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
-        GameTooltip:SetText(c.specName or "")
-        local loot = GetLootSpecialization and GetLootSpecialization() or 0
-        GameTooltip:AddLine("Loot: " .. (loot == 0 and "current spec" or select(2, GetSpecializationInfoByID(loot)) or "?"), 0.74, 0.74, 0.74)
-        GameTooltip:Show()
-    end)
-    c.spec:SetScript("OnLeave", GameTooltip_Hide)
+    -- the spec's art as a faint wash behind everything, cropped to the card's shape
+    c.wash = c:CreateTexture(nil, "BACKGROUND", nil, 1)
+    c.wash:SetPoint("TOPLEFT", 1, -1); c.wash:SetPoint("BOTTOMRIGHT", -1, 1)
+    c.wash:SetGradient("HORIZONTAL", CreateColor(1, 1, 1, WASH), CreateColor(1, 1, 1, 0.03))
+    -- the hero emblem tile
+    c.hero = CreateFrame("Frame", nil, c)
+    c.hero:SetSize(TILE, TILE)
+    c.hero:SetPoint("LEFT", 6, 0)
+    ring(c.hero, 0.3)
+    c.hero.icon = c.hero:CreateTexture(nil, "ARTWORK")
+    c.hero.icon:SetPoint("TOPLEFT", 1, -1); c.hero.icon:SetPoint("BOTTOMRIGHT", -1, 1)
     -- the build name is a dropdown when the card can offer another build (c:Set's onTitle)
     c.name = CreateFrame("Button", nil, c)
     c.name:SetPoint("TOPLEFT", c.hero, "TOPRIGHT", 4, 2)
@@ -197,10 +174,33 @@ function UI.card(name, onClose)
     c.title:SetWordWrap(false)
     c.caret = UI.chevron(c.name)
     c.caret:SetPoint("LEFT", c.title, "RIGHT", 6, -1)
-    -- the second line is a button so the ready check can make it clickable (correct the boss)
+    -- line 2: the spec as a dropdown (spec and loot spec; a small loot icon when loot goes to
+    -- another spec), then where and how it stands
+    c.spec = CreateFrame("Button", nil, c)
+    c.spec:SetHeight(16)
+    c.spec:SetPoint("BOTTOMLEFT", c.hero, "BOTTOMRIGHT", 4, -1)
+    fill(c.spec, "HIGHLIGHT", 1, 1, 1, 0.08)
+    c.loot = c.spec:CreateTexture(nil, "OVERLAY")
+    c.loot:SetSize(12, 12)
+    c.loot:SetPoint("LEFT", 4, 0)
+    c.loot:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+    c.specText = c.spec:CreateFontString(nil, "OVERLAY", "TalentKeeperFontSmall")
+    c.specText:SetTextColor(1, 1, 1)
+    c.specCaret = UI.chevron(c.spec)
+    c.specCaret:SetPoint("LEFT", c.specText, "RIGHT", 4, -1)
+    c.spec:SetScript("OnClick", TK.safe(function(self) UI.specMenu(self) end))
+    c.spec:SetScript("OnEnter", function(self) -- where loot goes
+        GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
+        GameTooltip:SetText(c.specName or "")
+        local loot = GetLootSpecialization and GetLootSpecialization() or 0
+        GameTooltip:AddLine("Loot: " .. (loot == 0 and "current spec" or select(2, GetSpecializationInfoByID(loot)) or "?"), 0.74, 0.74, 0.74)
+        GameTooltip:Show()
+    end)
+    c.spec:SetScript("OnLeave", GameTooltip_Hide)
+    -- the rest of line 2 is a button so the ready check can make it clickable (correct the boss)
     c.where = CreateFrame("Button", nil, c)
     c.where:SetHeight(14)
-    c.where:SetPoint("BOTTOMLEFT", c.hero, "BOTTOMRIGHT", 8, 0)
+    c.where:SetPoint("LEFT", c.spec, "RIGHT", 4, 0)
     c.sub = c.where:CreateFontString(nil, "OVERLAY", "TalentKeeperFontSmall")
     c.sub:SetPoint("LEFT")
     c.sub:SetTextColor(0.74, 0.74, 0.74)
@@ -213,19 +213,24 @@ function UI.card(name, onClose)
     c.btn2 = button(c, "", 70, function() end)
     function c:Set(o)
         local _, specName, _, icon = GetSpecializationInfoByID(o.specID or 0)
-        self.spec.icon:SetTexture(icon)
         self.specName = specName
+        self.wash:SetTexture(icon)
+        self.wash:SetGradient("HORIZONTAL", CreateColor(1, 1, 1, WASH), CreateColor(1, 1, 1, 0.03))
         local loot = GetLootSpecialization and GetLootSpecialization() or 0
         local lootIcon = loot ~= 0 and loot ~= o.specID and select(4, GetSpecializationInfoByID(loot))
         self.loot:SetShown(lootIcon and true or false)
-        if lootIcon then self.loot.icon:SetTexture(lootIcon) end
+        if lootIcon then self.loot:SetTexture(lootIcon) end
+        self.specText:ClearAllPoints()
+        if lootIcon then self.specText:SetPoint("LEFT", self.loot, "RIGHT", 4, 0) else self.specText:SetPoint("LEFT", 4, 0) end
+        self.specText:SetText(specName or "")
+        self.spec:SetWidth(4 + (lootIcon and 16 or 0) + self.specText:GetStringWidth() + 4 + 9 + 4)
         UI.setHero(self.hero.icon, o.text)
         self.title:SetText(o.title or "")
         self.caret:SetShown(o.onTitle ~= nil)
         self.nameHover:SetShown(o.onTitle ~= nil)
         self.name:SetWidth(self.title:GetStringWidth() + 8 + (o.onTitle and 15 or 0))
         self.name:SetScript("OnClick", o.onTitle and TK.safe(o.onTitle) or nil)
-        self.sub:SetText(o.sub or "")
+        self.sub:SetText(o.sub and ("· " .. o.sub) or "")
         self.where:SetWidth(math.max(1, self.sub:GetStringWidth()))
         local right, bw = self.close or nil, 0
         for _, pair in ipairs({ { self.btn2, o.two }, { self.btn1, o.one } }) do -- laid out right to left
@@ -240,9 +245,13 @@ function UI.card(name, onClose)
                 right, bw = bt, bw + bt:GetWidth() + 4
             end
         end
-        local text = math.max(self.title:GetStringWidth() + (o.onTitle and 15 or 0), self.sub:GetStringWidth())
-        local w = 6 + 2 * TILE + 4 + 8 + text + 16 + bw + (self.close and 30 or 2)
+        -- as wide as its content: tile, the longer line, buttons
+        local text = math.max(self.name:GetWidth(), self.spec:GetWidth() + 4 + self.sub:GetStringWidth())
+        local w = 6 + TILE + 4 + text + 14 + bw + (self.close and 30 or 0)
         self:SetWidth(math.ceil(math.max(o.minWidth or 0, w)))
+        -- crop the square art to the card's shape so it isn't stretched
+        local keep = 0.84 * self:GetHeight() / self:GetWidth()
+        self.wash:SetTexCoord(0.08, 0.92, 0.5 - keep / 2, 0.5 + keep / 2)
         self:Show()
     end
     c:Hide()
