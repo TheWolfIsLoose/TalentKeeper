@@ -134,7 +134,7 @@ function UI.chevron(parent, gray)
         t:SetColorTexture(g, g, g, 1)
         t:SetSize(6, 1.5)
         t:SetPoint("CENTER", side * 2, 0)
-        t:SetRotation(side * -math.pi / 4)
+        t:SetRotation(side * math.pi / 4) -- left \ and right /: points down
     end
     return f
 end
