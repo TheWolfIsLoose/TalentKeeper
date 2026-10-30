@@ -10,10 +10,11 @@ Reference for accessibility: WCAG 2.2 (https://www.w3.org/TR/WCAG22/).
 
 - **Pocket-sized and efficient.** Every pixel and control earns its place. Small windows (players run 4K), rows 24px, no decorative chrome.
 - **Work with Blizzard's UI, don't replace it.** Sit inside or beside Blizzard's frames; leave their pieces working.
-- **One footprint, no pop-ups.** Everything an addon does beside a Blizzard window lives in its own side panel. Anything that would open a new window to interact with (import, rename, new group, options, confirmations, alerts) morphs the side panel instead: the panel swaps its view, grows or slides to fit, and returns when done. Short, quiet transitions are welcome (they still stop within 5 s, 2.2.2). Separate windows stay only for long copyable text (the log) and things that must work without the host window open (see Prompt strips). Something the player must hear about while the panel is closed gets one chat line, with the full explanation and the choice waiting in the panel (see Clash prompt).
+- **One footprint, no pop-ups.** Everything an addon does beside a Blizzard window lives in its own side panel. Anything that would open a new window to interact with (import, rename, new group, options, confirmations, alerts) morphs the side panel instead: the panel swaps its view, grows or slides to fit, and returns when done. Short, quiet transitions are welcome (they still stop within 5 s, 2.2.2). Separate windows stay only for long copyable text (the log) and things that must work without the host window open (see Build card). Something the player must hear about while the panel is closed gets one chat line, with the full explanation and the choice waiting in the panel (see Clash prompt).
 - **All controls together, at the top.** A panel's controls live in one place, never split between top and bottom. Order top to bottom: header, controls, the state (what's selected / what's live), then tabs and the list, which runs to the bottom. A form opened in the panel is the one exception: its buttons sit in the footer band.
 - **A button does one thing, always,** whenever the action is allowed. No buttons whose meaning changes with state or a second press. The two-click guard on destructive actions doesn't break this: the button still does one thing, the first click only arms it.
 - **Stable positions.** A set of items (specs, roles, views) keeps each item in the same spot and fills a fixed strip (width shared out), so the layout never shifts or leaves holes by class or state.
+- **Data in grids.** Values that get compared across rows sit in fixed columns under short headings, so differences and gaps show at a glance. Short words or abbreviations over ambiguous icons; the tooltip carries the long form. A row buys a second line only for a real problem.
 - **Monochrome, colour for meaning only.** Whites and grays carry the whole UI: on / off, focus, selection, success, identity. Colour appears only when something needs attention (`warn`, `bad`, `info`), when it's Blizzard's own, or when it identifies content.
 - **Flat and quiet.** Flat fills, 1px lines.
 - **Controls look like controls at rest**, not only on hover.
@@ -63,7 +64,7 @@ Rules:
 - No mint anywhere in the UI (Tones' Organic set colour is content, so it stays).
 - Neutral feedback ("nothing to do") is muted, not red.
 - **Colour is never the only cue (1.4.1):** pair it with a word, mark or shape (untimed key = yellow **and** a trailing x; friend vs guild = different glyphs). Yellow and red always come with a word, so they get no extra ▲ / ✕ marks.
-- **Selection vs live state:** the selection wash marks what the player clicked; white text **and** a 2px edge bar mark what's live (TalentKeeper: the build actually committed in the tree). Never the same mark for both.
+- **Selection vs live state:** the selection wash marks what the player clicked; white text **and** an edge mark what's live (TalentKeeper: the build in the tree has a solid white outline, the previewed build a marching dashed one). Never the same mark for both.
 - **Blizzard's own colours stay Blizzard's:** class colours, item quality, raid difficulty, Battle.net friend blue, guild green, Raider.IO's colours. Don't recolour them to the palette.
 - **Marks inside Blizzard's frames use Blizzard's art,** recoloured only where the game's own language already does it (TalentKeeper: the game's green glow for talents a build takes, the same glow in red for talents it drops). Our palette is for our own frames.
 - **Content colours are allowed when they identify content,** not state: SharedMedia: Tones colours its sets (Organic mint, Classic pink `FF69B4`, Memes lime `32CD32`).
@@ -115,7 +116,8 @@ The suite has two motions, and they mark **what just changed, never a standing s
 | Motion | Look | Used for |
 |---|---|---|
 | **Shimmer** | one 2 s white sweep (low alpha) across a row (a 90px band) | something new or just changed in a list: PickupGroup's new groups, a sign-up whose status changed, a new applicant when leading; TalentKeeper's saved / tagged / moved builds and the build that just went into the tree; StockClerk's rows that went short since the window last closed. Skipped when too many rows would shimmer at once (PickupGroup: 20). |
-| **Pulse** | alpha pulse, 3 times, then holds | "more below" chevrons, the picker's attention mark, an armed "Sure?" (1 s pulses; it lapses after the third); a control that wants a click as it appears: StockClerk's Restock on arriving with something short, TalentKeeper's zone-in prompt button and the ready check strip's Switch on a wrong build |
+| **Pulse** | alpha pulse, 3 times, then holds | "more below" chevrons, the picker's attention mark, an armed "Sure?" (1 s pulses; it lapses after the third); a control that wants a click as it appears: StockClerk's Restock on arriving with something short, TalentKeeper's card Switch on a wrong build |
+| **March** | a dashed outline whose dashes travel round the row (static with motion off) | TalentKeeper's previewed build: a standing preview, so it's the one motion allowed to keep going while the preview is up |
 
 - **Motion during a game hitch is invisible:** don't animate on events where the game freezes (a spec change landing). Animate before (a cast fill) or after.
 - A new motion joins this table before it ships in any addon.
