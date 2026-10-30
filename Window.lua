@@ -363,18 +363,6 @@ local function row(i)
     r.update = UI.button(r, "Update", 52, function(self) if self.b then B.updateToCurrent(self.b) end end)
     r.update:SetPoint("RIGHT", r.new, "LEFT", -4, 0)
     for _, bt in ipairs({ r.new, r.update }) do
-        bt:HookScript("OnEnter", function(self)
-            GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-            if self == r.update then
-                GameTooltip:SetText("Update " .. (self.b and self.b.name or ""))
-                GameTooltip:AddLine("Saves your talents now into this build.", 0.74, 0.74, 0.74, true)
-            else
-                GameTooltip:SetText("New build")
-                GameTooltip:AddLine("Saves your talents now as a new build.", 0.74, 0.74, 0.74, true)
-            end
-            GameTooltip:Show()
-        end)
-        bt:HookScript("OnLeave", GameTooltip_Hide)
         bt:Hide()
     end
     r.hint = r:CreateFontString(nil, "OVERLAY", "TalentKeeperFontSmall") -- in the grid's place on Unsaved talents
@@ -438,8 +426,11 @@ local function row(i)
     r:SetScript("OnEnter", TK.safe(function(self)
         GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
         if not self.b then
-            GameTooltip:SetText("Unsaved talents")
-            GameTooltip:AddLine("Your talents now aren't a saved build. Update saves them into the build you last applied; New (or a click here) saves a new build.", 0.74, 0.74, 0.74, true)
+            -- what changed since the build you last applied, talent by talent
+            local base = self.update.b
+            GameTooltip:SetText(base and ("Changed from " .. base.name) or "Unsaved talents")
+            local d = base and C.diff(base.text, B.currentString())
+            for _, line in ipairs(d and C.describe(d, 8) or {}) do GameTooltip:AddLine(line, 0.74, 0.74, 0.74) end
             return GameTooltip:Show()
         end
         GameTooltip:SetText(self.b.name)
@@ -465,7 +456,6 @@ local function row(i)
         elseif g.name then
             GameTooltip:AddDoubleLine("Gear", g.name .. (g.missing and " |cffffd84a(not found)|r" or ""), 0.55, 0.55, 0.55, 1, 1, 1)
         end
-        GameTooltip:AddLine("Click to preview on the tree, double-click to apply. Drag to reorder, or onto a group heading.", 0.55, 0.55, 0.55, true)
         GameTooltip:Show()
     end))
     r:SetScript("OnLeave", GameTooltip_Hide)
@@ -606,26 +596,6 @@ local function moreItems(b, owner)
     }
 end
 
-local function tip(bt, title, body)
-    bt:HookScript("OnEnter", function(self)
-        GameTooltip:SetOwner(self, "ANCHOR_TOP")
-        GameTooltip:SetText(title)
-        GameTooltip:AddLine(TK.selected and body or "Pick a build first.", 0.74, 0.74, 0.74, true)
-        GameTooltip:Show()
-    end)
-    bt:HookScript("OnLeave", GameTooltip_Hide)
-end
-
-local function hoverTip(bt, title, body)
-    bt:HookScript("OnEnter", function(self)
-        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-        GameTooltip:SetText(title)
-        GameTooltip:AddLine(body, 0.74, 0.74, 0.74, true)
-        GameTooltip:Show()
-    end)
-    bt:HookScript("OnLeave", GameTooltip_Hide)
-end
-
 local function makeDetail()
     -- the control rows under the spec strip: the build's actions, then the list's
     local function on(fn) return function(self) local b = TK.selected if b then fn(b, self) end end end
@@ -633,22 +603,17 @@ local function makeDetail()
     detail = CreateFrame("Frame", nil, pane)
     detail.apply = UI.button(pane, "Apply", third, on(function(b) B.apply(b) end))
     detail.apply:SetPoint("TOPLEFT", COL_X, ROW1)
-    tip(detail.apply, "Apply", "Changes your talents to the build you're previewing (same as double-clicking it).")
     local tagsBtn = UI.button(pane, "Tags...", third, on(function(b, self) UI.tagMenu(self, b) end))
     tagsBtn:SetPoint("LEFT", detail.apply, "RIGHT", GAP, 0)
-    tip(tagsBtn, "Tags", "The dungeons, delves and bosses this build is for.")
     local more = UI.button(pane, "More...", COL_W - 2 * (third + GAP), on(function(b, self)
         UI.picker(self, b.name, function() return moreItems(b, self) end)
     end))
     more:SetPoint("LEFT", tagsBtn, "RIGHT", GAP, 0)
-    tip(more, "More", "Group, rename, copy the talent string, update to your talents, delete.")
     local half = math.floor((COL_W - GAP) / 2)
     local save = UI.button(pane, "Save current", half, function() UI.buildDialog(false) end)
     save:SetPoint("TOPLEFT", COL_X, ROW2)
-    hoverTip(save, "Save current", "Save your talents now as a new build.")
     local import = UI.button(pane, "Import", COL_W - half - GAP, function() UI.buildDialog(true) end)
     import:SetPoint("LEFT", save, "RIGHT", GAP, 0)
-    hoverTip(import, "Import", "Paste a talent string; it shows on the tree before you save it.")
     detail.buttons = { detail.apply, tagsBtn, more }
 end
 
@@ -862,7 +827,7 @@ local function specButtons()
             GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
             GameTooltip:SetText(name)
             local n = #(TK.db.builds[specID] or {})
-            GameTooltip:AddLine(i == GetSpecialization() and "Your spec now." or ("Click to change to %s (%d build%s)."):format(name, n, n == 1 and "" or "s"), 0.74, 0.74, 0.74, true)
+            GameTooltip:AddLine(("%d build%s"):format(n, n == 1 and "" or "s"), 0.74, 0.74, 0.74)
             GameTooltip:Show()
         end)
         b:SetScript("OnLeave", GameTooltip_Hide)
@@ -974,7 +939,6 @@ local function seasonRow(i)
             GameTooltip:AddDoubleLine(sp.name, b and b.name or "nothing tagged", 0.74, 0.74, 0.74,
                 b and 1 or 0.55, b and 1 or 0.55, b and 1 or 0.55)
         end
-        GameTooltip:AddLine("Click to pick a build for any of your specs.", 0.55, 0.55, 0.55, true)
         GameTooltip:Show()
     end)
     r:SetScript("OnLeave", GameTooltip_Hide)
@@ -1147,11 +1111,6 @@ local function makeTabs()
         t.bar:SetPoint("BOTTOMLEFT"); t.bar:SetPoint("BOTTOMRIGHT")
         t:SetScript("OnEnter", function(self)
             if not self.bar:IsShown() then self.text:SetTextColor(1, 1, 1) end
-            if self.which ~= "season" then return end
-            GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-            GameTooltip:SetText("Tag Overview")
-            GameTooltip:AddLine("This season's dungeons, delves and raid bosses, with the build tagged for each of your specs. The gaps stand out; click a place to tag one.", 0.74, 0.74, 0.74, true)
-            GameTooltip:Show()
         end)
         t:SetScript("OnLeave", function(self) if not self.bar:IsShown() then self.text:SetTextColor(0.55, 0.55, 0.55) end GameTooltip_Hide() end)
         t:SetScript("OnClick", TK.safe(function(self) showTab(self.which) end))
@@ -1432,12 +1391,8 @@ local function makeOptions()
     s:SetThumbTexture(thumb)
     s:SetScript("OnEnter", function(self)
         setRing(0.7)
-        GameTooltip:SetOwner(self, "ANCHOR_TOP")
-        GameTooltip:SetText("Talent window size")
-        GameTooltip:AddLine("Drag to make the talent window smaller or bigger. It stays where it is on screen.", 0.74, 0.74, 0.74, true)
-        GameTooltip:Show()
     end)
-    s:SetScript("OnLeave", function() setRing(0.4) GameTooltip_Hide() end)
+    s:SetScript("OnLeave", function() setRing(0.4) end)
     -- applied on release: resizing while dragging moves the slider (the pane hangs off the window)
     -- under the cursor, which fed back into the value
     local pending

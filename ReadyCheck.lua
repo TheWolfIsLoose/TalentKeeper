@@ -124,13 +124,6 @@ local function makeStrip()
         end
         placeStrip()
     end)
-    strip:SetScript("OnEnter", function(self)
-        GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
-        GameTooltip:SetText("TalentKeeper")
-        GameTooltip:AddLine("Shift-drag to move.", 0.74, 0.74, 0.74)
-        GameTooltip:Show()
-    end)
-    strip:SetScript("OnLeave", GameTooltip_Hide)
     strip.where:SetScript("OnEnter", function(self) if self.pick then strip.sub:SetTextColor(1, 1, 1) end end)
     strip.where:SetScript("OnLeave", function() strip.sub:SetTextColor(0.74, 0.74, 0.74) end)
 end
@@ -215,6 +208,7 @@ end
 -- a spec change from the card's spec tile: show the new spec's side (a picked build was the old spec's)
 TK.on("ACTIVE_PLAYER_SPECIALIZATION_CHANGED", function() chosen = nil R.refresh() end)
 TK.on("TRAIT_CONFIG_UPDATED", function() R.refresh() end) -- an apply landed: ready
+TK.on("PLAYER_LOOT_SPEC_UPDATED", function() R.refresh() end) -- the spec tile's loot badge
 function R.hide(why)
     chosen = nil
     if not strip or not strip:IsShown() then return end

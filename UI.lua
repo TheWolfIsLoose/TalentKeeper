@@ -123,6 +123,22 @@ function UI.setHero(tex, text)
     tex:SetTexCoord(l + w, r - w, t + h, bt - h)
 end
 
+-- The suite's dropdown mark: a small drawn chevron (two 45° strokes) on anything that opens a menu,
+-- so it reads as a dropdown without a tooltip.
+function UI.chevron(parent, gray)
+    local f = CreateFrame("Frame", nil, parent)
+    f:SetSize(9, 6)
+    local g = gray or 0.74
+    for side = -1, 1, 2 do
+        local t = f:CreateTexture(nil, "OVERLAY")
+        t:SetColorTexture(g, g, g, 1)
+        t:SetSize(6, 1.5)
+        t:SetPoint("CENTER", side * 2, 0)
+        t:SetRotation(side * -math.pi / 4)
+    end
+    return f
+end
+
 -- A build card: the spec's tile and the build's hero emblem, the build name, a line under it saying
 -- where and how it stands, and up to two buttons (plus x when it can be closed). The ready check
 -- and the delve prompt both use it, so a glance says which spec and build without reading.
@@ -145,35 +161,42 @@ function UI.card(name, onClose)
         f.icon:SetPoint("TOPLEFT", 1, -1); f.icon:SetPoint("BOTTOMRIGHT", -1, 1)
         return f
     end
-    -- the spec tile is a button: change spec or loot spec
+    -- the spec tile is a dropdown (spec and loot spec): a chevron badge in its corner says so, and a
+    -- small loot badge at the top shows a loot spec that isn't the current one
     c.spec, c.hero = tile(6, "Button"), tile(6 + TILE + 4, "Frame")
     c.spec.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
     fill(c.spec, "HIGHLIGHT", 1, 1, 1, 0.15)
+    local badge = CreateFrame("Frame", nil, c.spec)
+    badge:SetSize(12, 10)
+    badge:SetPoint("BOTTOMRIGHT", -1, 1)
+    fill(badge, "ARTWORK", 0, 0, 0, 0.8)
+    UI.chevron(badge, 0.9):SetPoint("CENTER", 0, 0)
+    c.loot = CreateFrame("Frame", nil, c.spec)
+    c.loot:SetSize(14, 14)
+    c.loot:SetPoint("TOPRIGHT", 3, 3)
+    ring(c.loot, 0)
+    c.loot.icon = c.loot:CreateTexture(nil, "OVERLAY")
+    c.loot.icon:SetPoint("TOPLEFT", 1, -1); c.loot.icon:SetPoint("BOTTOMRIGHT", -1, 1)
+    c.loot.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
     c.spec:SetScript("OnClick", TK.safe(function(self) UI.specMenu(self) end))
-    c.spec:SetScript("OnEnter", function(self)
+    c.spec:SetScript("OnEnter", function(self) -- what it is: the spec and where loot goes
         GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
-        GameTooltip:SetText("Spec and loot spec")
+        GameTooltip:SetText(c.specName or "")
         local loot = GetLootSpecialization and GetLootSpecialization() or 0
         GameTooltip:AddLine("Loot: " .. (loot == 0 and "current spec" or select(2, GetSpecializationInfoByID(loot)) or "?"), 0.74, 0.74, 0.74)
-        GameTooltip:AddLine("Click to change either.", 0.55, 0.55, 0.55)
         GameTooltip:Show()
     end)
     c.spec:SetScript("OnLeave", GameTooltip_Hide)
-    -- the build name is a button when the card can offer another build (c:Set's onTitle)
+    -- the build name is a dropdown when the card can offer another build (c:Set's onTitle)
     c.name = CreateFrame("Button", nil, c)
-    c.name:SetPoint("TOPLEFT", c.hero, "TOPRIGHT", 8, 0)
-    c.name:SetHeight(18)
+    c.name:SetPoint("TOPLEFT", c.hero, "TOPRIGHT", 4, 2)
+    c.name:SetHeight(20)
+    c.nameHover = fill(c.name, "HIGHLIGHT", 1, 1, 1, 0.08)
     c.title = c.name:CreateFontString(nil, "OVERLAY", "TalentKeeperFontLarge")
-    c.title:SetPoint("LEFT")
+    c.title:SetPoint("LEFT", 4, 0)
     c.title:SetWordWrap(false)
-    c.name:SetScript("OnEnter", function(self)
-        if not self.pick then return end
-        c.title:SetTextColor(0.851, 0.851, 0.851)
-        GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
-        GameTooltip:SetText("Pick another build")
-        GameTooltip:Show()
-    end)
-    c.name:SetScript("OnLeave", function() c.title:SetTextColor(1, 1, 1) GameTooltip:Hide() end)
+    c.caret = UI.chevron(c.name)
+    c.caret:SetPoint("LEFT", c.title, "RIGHT", 6, -1)
     -- the second line is a button so the ready check can make it clickable (correct the boss)
     c.where = CreateFrame("Button", nil, c)
     c.where:SetHeight(14)
@@ -189,12 +212,18 @@ function UI.card(name, onClose)
     c.btn1.pulse = UI.pulse(c.btn1)
     c.btn2 = button(c, "", 70, function() end)
     function c:Set(o)
-        local icon = o.specID and select(4, GetSpecializationInfoByID(o.specID))
+        local _, specName, _, icon = GetSpecializationInfoByID(o.specID or 0)
         self.spec.icon:SetTexture(icon)
+        self.specName = specName
+        local loot = GetLootSpecialization and GetLootSpecialization() or 0
+        local lootIcon = loot ~= 0 and loot ~= o.specID and select(4, GetSpecializationInfoByID(loot))
+        self.loot:SetShown(lootIcon and true or false)
+        if lootIcon then self.loot.icon:SetTexture(lootIcon) end
         UI.setHero(self.hero.icon, o.text)
         self.title:SetText(o.title or "")
-        self.name:SetWidth(math.max(1, self.title:GetStringWidth()))
-        self.name.pick = o.onTitle
+        self.caret:SetShown(o.onTitle ~= nil)
+        self.nameHover:SetShown(o.onTitle ~= nil)
+        self.name:SetWidth(self.title:GetStringWidth() + 8 + (o.onTitle and 15 or 0))
         self.name:SetScript("OnClick", o.onTitle and TK.safe(o.onTitle) or nil)
         self.sub:SetText(o.sub or "")
         self.where:SetWidth(math.max(1, self.sub:GetStringWidth()))
@@ -211,7 +240,7 @@ function UI.card(name, onClose)
                 right, bw = bt, bw + bt:GetWidth() + 4
             end
         end
-        local text = math.max(self.title:GetStringWidth(), self.sub:GetStringWidth())
+        local text = math.max(self.title:GetStringWidth() + (o.onTitle and 15 or 0), self.sub:GetStringWidth())
         local w = 6 + 2 * TILE + 4 + 8 + text + 16 + bw + (self.close and 30 or 2)
         self:SetWidth(math.ceil(math.max(o.minWidth or 0, w)))
         self:Show()
@@ -235,15 +264,18 @@ function UI.specMenu(owner)
         end
         items[#items + 1] = { heading = "Loot" }
         items[#items + 1] = { label = "Current spec", checked = function() return GetLootSpecialization() == 0 end,
-            onClick = function() SetLootSpecialization(0) return "keep" end }
+            onClick = function() SetLootSpecialization(0) UI.refreshCards() return "keep" end }
         for i = 1, GetNumSpecializations() or 0 do
             local id, name = GetSpecializationInfo(i)
             items[#items + 1] = { label = name, checked = function() return GetLootSpecialization() == id end,
-                onClick = function() SetLootSpecialization(id) return "keep" end }
+                onClick = function() SetLootSpecialization(id) UI.refreshCards() return "keep" end }
         end
         return items
     end)
 end
+
+-- Cards redraw when the loot spec changes (its badge); set by whoever shows cards.
+function UI.refreshCards() if TK.readycheck and TK.readycheck.refresh then TK.readycheck.refresh() end end
 
 -- This spec's builds, by group, in a picker; onPick(b).
 function UI.buildMenu(owner, specID, onPick)

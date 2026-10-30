@@ -17,7 +17,8 @@ Reference for accessibility: WCAG 2.2 (https://www.w3.org/TR/WCAG22/).
 - **Monochrome, colour for meaning only.** Whites and grays carry the whole UI: on / off, focus, selection, success, identity. Colour appears only when something needs attention (`warn`, `bad`, `info`), when it's Blizzard's own, or when it identifies content.
 - **Flat and quiet.** Flat fills, 1px lines.
 - **Controls look like controls at rest**, not only on hover.
-- **Help lives in tooltips**, never in standing lines of text. A short status or reason line is fine when it changes.
+- **Controls telegraph their use.** How a thing is used shows in how it looks: a dropdown has the chevron, a button looks like a button, a draggable row looks draggable. No standing help lines, and no instructions in tooltips either ("click to…", "drag to…", "shift-drag…"); a control that needs one is drawn wrong. A short status or reason line is fine when it changes.
+- **Tooltips carry insight, not instructions.** Hovering something tells you what it is or holds, concentrated: a build's tags and gear, what changed, where loot goes, why something is off. Skip a tooltip that would only repeat the label.
 - **Standalone.** No dependency on other addons; optional pass-through from them (Raider.IO, LibSharedMedia) when present.
 
 ## Colour tokens
@@ -48,7 +49,7 @@ All text tokens pass 4.5:1 on the panel (0.06 grey) and the window (0.031 grey);
 |---|---|---|---|
 | text | `FFFFFF` | 19:1 | body, values, names; also "on", live, hover, focus, success (with ✓), the first word of the title |
 | `glyphRest` | `B3B3B3` (0.7) | 9.1:1 | header icons and secondary values at rest, the second word of the title |
-| `soft` | `BDBDBD` (0.74) | 10:1 | tooltip bodies, explanations, instructions |
+| `soft` | `BDBDBD` (0.74) | 10:1 | tooltip bodies, explanations, secondary lines |
 | `muted` | `8C8C8C` (0.55) | 5.7:1 | labels, column headings, placeholders, "off", hints in chat, release version label |
 | faint | `666666` (0.4) | 3.3:1 | decoration only: an em-dash for "no value", separator dots. Never words. |
 | `warn` | `FFD84A` yellow | 13.9:1 | warnings, untimed / over cap, dev / alpha / beta version label |
@@ -86,7 +87,8 @@ Every panel and window starts with the same header strip (`band`):
 
 | Control | Look | Behaviour |
 |---|---|---|
-| Button | 20px tall, Small font; flat face (`btnRest`), grey rest ring, hover wash, press flash; label via `SetText`, muted when disabled | grayed buttons still show a tooltip saying why |
+| Button | 20px tall, Small font; flat face (`btnRest`), grey rest ring, hover wash, press flash; label via `SetText`, muted when disabled | no tooltip unless it says something the label can't (why it's grayed) |
+| Dropdown | anything that opens a menu carries the drawn chevron (two 45° strokes, 9x6, `soft`): after a text label, or on a dark badge in an icon tile's bottom-right corner; hover wash on the whole control | opens the suite's picker |
 | Checkbox | 16px well + grey ring, white square when on; label is part of the click area (24px tall) | rows 24px apart |
 | Slider | well track + grey ring, light gray thumb (white while dragging), value as % above it | applied on release, not while dragging |
 | Text box | well + grey ring; lighter ring on hover; white ring while typing; placeholder names the field (muted) | clears focus when hidden; never `EnableKeyboard(true)` |
@@ -98,13 +100,13 @@ Every panel and window starts with the same header strip (`band`):
 | Side panel / sidecar | docked to the window's edge, window height, one view at a time | opens where the player needs it (PickupGroup: with the search pane); forms and options open as a view inside it, never a separate window |
 | Footer band | 36px, a black 1px rule over a `band` strip | holds a form's buttons when it opens in the panel |
 | Clash prompt | a view in the side panel: Large title naming the choice ("Turn off <other addon>'s group finder?"), a `soft` note saying what overlaps, one 24px check row per clashing feature (ticked = theirs stays on), footer band with "Reload now" and "Later" | while a clash stands, our overlapping part is off. The view opens by itself the next time the panel opens; at login, one chat line points there. Unticking turns their feature off from the next reload: our addon writes that one setting in the other addon's saved settings, or turns the whole addon off when the clash is the whole addon; "Later" keeps ours off and asks again next login. Follows TalentKeeper's "Turn off the other talent addons?" view |
-| Prompt strip | small strip outside the host window (TalentKeeper's zone-in bar and ready check strip); panel fill, grey ring | shift-drag to move; closes with the thing it's attached to; one at a time |
+| Build card | small card outside the host window (TalentKeeper's ready check and delve cards): spec tile (dropdown: spec and loot spec, loot badge when loot goes elsewhere), hero emblem tile, Large build name (dropdown where another build can be picked), a `soft` line saying where and how it stands, buttons at the right; panel fill, grey ring | hangs off what it's attached to (the ready check card keeps its offset from the popup); closes with it; one at a time |
 | Lists | rows 24px (18px in dense tables), 5% alternate shading; entries under a heading indent and hang from it on tree lines (1px 0.3 gray trunk from the heading, a short branch to each entry, the trunk ending at the last); no scroll bars in our own lists: a "more below" chevron pulses (see Motion) | long text windows (log, history) keep Blizzard's scroll bar |
 
 - No Blizzard button / checkbox templates; build through each addon's kit helpers (`Kit.*` in PickupGroup, `MF.*` in StockClerk, `UI.*` in TalentKeeper).
 - All fills use `SetColorTexture` (White8x8 + vertex colour renders transparent on retail); 1px lines turn off texel snapping.
 - Tooltips: `HookScript`, never `SetScript`, on styled controls. Title in white, body in `soft`. Anchor so a tooltip can't cover its own trigger.
-- **Hint tooltips** (how a control works) can be switched off by the player; **information tooltips** (groups, reasons, results) always show.
+- Only **information tooltips** (groups, reasons, results, contents). No hint tooltips (how a control works): the control's look says that.
 
 ## Motion
 
