@@ -357,6 +357,26 @@ local function row(i)
     end
     placeGrid(r)
     r.gridKey = KINDS[3].hidden
+    -- Unsaved talents: Update (into the build you last applied) and New, in the grid's place
+    r.new = UI.button(r, "New", 40, function() UI.buildDialog(false) end)
+    r.new:SetPoint("RIGHT", r, "TOPRIGHT", -6, LINE1)
+    r.update = UI.button(r, "Update", 52, function(self) if self.b then B.updateToCurrent(self.b) end end)
+    r.update:SetPoint("RIGHT", r.new, "LEFT", -4, 0)
+    for _, bt in ipairs({ r.new, r.update }) do
+        bt:HookScript("OnEnter", function(self)
+            GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+            if self == r.update then
+                GameTooltip:SetText("Update " .. (self.b and self.b.name or ""))
+                GameTooltip:AddLine("Saves your talents now into this build.", 0.74, 0.74, 0.74, true)
+            else
+                GameTooltip:SetText("New build")
+                GameTooltip:AddLine("Saves your talents now as a new build.", 0.74, 0.74, 0.74, true)
+            end
+            GameTooltip:Show()
+        end)
+        bt:HookScript("OnLeave", GameTooltip_Hide)
+        bt:Hide()
+    end
     r.hint = r:CreateFontString(nil, "OVERLAY", "TalentKeeperFontSmall") -- in the grid's place on Unsaved talents
     r.hint:SetPoint("RIGHT", r, "TOPRIGHT", -8, LINE1)
     r.hint:SetTextColor(0.55, 0.55, 0.55)
@@ -419,7 +439,7 @@ local function row(i)
         GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
         if not self.b then
             GameTooltip:SetText("Unsaved talents")
-            GameTooltip:AddLine("Your talents now aren't a saved build. Click to save them.", 0.74, 0.74, 0.74, true)
+            GameTooltip:AddLine("Your talents now aren't a saved build. Update saves them into the build you last applied; New (or a click here) saves a new build.", 0.74, 0.74, 0.74, true)
             return GameTooltip:Show()
         end
         GameTooltip:SetText(self.b.name)
@@ -702,11 +722,17 @@ function W.refresh()
             if r.b then r.StopShimmer() end
             r.b = nil
             setHero(r.hero, B.currentString())
-            r.text:SetText("Unsaved talents")
-            r.text:SetTextColor(0.74, 0.74, 0.74)
+            -- changed from the build you last applied: name it, and Update saves into it
+            local base
+            for _, b in ipairs(B.list(specID)) do if b.name == TK.db.active[specID] then base = b end end
+            r.text:SetText(base and (base.name .. " |cff8c8c8c· changed|r") or "Unsaved talents")
+            r.text:SetTextColor(base and 1 or 0.74, base and 1 or 0.74, base and 1 or 0.74)
             placeKinds(r, nil)
             r.gear:Hide() r.gear.none:SetText("")
-            r.hint:SetText("Click to save")
+            r.hint:SetText("")
+            r.update.b = base
+            r.update:SetShown(base ~= nil)
+            r.new:Show()
             r.status:SetText("")
             r:SetHeight(line.h)
             r.stripe:Hide(); r.sel:Hide()
@@ -723,6 +749,7 @@ function W.refresh()
             r.text:SetText(b.name)
             setHero(r.hero, b.text)
             placeKinds(r, tagsByKind(b))
+            r.update:Hide(); r.new:Hide()
             local g = W.gearFor(b)
             W.placeGear(r.gear, g)
             r.status:SetText(b.outdated and "Outdated: some talents no longer fit the tree."
