@@ -96,13 +96,13 @@ local function popup() -- what the card sits under: the game's ready check popup
     if ReadyCheckFrame and ReadyCheckFrame:IsShown() then return ReadyCheckFrame end
 end
 
+-- The card hangs off the popup: by default flush under it; shift-drag moves it, kept as an
+-- offset from the popup (TK.db.readyCheckOffset), so it stays attached wherever the popup is.
 local function placeStrip()
     strip:ClearAllPoints()
-    local pos = TK.db.readyCheckPos
-    if pos then
-        strip:SetPoint(pos.point, UIParent, pos.point, pos.x, pos.y)
-    elseif popup() then
-        strip:SetPoint("TOP", popup(), "BOTTOM", 0, 1) -- flush: the edges overlap
+    local off, p = TK.db.readyCheckOffset, popup()
+    if p then
+        strip:SetPoint("TOP", p, "BOTTOM", off and off.x or 0, off and off.y or 1) -- flush: the edges overlap
     else
         strip:SetPoint("TOP", UIParent, "TOP", 0, -200)
     end
@@ -116,8 +116,13 @@ local function makeStrip()
     strip:SetScript("OnDragStart", function(self) if IsShiftKeyDown() then self:StartMoving() end end)
     strip:SetScript("OnDragStop", function(self)
         self:StopMovingOrSizing()
-        local point, _, _, x, y = self:GetPoint()
-        TK.db.readyCheckPos = { point = point, x = x, y = y }
+        local p = popup()
+        if p then -- keep where it landed as an offset from the popup's bottom centre
+            local s = p:GetEffectiveScale() / self:GetEffectiveScale() -- offsets are in the card's own scale
+            TK.db.readyCheckOffset = { x = self:GetCenter() - p:GetCenter() * s, y = self:GetTop() - p:GetBottom() * s }
+            TK.log("readycheck: card moved to %.0f, %.0f from the popup", TK.db.readyCheckOffset.x, TK.db.readyCheckOffset.y)
+        end
+        placeStrip()
     end)
     strip:SetScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
@@ -176,7 +181,7 @@ function R.show(check)
     end
     if not strip then makeStrip() end
     -- flush under Blizzard's popup and as wide, so it reads as part of it
-    card.minWidth = not TK.db.readyCheckPos and popup() and popup():GetWidth() or nil
+    card.minWidth = popup() and popup():GetWidth() or nil
     strip:Set(card)
     strip.where.pick = here.pick
     strip.where:SetScript("OnClick", here.pick and TK.safe(function(self) R.pickBoss(self) end) or nil)
@@ -222,13 +227,22 @@ TK.on("READY_CHECK", function() C_Timer.After(0.1, TK.safe(function() R.show(tru
 TK.on("READY_CHECK_FINISHED", function() R.hide("finished") end) -- everyone answered or it timed out (also for whoever started it, who gets no popup)
 TK.on("ENCOUNTER_START", function(enc) learnRoom(enc, "pull") end)
 TK.on("ENCOUNTER_END", function(_, _, _, _, success) if success == 1 then manual = nil end end)
-TK.on("ADDON_LOADED", function(name) if name == "TalentKeeper" then TK.db.rooms = TK.db.rooms or {} end end)
+TK.on("ADDON_LOADED", function(name)
+    if name ~= "TalentKeeper" then return end
+    TK.db.rooms = TK.db.rooms or {}
+    TK.db.readyCheckPos = nil -- the old screen position: the card now always hangs off the popup
+end)
 
 -- /tk readycheck: the card's three looks without a ready check, under a stand-in the size and
 -- place of the game's popup. Each call shows the next look; the fourth closes it. The buttons only
 -- close the card here: nothing is tagged or switched.
 local step = 0
-TK.commands.readycheck = function()
+TK.commands.readycheck = function(arg)
+    if arg == "reset" then
+        TK.db.readyCheckOffset = nil
+        if strip and strip:IsShown() then placeStrip() end
+        return TK.chat("Ready check card back under the popup.")
+    end
     step = step % 4 + 1
     if not stand then
         stand = CreateFrame("Frame", "TalentKeeperReadyCheckStandIn", UIParent)
@@ -267,7 +281,7 @@ TK.commands.readycheck = function()
           one = { "Use " .. b.name, close }, two = { "Choose...", close } },
     }
     local card = looks[step]
-    card.minWidth = not TK.db.readyCheckPos and stand:GetWidth() or nil
+    card.minWidth = stand:GetWidth()
     strip:Set(card)
     strip.where.pick = nil
     strip.where:SetScript("OnClick", nil)
