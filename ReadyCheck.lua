@@ -148,7 +148,7 @@ local hooked -- ReadyCheckFrame's OnHide hooked once
 local chosen
 -- The card for a build picked by hand: ready if you're on it, else Apply.
 local function chosenCard(b, spec, place)
-    if P.onBuild(b, spec) then return { specID = spec, text = b.text, title = b.name, sub = place .. " · ready" } end
+    if P.onBuild(b, spec) then return { specID = spec, text = b.text, title = b.name, sub = place } end
     return { specID = spec, text = b.text, title = b.name, sub = place .. " · picked",
         one = { "Apply", function() TK.log("readycheck: apply picked '%s'", b.name) B.apply(b) R.hide() end } }
 end
@@ -167,7 +167,7 @@ function R.show(check)
     if chosen then
         card, what = chosenCard(chosen, spec, place), "picked '" .. chosen.name .. "'"
     elseif mine and P.onBuild(mine, spec) then -- a quiet confirmation
-        card = { specID = spec, text = mine.text, title = mine.name, sub = place .. " · ready" }
+        card = { specID = spec, text = mine.text, title = mine.name, sub = place }
         what = "on '" .. mine.name .. "'"
     elseif mine then
         card = { specID = spec, text = mine.text, title = mine.name, sub = place .. " · |cffffd84anot on it|r",
@@ -258,7 +258,7 @@ function R.preview()
     for _, name in pairs(b.tags or {}) do place = name break end
     local close = function() R.hide() end
     local looks = {
-        { specID = spec, text = b.text, title = b.name, sub = place .. " · ready" },
+        { specID = spec, text = b.text, title = b.name, sub = place },
         { specID = spec, text = b.text, title = b.name, sub = place .. " · |cffffd84anot on it|r", one = { "Switch", close } },
         { specID = spec, text = b.text, title = ("Use %s here?"):format(b.name), sub = place .. " · nothing for " .. B.specName(spec),
           one = { "Use " .. b.name, close }, two = { "Choose...", close } },
