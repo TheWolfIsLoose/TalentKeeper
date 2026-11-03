@@ -56,10 +56,10 @@ All text tokens pass 4.5:1 on the panel (0.06 grey) and the window (0.031 grey);
 | `warn` | `FFD84A` yellow | 13.9:1 | warnings, untimed / over cap, dev / alpha / beta version label |
 | `bad` | `FF6666` red | 6.7:1 | errors, failures, shortages, destructive labels |
 | `info` | `5AA9FF` blue | 7.8:1 | something worth a look that isn't a problem (PickupGroup's leader view: fills a seat); also StockClerk's Warband view (its one mode colour). Never for "new" in a group list: Blizzard colours a group with a friend in it blue, so new groups get a white edge instead. Blue keeps both meanings only while they never share an addon: StockClerk uses blue for Warband alone |
-| `good` | `4ADE80` green | 11.0:1 | yours and in progress: PickupGroup's sign-ups while they're waiting or invited (name, dungeon, edge), a sign-up that got you in (added 2026-10-23) |
+| `good` | `4ADE80` green | 11.0:1 | yours and in progress: PickupGroup's sign-ups while they're waiting or invited (name, dungeon, edge), a sign-up that got you in |
 
 Rules:
-- **Marks are drawn, not typed:** the bundled font has no ✓ (only × and !), so the check is a drawn glyph like the header icons (Expressway may lack it too).
+- **Marks are drawn, not typed:** the bundled font has no ✓ (only × and !), so the check is a drawn glyph like the header icons (Expressway may lack it too). Same for the dropdown chevron.
 - Four meaning colours, far apart in hue: yellow (the bright one) and red (the dark one) for attention, blue for info, green for yours and in progress (yellow vs red 2.1:1, where the old amber vs red was 1.3:1). No near-duplicates, no fifth colour without a guide change. Green is not mint: a saturated mid green, kept to things that are the player's own and still going.
 - No mint anywhere in the UI (Tones' Organic set colour is content, so it stays).
 - Neutral feedback ("nothing to do") is muted, not red.
@@ -135,7 +135,7 @@ The suite has two motions, and they mark **what just changed, never a standing s
 | 3.2.4 Consistent identification | one look and one name per control across the suite |
 | 3.3.2 Labels | placeholders / labels say what a field is; disabled controls say why |
 
-Accepted exceptions: PickupGroup's apply-as role icons sit 17px apart. StockClerk's Restock button stays in its footer, because it turns into the checkout bar during a run. TalentKeeper's first-login "Bring your builds in" / turn-off-the-other-addons prompt stays its own window when the talent window isn't open: another talent addon's panel loads in the same spot as the pane, so a prompt in the pane couldn't be reached to resolve the clash (found in the 0.4.0 cycle, 2026-10-22).
+Accepted exceptions: PickupGroup's apply-as role icons sit 17px apart. StockClerk's Restock button stays in its footer, because it turns into the checkout bar during a run. TalentKeeper's first-login "Bring your builds in" / turn-off-the-other-addons prompt stays its own window when the talent window isn't open: another talent addon's panel loads in the same spot as the pane, so a prompt in the pane couldn't be reached to resolve the clash (found in the 0.4.0 cycle).
 
 Measure: WCAG relative luminance of each colour composited over its real background; ratio = (L1 + 0.05) / (L2 + 0.05). Re-measure after any palette change.
 
@@ -167,7 +167,7 @@ Suite vocabulary (one word per idea across the addons):
 
 - Prefix: the addon's two-tone name, then a colon: `|cffffffffPickup|r|cffb3b3b3Group|r: ...` (white + `glyphRest`, as in the header).
 - One load line: `<Name>: v1.2.3 loaded. Type /cmd to <verb>.` The command in white. Git checkouts show `dev <commit>` instead of the version.
-- Help lists: `/cmd sub` in white, ` - what it does` in muted.
+- Help lists: `/cmd sub` in white, ` - what it does` in muted. Slash help is where how-to text lives.
 - Errors in chat use `bad`; never spam (one line per event).
 - Alerts the player must see with the panel closed (another addon clashing, say) are one chat line pointing at the panel, where the clash prompt waits. No alert windows.
 
@@ -179,6 +179,7 @@ Every addon has the same README shape: centered title, one-line tagline, CurseFo
 
 - Every addon keeps a saved log with a copyable report window (`/cmd log`), and a debug switch (`/cmd debug`) for detailed steps. Debug defaults off at 1.0.
 - Log what a player or support would want: activity for players, detail for support.
+- Rare bugs get logging that catches them during normal play; the player is never asked to reproduce them on purpose.
 
 ## Per-addon colour
 
@@ -197,6 +198,4 @@ One icon per addon, built from the in-game style guide so the icon looks like th
 
 Files in every repo: `icon.png` (64 px, TOC `## IconTexture`), `.assets/logo-256.png` (README, shown at 128), `.assets/logo.png` (400 px, the CurseForge logo). `.assets/` never ships (`.pkgmeta` ignore). A new addon gets a new mark in the same frame; check it at 16 px before adopting it.
 
-## Status
-
-All four addons follow this guide as of 2026-10-22, tested in game: PickupGroup (dev 2572a6e), StockClerk (dev 7d5ccf2), TalentKeeper (dev 0ae5e89), SharedMedia: Tones (icon only). Monochrome palette, header and options pattern, clash prompt, white icons. Released 2026-10-22: PickupGroup v1.2.0, StockClerk v1.5.0, TalentKeeper v0.5.0, SharedMedia: Tones v2.7.4.
+In-addon icon tiles (TalentKeeper's spec tiles, hero emblems, gear set icons) are square in a thin grey ring with a light crop (spell icons 8% a side; hero emblems 5%); a look to reuse when unifying windows across the suite.

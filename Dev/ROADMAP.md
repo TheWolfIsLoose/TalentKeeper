@@ -11,14 +11,17 @@ disagree), **Open** (needs an answer before build).
 
 ## Next session: start here
 
-**2026-10-28: v0.5.3 released** (hotfix: tree marks no longer anchor to the game's talent buttons, which broke the hero talent layout; not yet checked in game, DevChecklist round "tree marks"). v0.5.2 2026-10-25, v0.5.1 2026-10-23; notes in `Dev/HISTORY.md`. Nothing unreleased on `dev`.
+**Status (2026-11-02):** last release v0.5.3 (2026-10-28, hotfix: tree marks no longer anchor to the game's talent buttons). Its in-game check (DevChecklist round "tree marks") is still open. On `dev`, unreleased since then (2026-10-29 / 30, notes in `Dev/HISTORY.md` "Next"): the side pane rework (one line per build with a RAID / M+ / DELVE / GEAR grid, hero emblems, outlines for the build in the tree and the preview, Unsaved talents and changed-talents rows), ready check and delve prompts as build cards (no zone-in prompt for dungeons), builds read in the background after login, and no instruction tooltips. It goes out in the next weekly Tuesday release once checked in game.
 
 Open:
-1. **More... menu:** the player's verdict on friction (Group, Rename, Copy, Update to my talents, Gear set, Delete).
-2. **Not yet seen in the wild:** bringing builds in for real, converting the second talent addon's builds, and a build's gear set going on after a real apply.
-3. **Raid rooms:** Vashnik and The Twin Fangs still need their rooms (learned passively from pulls; ship them once known).
-4. **CurseForge:** paste `Dev/CURSEFORGE.md` (screenshots, gear set line) and upload the gallery listed at its top.
-5. **PvP:** see Future: PvP.
+1. **Check in game:** the "tree marks" round (v0.5.3), then the pane rework and build cards (no round for them in the repo yet).
+2. **Build card look:** the card now uses the spec's art as a faint wash with the spec dropdown on its second line (2026-10-30); `Dev/SUITE-STYLE.md` still describes a spec tile. Settle which, then update the guide.
+3. **LoadConfig Error on the first apply after login:** a probe logs whether the replaced slot was the selected loadout; read it the next time it shows.
+4. **More... menu:** the player's verdict on friction (Group, Rename, Copy, Update to my talents, Gear set, Delete).
+5. **Not yet seen in the wild:** bringing builds in for real, converting the second talent addon's builds, and a build's gear set going on after a real apply.
+6. **Raid rooms:** Vashnik and The Twin Fangs still need their rooms (learned passively from pulls; ship them once known).
+7. **CurseForge:** retake the screenshots after the pane rework, then paste `Dev/CURSEFORGE.md` and upload the gallery listed at its top.
+8. **PvP:** see Future: PvP.
 
 ## Back to basics (player, 2026-10-18)
 

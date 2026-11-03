@@ -6,7 +6,14 @@ CHANGELOG.md. Add each release's detailed notes here when you cut it.
 
 ## Next (on `dev`, not released)
 
-Nothing yet.
+Side pane rework and build cards (2026-10-29 / 30):
+
+- Build rows: one line per build: the hero tree's emblem (cropped from `C_Texture.GetAtlasInfo`, light zoom; cropping from `GetTexCoord()` after `SetAtlas` compounded on every redraw), the name, then counts under RAID / M+ / DELVE / GEAR headings (muted dash for none; DELVE only while Ask in delves is on; gear icon grayed when the spec has its own Equipment Manager set, yellow ? when the set is gone). A second line only for a problem (talents no longer fit, gear set gone). Tried and dropped: tag-kind icons with counts, the hero tree's top talent as its icon, two-line cards.
+- The build in the tree: solid white outline; the previewed build: marching dashed outline (static with motion off). The Now / Preview block and "N changes marked" are gone. An Unsaved talents row on top when your talents aren't a saved build (click to save); when they differ from the build you last applied, the row names it with Update (save into it) and New.
+- Ready check and delve prompts are build cards: the spec's art as a faint wash, hero emblem, build name (a dropdown to pick another of the spec's builds), a line with the spec dropdown (spec and loot spec; loot icon when loot goes elsewhere) and where you stand, Switch or Use / Choose. No status word when you're on the tagged build. The ready check card sits under the game's popup, sized to its content; shift-drag keeps an offset from the popup (`/tk readycheck reset`). Dungeons no longer prompt on entry (every key has a ready check); delves keep a card. `/tk readycheck` previews the card's three looks under a stand-in popup.
+- Login: builds are read one per frame after login and the zone check waits (a check right after login once hit "script ran too long"). The SimulationCraft hook no longer logs every load. A LoadConfig Error logs whether the replaced slot was the selected loadout (probe).
+- Suite rules applied: drawn dropdown chevron (`UI.chevron`, pointing down); instruction lines removed from tooltips; the changed-talents row's tooltip lists what changed.
+- Suggested CHANGELOG: "New look for the side pane: one line per build with its raid, Mythic+, delve and gear tags in columns, and outlines for the build you're on and the one you're previewing." / "Ready check and delve reminders are now small cards where you can switch spec, loot spec or build. Dungeons remind you at the ready check instead of on entry."
 
 ## v0.5.3 (2026-10-28)
 
