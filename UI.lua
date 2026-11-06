@@ -955,4 +955,4 @@ end
 -- Key binding (Bindings.xml)
 BINDING_HEADER_TALENTKEEPER = "TalentKeeper"
 BINDING_NAME_TALENTKEEPER_MENU = "Open your builds"
-function TalentKeeper_OpenMenu() TK.safe(UI.openMenu)() end
+function TalentKeeper_OpenMenu() if TK.steppedAside then return TK.aes.notice() end TK.safe(UI.openMenu)() end

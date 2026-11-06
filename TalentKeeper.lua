@@ -47,6 +47,7 @@ end
 local handlers = {}
 local events = CreateFrame("Frame")
 events:SetScript("OnEvent", function(_, event, ...)
+    if TK.steppedAside and event ~= "ADDON_LOADED" then return end -- atrocityEssentials does it (AES.lua)
     for _, fn in ipairs(handlers[event]) do fn(...) end
 end)
 
@@ -103,6 +104,8 @@ TK.on("ADDON_LOADED", function(name)
     TK.version = version
     if db.lastVersion ~= version then TK.log("version: %s -> %s", tostring(db.lastVersion), version) end
     db.lastVersion = version
+    TK.steppedAside = TK.aes.merged() -- atrocityEssentials loads first, so its switch is known
+    if TK.steppedAside then return TK.aes.stepAside() end
     TK.chat(version .. " loaded. Type |cffffffff/tk|r to open your builds.")
 end)
 
@@ -140,6 +143,7 @@ end
 
 SLASH_TALENTKEEPER1, SLASH_TALENTKEEPER2 = "/tk", "/talentkeeper"
 SlashCmdList.TALENTKEEPER = TK.safe(function(msg)
+    if TK.steppedAside then return TK.aes.notice() end
     local sub, rest = msg:match("^%s*(%S*)%s*(.-)%s*$")
     sub = sub:lower()
     if sub == "" then return TK.ui.openMenu() end

@@ -848,7 +848,7 @@ end
 -- After the game placed it (TOPLEFT on UIParent's TOPLEFT): its middle as if at full size.
 local function recenter()
     local f = PlayerSpellsFrame
-    if not f or not f:IsShown() or InCombatLockdown() or not TK.db.windowScale then return end
+    if not f or not f:IsShown() or InCombatLockdown() or TK.steppedAside or not TK.db.windowScale then return end
     local point, rel, relPoint = f:GetPoint(1)
     if point ~= "TOPLEFT" or rel ~= UIParent or relPoint ~= "TOPLEFT" then return end -- not the game's spot
     local eff = f:GetEffectiveScale()
@@ -861,7 +861,7 @@ end
 -- now = true from the slider (back to 100% included); on open only a set size is applied
 local function applyScale(now)
     local f = PlayerSpellsFrame
-    if not f or InCombatLockdown() then return end
+    if not f or InCombatLockdown() or TK.steppedAside then return end
     local want = TK.db.windowScale or (now == true and 1)
     if not want then return end -- normal size: the game's own scale (it shrinks the window to fit small screens)
     if math.abs(f:GetScale() - want) < 0.001 then return recenter() end
@@ -1530,6 +1530,7 @@ EventUtil.ContinueOnAddOnLoaded("Blizzard_PlayerSpells", TK.safe(function()
     makeTabs()
     pane:Hide()
     tf:HookScript("OnShow", function()
+        if TK.steppedAside then return end
         local t0, start = debugprofilestop(), openStart
         if start and t0 - start > 1000 then start = nil end -- opened on another tab earlier
         openStart = nil
@@ -1552,7 +1553,7 @@ EventUtil.ContinueOnAddOnLoaded("Blizzard_PlayerSpells", TK.safe(function()
         W.hide() UI.hidePicker() pane:Hide()
         if bring and bring.inPane then bring:Hide() end -- it sits in the pane: goes with it
     end)
-    PlayerSpellsFrame:HookScript("OnShow", function() openStart = debugprofilestop() applyScale() end)
+    PlayerSpellsFrame:HookScript("OnShow", function() if not TK.steppedAside then openStart = debugprofilestop() applyScale() end end)
     hooksecurefunc("UpdateUIPanelPositions", function() TK.safe(recenter)() end) -- another panel moved it
     gear()
     applyScale()
