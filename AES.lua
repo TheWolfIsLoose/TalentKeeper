@@ -32,11 +32,20 @@ function AES.notice()
     TK.chat("atrocityEssentials' Talent Builds is on, so TalentKeeper is staying out of its way. Your builds are under |cffffffff/aes talents|r.")
 end
 
--- At login (TalentKeeper.lua calls this instead of its own start): say so and offer to turn
--- TalentKeeper off, every login until it is.
-function AES.stepAside()
-    C_Timer.After(3, function()
-        AES.notice()
-        StaticPopup_Show("TALENTKEEPER_MERGED")
-    end)
+-- Stepped aside? Read live, so switching AES's Talent Builds on takes effect without a reload.
+-- The first time it's on (at login, or the moment it's switched on): hide our pane and offer to
+-- turn TalentKeeper off, every login until it is.
+local done
+function AES.aside()
+    if not AES.merged() then return false end
+    if not done then
+        done = true
+        if TK.window and TK.window.hide then pcall(TK.window.hide) end
+        if TK.ui and TK.ui.pane then TK.ui.pane:Hide() end
+        C_Timer.After(3, function()
+            AES.notice()
+            StaticPopup_Show("TALENTKEEPER_MERGED")
+        end)
+    end
+    return true
 end
